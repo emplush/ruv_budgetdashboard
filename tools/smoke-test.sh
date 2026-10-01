@@ -132,6 +132,92 @@ r=$(login t4 10000004 ""); [[ $r == *"/SetPassword" ]] && ok "Testdaten: Erstanm
 login t6 10000006 'Test-Zugang#2026' >/dev/null; check "Testdaten: gesperrte Kostenstelle" "gesperrt"
 login t7 10000007 'Test-Zugang#2026' >/dev/null; check "Testdaten: nicht freigegebene Kostenstelle" "stimmt nicht"
 get admin /Admin/Dashboard >/dev/null; check "Dashboard nach Import" "warten auf ein Passwort"
+echo "Budgetplan"
+login al 10000001 'Test-Zugang#2026' >/dev/null
+login gl 10000002 'Test-Zugang#2026' >/dev/null
+login gl2 10000003 'Test-Zugang#2026' >/dev/null
+lastid() { grep -o 'name="id" value="[a-f0-9]\{32\}"' "$TMP/out.html" | "$1" -1 | sed 's/.*value="//;s/"$//'; }
+r=$(get gl /Budgetplan); [[ $r == 200* ]] && ok "Budgetplan erreichbar" || fail "$r"
+check "Unterpunkt Aktueller Stand" "Aktueller Stand"
+check "Unterpunkt Gesamtbudgetplan" ">Gesamtbudgetplan</a>"
+check "Unterpunkt Eingabe Budgetposition" ">Eingabe Budgetposition</a>"
+check "freigegebene Position 2026 sichtbar" "Schulungen und Weiterbildung"
+nocheck "Position 2027 nicht im Jahr 2026" "Reisekosten"
+nocheck "wartende Position nicht im Budgetplan" "Büroausstattung"
+nocheck "gesperrtes Jahr 2028 nicht wählbar" "jahr=2028"
+get gl "/Budgetplan?jahr=2027" >/dev/null; check "Jahr 2027 umschalten" "Reisekosten"
+get gl /Budgetplan/Gesamt >/dev/null; check "Gesamtbudgetplan: Jahr freigeschaltet" "Freigeschaltet"; check "Gesamtbudgetplan: Jahr gesperrt" "Gesperrt"
+get gl /Budgetplan/Eingabe >/dev/null
+check "Status Warten" "Warten"; check "Status Abgelehnt" "Abgelehnt"
+check "Grund der Ablehnung im Pop-up" "neu einreichen"
+check "Hinweis ohne Begründung" "keine Begr"
+nocheck "genehmigte Position nicht in der Statustabelle" "Software-Lizenzen"
+post gl "/Budgetplan/Eingabe?handler=Submit" --data-urlencode "Bezeichnung=" --data-urlencode "Betrag=10,00" --data-urlencode "Jahr=2026" --data-urlencode "Hinweis=x" >/dev/null
+check "Bezeichnung ist Pflicht" "Bezeichnung ein"
+post gl "/Budgetplan/Eingabe?handler=Submit" --data-urlencode "Bezeichnung=X" --data-urlencode "Betrag=12,345" --data-urlencode "Jahr=2026" --data-urlencode "Hinweis=x" >/dev/null
+check "höchstens 2 Nachkommastellen" "Nachkommastellen"
+post gl "/Budgetplan/Eingabe?handler=Submit" --data-urlencode "Bezeichnung=X" --data-urlencode "Betrag=10,00" --data-urlencode "Jahr=2028" --data-urlencode "Hinweis=x" >/dev/null
+check "gesperrtes Jahr abgelehnt" "nicht freigeschaltet"
+post gl "/Budgetplan/Eingabe?handler=Submit" --data-urlencode "Bezeichnung=X" --data-urlencode "Betrag=10,00" --data-urlencode "Jahr=2026" --data-urlencode "Hinweis=" >/dev/null
+check "Hinweistext ist Pflicht" "Hinweistext"
+submit() { post gl "/Budgetplan/Eingabe?handler=Submit" --data-urlencode "Bezeichnung=$1" --data-urlencode "Betrag=$2" --data-urlencode "Jahr=${3:-2026}" --data-urlencode "Hinweis=Smoke-Hinweis $1" >/dev/null; }
+submit "Smoke-Position-A" "1.234,56"
+check "Einreichen bestätigt" "zur Freigabe"
+check "Position wartet in der Tabelle" "Smoke-Position-A"
+submit "Smoke-Position-Zahl" "2500"; check "Betrag ohne Komma wird 2.500,00" "2.500,00 EUR"
+get al /Budgetfreigaben >/dev/null
+check "AL sieht Position unter Freigaben" "Smoke-Position-A"; check "AL sieht Betrag" "1.234,56 EUR"; check "AL sieht Hinweis" "Smoke-Hinweis Smoke-Position-A"
+check "Button Freigabe" ">Freigabe</button>"; check "Button Ablehnung" ">Ablehnung</button>"
+check "Unterpunkt Freischaltung Budgetpläne" "Freischaltung Budgetpl"
+IDA=$(grep -o 'ablehnung-titel-[a-f0-9]\{32\}">Ablehnung begr[^<]*</h2>[^"]*<p class="copy"><strong>Smoke-Position-A' <(tr '\n' ' ' < "$TMP/out.html") | grep -o '[a-f0-9]\{32\}' | head -1)
+[[ -n "$IDA" ]] && ok "ID der Position gefunden" || fail "ID Position A"
+post al "/Budgetfreigaben?handler=Approve" --data-urlencode "id=$IDA" >/dev/null; check "Freigabe erteilt" "ist freigegeben"
+nocheck "freigegebene Position nicht mehr unter Freigaben" "Smoke-Position-A"
+get gl "/Budgetplan?jahr=2026" >/dev/null; check "Position im Budgetplan 2026" "Smoke-Position-A"
+get gl /Budgetplan/Eingabe >/dev/null; nocheck "Position nicht mehr in der Statustabelle" "Smoke-Position-A"
+submit "Smoke-Position-B" "100,00"; submit "Smoke-Position-C" "200,00"
+get al /Budgetfreigaben >/dev/null
+idof() { tr '\n' ' ' < "$TMP/out.html" | grep -o "ablehnung-titel-[a-f0-9]\{32\}\">Ablehnung begr[^<]*</h2>[^\"]*<p class=\"copy\"><strong>$1" | grep -o '[a-f0-9]\{32\}' | head -1; }
+IDB=$(idof Smoke-Position-B); IDC=$(idof Smoke-Position-C)
+post al "/Budgetfreigaben?handler=Reject" --data-urlencode "id=$IDB" --data-urlencode "reason=Zu teuer fuer 2026" >/dev/null; check "Ablehnung mit Grund" "ist abgelehnt"
+get al /Budgetfreigaben >/dev/null
+post al "/Budgetfreigaben?handler=Reject" --data-urlencode "id=$IDC" --data-urlencode "reason=" >/dev/null; check "Ablehnung ohne Grund" "ist abgelehnt"
+get gl /Budgetplan/Eingabe >/dev/null
+check "Gruppenleitung sieht Ablehnungsgrund" "Zu teuer fuer 2026"
+nocheck "abgelehnte Position nicht im Budgetplan" "zzz-nie-vorhanden"
+get gl "/Budgetplan?jahr=2026" >/dev/null; nocheck "abgelehnte Position nicht im Budgetplan 2026" "Smoke-Position-B"
+get gl /Budgetplan/Eingabe >/dev/null
+IDGB=$(tr '\n' ' ' < "$TMP/out.html" | grep -o 'name="id" value="[a-f0-9]\{32\}" />[^<]*<button[^>]*aria-label="Eintrag „Smoke-Position-B' | grep -o '[a-f0-9]\{32\}' | head -1)
+[[ -n "$IDGB" ]] && ok "ID der abgelehnten Position gefunden" || fail "ID B"
+post gl "/Budgetplan/Eingabe?handler=Delete" --data-urlencode "id=$IDGB" >/dev/null; check "abgelehnte Position gelöscht" "Eintrag ist gel"
+nocheck "gelöschte abgelehnte Position verschwunden" "Smoke-Position-B"
+submit "Smoke-Position-D" "50,00"
+get al /Budgetfreigaben >/dev/null; check "D wartet beim AL" "Smoke-Position-D"
+get gl /Budgetplan/Eingabe >/dev/null
+IDGD=$(tr '\n' ' ' < "$TMP/out.html" | grep -o 'name="id" value="[a-f0-9]\{32\}" />[^<]*<button[^>]*aria-label="Eintrag „Smoke-Position-D' | grep -o '[a-f0-9]\{32\}' | head -1)
+post gl2 "/Budgetplan/Eingabe?handler=Delete" --data-urlencode "id=$IDGD" >/dev/null; check "fremde Position nicht löschbar" "gibt es nicht mehr"
+post gl "/Budgetplan/Eingabe?handler=Delete" --data-urlencode "id=$IDGD" >/dev/null; check "wartende Position gelöscht" "Eintrag ist gel"
+get al /Budgetfreigaben >/dev/null; nocheck "gelöschte wartende Position beim AL verschwunden" "Smoke-Position-D"
+post gl "/Budgetplan/Eingabe?handler=Delete" --data-urlencode "id=$IDA" >/dev/null; check "freigegebene Position nicht löschbar" "Freigegebene Positionen lassen sich nicht"
+post al "/Budgetfreigaben?handler=Approve" --data-urlencode "id=$IDA" >/dev/null; check "doppelte Freigabe verhindert" "wartet nicht mehr"
+
+echo "Freischaltung"
+get al /Budgetfreigaben/Freischaltung >/dev/null; check "Freischaltung zeigt 2028 deaktiviert" "Deaktiviert"
+post al "/Budgetfreigaben/Freischaltung?handler=Toggle" --data-urlencode "year=2028" --data-urlencode "enable=true" >/dev/null; check "2028 aktiviert" "f&#xFC;r 2028 sind aktiviert"
+get gl /Budgetplan/Eingabe >/dev/null; check "2028 jetzt wählbar" 'value="2028"'
+submit "Smoke-Position-2028" "10,00" 2028; check "Einreichen für 2028" "zur Freigabe"
+post al "/Budgetfreigaben/Freischaltung?handler=Toggle" --data-urlencode "year=2028" --data-urlencode "enable=false" >/dev/null; check "2028 deaktiviert" "sind deaktiviert"
+submit "Smoke-Position-2028b" "10,00" 2028; check "nach Deaktivierung nicht mehr einreichbar" "nicht freigeschaltet"
+post al "/Budgetfreigaben/Freischaltung?handler=Toggle" --data-urlencode "year=2030" --data-urlencode "enable=true" >/dev/null; check "unbekanntes Jahr abgelehnt" "gibt es nicht"
+
+echo "Rechte im Budgetplan"
+r=$(get gl /Budgetfreigaben); [[ $r == *"AccessDenied"* ]] && ok "Gruppenleitung: Freigaben gesperrt" || fail "$r"
+r=$(get gl /Budgetfreigaben/Freischaltung); [[ $r == *"AccessDenied"* ]] && ok "Gruppenleitung: Freischaltung gesperrt" || fail "$r"
+r=$(get al /Budgetplan/Eingabe); [[ $r == *"AccessDenied"* ]] && ok "Abteilungsleitung: Eingabe gesperrt" || fail "$r"
+get al /Budgetplan >/dev/null; check "AL sieht Budgetplan aller Gruppen" "aller Gruppen"; check "AL sieht Positionen der Gruppe Süd" "Beratungsleistungen"
+get al /Budgetplan/Gesamt >/dev/null; check "AL: Beträge je Gruppe" "je Gruppe"
+r=$(get admin /Budgetplan); [[ $r == *"AccessDenied"* ]] && ok "Administration: kein Budgetplan" || fail "$r"
+
 post admin "/Admin/Kostenstellen?handler=Add" --data-urlencode "NewNumber=22222222" --data-urlencode "NewEnabled=true" >/dev/null
 post admin "/Admin/Einstellungen?handler=AskDelete" >/dev/null
 check "Löschen verlangt Bestätigung" "Alle <strong>8 Testkostenstellen"

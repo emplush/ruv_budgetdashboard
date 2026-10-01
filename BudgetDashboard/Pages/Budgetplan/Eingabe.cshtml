@@ -1,0 +1,117 @@
+@page
+@model EingabeModel
+@{
+    ViewData["Title"] = "Budgetplan";
+}
+<section class="page">
+    <p class="topline">Budgetplan</p>
+    <h1 class="headline">Eingabe Budgetposition</h1>
+    <partial name="_BudgetplanTabs" />
+
+    @if (Model.Notice != null)
+    {
+        <div class="alert alert--ok" role="status"><p><strong>Gespeichert:</strong> @Model.Notice</p></div>
+    }
+    <partial name="_Errors" model="Model.Errors" />
+
+    <div class="card card--soft card--form">
+        <h2 class="headline-s">Neue Budgetposition</h2>
+        @if (Model.Years.Count == 0)
+        {
+            <p class="copy">Aktuell ist noch kein Kalenderjahr für Budgetpläne freigeschaltet. Sobald die Abteilungsleitung ein Jahr freischaltet, kannst Du hier Budgetpositionen eintragen.</p>
+        }
+        else
+        {
+            <form method="post" asp-page-handler="Submit" class="form" autocomplete="off">
+                <div class="field">
+                    <label for="bez">Bezeichnung</label>
+                    <input id="bez" name="Bezeichnung" value="@Model.Bezeichnung" maxlength="@BudgetService.NameMax" required />
+                </div>
+                <div class="form form--row">
+                    <div class="field">
+                        <label for="betrag">Betrag in EUR (Brutto)</label>
+                        <input id="betrag" name="Betrag" value="@Model.Betrag" inputmode="decimal" placeholder="1.234,56" required aria-describedby="betrag-hint" />
+                        <p id="betrag-hint" class="hint">Mit 2 Stellen hinter dem Komma, zum Beispiel 1.234,56. Der Betrag gilt brutto.</p>
+                    </div>
+                    <div class="field">
+                        <label for="jahr">Kalenderjahr</label>
+                        <select id="jahr" name="Jahr" required>
+                            @foreach (var y in Model.Years)
+                            {
+                                <option value="@y" selected="@(y == Model.Jahr)">@y</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="hinweis">Hinweistext zur Freigabe</label>
+                    <textarea id="hinweis" name="Hinweis" rows="3" maxlength="@BudgetService.NoteMax" required>@Model.Hinweis</textarea>
+                    <p class="hint">Begründe kurz, wofür das Budget gebraucht wird. Höchstens @BudgetService.NoteMax Zeichen.</p>
+                </div>
+                <div class="actions"><button type="submit" class="btn btn--primary">Freigabe</button></div>
+            </form>
+        }
+    </div>
+
+    <h2 class="headline-s">Status der Freigaben</h2>
+    @if (Model.Items.Count == 0)
+    {
+        <p class="copy">Es gibt keine offenen Anfragen. Freigegebene Positionen findest Du unter „Aktueller Stand“.</p>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th scope="col">Bezeichnung</th>
+                        <th scope="col" class="num">Betrag (Brutto)</th>
+                        <th scope="col">Kalenderjahr</th>
+                        <th scope="col">Eingereicht am</th>
+                        <th scope="col">Status</th>
+                        <th scope="col"><span class="visually-hidden">Löschen</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.Items)
+                    {
+                        <tr>
+                            <th scope="row">@r.Name</th>
+                            <td class="num">@Money.Format(r.AmountCents) EUR</td>
+                            <td>@r.Year</td>
+                            <td>@TimeZoneInfo.ConvertTimeFromUtc(r.CreatedUtc, TimeZoneInfo.Local).ToString("dd.MM.yyyy")</td>
+                            <td>
+                                @if (r.Status == BudgetStatus.Rejected)
+                                {
+                                    <button type="button" class="status status--rejected" data-open="grund-@r.Id" aria-haspopup="dialog">Abgelehnt</button>
+                                }
+                                else
+                                {
+                                    <span class="status status--pending">Warten …</span>
+                                }
+                            </td>
+                            <td>
+                                <form method="post" asp-page-handler="Delete" class="inline-form">
+                                    <input type="hidden" name="id" value="@r.Id" />
+                                    <button type="submit" class="icon-btn" aria-label="Eintrag „@r.Name“ löschen" title="Eintrag löschen">
+                                        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M9 3h6l1 2h4v2H4V5h4l1-2zm-3 6h12l-1 12H7L6 9zm4 2v8h2v-8h-2zm4 0v8h2v-8h-2z"/></svg>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @foreach (var r in Model.Items.Where(i => i.Status == BudgetStatus.Rejected))
+        {
+            <dialog class="popup" id="grund-@r.Id" aria-labelledby="grund-titel-@r.Id">
+                <h2 class="headline-s" id="grund-titel-@r.Id">Grund der Ablehnung</h2>
+                <p class="copy"><strong>@r.Name</strong>, @Money.Format(r.AmountCents) EUR (Brutto), @r.Year</p>
+                <p class="copy popup__reason">@(string.IsNullOrWhiteSpace(r.RejectReason) ? "Es wurde keine Begründung eingegeben." : r.RejectReason)</p>
+                <div class="actions"><button type="button" class="btn btn--primary" data-close>Schließen</button></div>
+            </dialog>
+        }
+    }
+</section>

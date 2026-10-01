@@ -15,6 +15,7 @@ builder.Services.AddSingleton<PasswordService>();
 builder.Services.AddSingleton<DataStore>();
 builder.Services.AddSingleton<AccountService>();
 builder.Services.AddSingleton<SetupTokenService>();
+builder.Services.AddSingleton<BudgetService>();
 
 // Schlüssel liegen im Datenordner, weil der IIS-Anwendungspool oft kein Benutzerprofil hat.
 var keyDir = Path.Combine(
@@ -58,6 +59,7 @@ builder.Services.AddAuthorization(o =>
     o.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
     o.AddPolicy("AdminOnly", p => p.RequireRole(Roles.Admin));
     o.AddPolicy("User", p => p.RequireRole(Roles.DepartmentHead, Roles.GroupLead));
+    o.AddPolicy("GroupLead", p => p.RequireRole(Roles.GroupLead));
     o.AddPolicy("DepartmentHead", p => p.RequireRole(Roles.DepartmentHead));
 });
 

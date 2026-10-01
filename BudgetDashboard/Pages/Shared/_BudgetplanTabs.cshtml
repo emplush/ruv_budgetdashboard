@@ -1,0 +1,12 @@
+@{
+    var current = ViewContext.RouteData.Values["page"] as string ?? "";
+    var tabs = new List<(string Label, string Page)> { ("Aktueller Stand", "/Budgetplan/Index"), ("Gesamtbudgetplan", "/Budgetplan/Gesamt") };
+    if (User.IsInRole(Roles.GroupLead)) tabs.Add(("Eingabe Budgetposition", "/Budgetplan/Eingabe"));
+}
+<ul class="pill-tabs" aria-label="Budgetplan">
+    @foreach (var t in tabs)
+    {
+        var active = string.Equals(current, t.Page, StringComparison.OrdinalIgnoreCase);
+        <li><a class="pill@(active ? " is-active" : "")" asp-page="@t.Page" aria-current="@(active ? "page" : null)">@t.Label</a></li>
+    }
+</ul>

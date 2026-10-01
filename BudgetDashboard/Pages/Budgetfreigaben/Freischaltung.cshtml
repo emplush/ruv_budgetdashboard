@@ -1,0 +1,42 @@
+@page
+@model FreischaltungModel
+@{
+    ViewData["Title"] = "Budgetfreigaben";
+}
+<section class="page">
+    <p class="topline">Budgetfreigaben</p>
+    <h1 class="headline">Freischaltung Budgetpläne</h1>
+    <partial name="_FreigabenTabs" />
+
+    @if (Model.Notice != null)
+    {
+        <div class="alert alert--ok" role="status"><p><strong>Gespeichert:</strong> @Model.Notice</p></div>
+    }
+    <partial name="_Errors" model="Model.Errors" />
+
+    <p class="copy">Lege fest, für welche Kalenderjahre die Gruppenleitungen Budgetpositionen zur Freigabe einreichen können.</p>
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr><th scope="col">Kalenderjahr</th><th scope="col">Einreichen durch Gruppenleitungen</th><th scope="col">Aktion</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var y in BudgetService.Years)
+                {
+                    var on = Model.Enabled.Contains(y);
+                    <tr>
+                        <th scope="row">@y</th>
+                        <td><span class="status @(on ? "status--on" : "status--off")">@(on ? "Aktiviert" : "Deaktiviert")</span></td>
+                        <td>
+                            <form method="post" asp-page-handler="Toggle" class="inline-form">
+                                <input type="hidden" name="year" value="@y" />
+                                <input type="hidden" name="enable" value="@(on ? "false" : "true")" />
+                                <button type="submit" class="btn @(on ? "btn--ghost" : "btn--primary") btn--small">@(on ? "Deaktivieren" : "Aktivieren")</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>

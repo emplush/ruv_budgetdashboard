@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace BudgetDashboard.Models;
 
 /// <summary>Kostenstelle der Administration (00000000) bzw. eines Nutzers.</summary>
@@ -17,8 +19,31 @@ public class CostCenter
     public bool IsTestData { get; set; }
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum BudgetStatus { Pending, Approved, Rejected }
+
+/// <summary>Budgetposition einer Gruppenleitung für ein Kalenderjahr.</summary>
+public class BudgetItem
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+    public string CostCenter { get; set; } = "";
+    public string Name { get; set; } = "";
+    /// <summary>Betrag in Cent, brutto.</summary>
+    public long AmountCents { get; set; }
+    public int Year { get; set; }
+    public string Note { get; set; } = "";
+    public BudgetStatus Status { get; set; } = BudgetStatus.Pending;
+    public string? RejectReason { get; set; }
+    public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
+    public DateTime? DecidedUtc { get; set; }
+    public bool IsTestData { get; set; }
+}
+
 public class SiteSettings
 {
+    /// <summary>Kalenderjahre, für die Gruppenleitungen Budgetpositionen einreichen können.</summary>
+    public List<int> EnabledYears { get; set; } = new();
+
     public string Title { get; set; } = "Budget-Dashboard 2.0";
 
     /// <summary>Kostenstelle mit Abteilungsleiterrechten (genau eine oder keine).</summary>
@@ -34,6 +59,7 @@ public class StoreData
     public SiteSettings Settings { get; set; } = new();
     public CostCenter Admin { get; set; } = new() { Number = Roles.AdminNumber };
     public List<CostCenter> CostCenters { get; set; } = new();
+    public List<BudgetItem> BudgetItems { get; set; } = new();
 }
 
 public static class Roles

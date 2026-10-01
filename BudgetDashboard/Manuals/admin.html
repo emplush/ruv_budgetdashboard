@@ -1,4 +1,4 @@
-<p class="meta">Version 1.2 · Stand Oktober 2026</p>
+<p class="meta">Version 1.3 · Stand Oktober 2026</p>
 <p>Dieses Handbuch richtet sich an die Administration. Du verwaltest die Kostenstellen, bestimmst die Abteilungsleitung, pflegst die Einstellungen und kannst Testdaten importieren.</p>
 
 <nav class="toc" aria-label="Inhalt">
@@ -44,6 +44,7 @@
 <p>Darunter steht die Kostenstelle mit den Rechten der Abteilungsleitung.</p>
 
 <h2 id="kostenstellen">4. Kostenstellen verwalten</h2>
+<p>Zum Budgetplan hast Du keinen Zugriff. Die Abteilungsleitung schaltet die Kalenderjahre frei, die Gruppenleitungen tragen ihre Budgetpositionen ein. Deine Aufgabe ist es, die Kostenstellen und die Rolle der Abteilungsleitung zu pflegen.</p>
 <h3>Kostenstelle anlegen</h3>
 <ol>
   <li>Öffne <strong>Kostenstellen</strong>.</li>
@@ -73,7 +74,7 @@
 <p>Hat jemand sein Passwort vergessen, klickst Du auf <strong>Passwort löschen</strong> und bestätigst. Die Person meldet sich danach wie bei der ersten Anmeldung an und setzt ein neues Passwort. Laufende Sitzungen enden, und eine Sperre wird aufgehoben.</p>
 
 <h3>Kostenstelle entfernen</h3>
-<p>Mit <strong>Entfernen</strong> und Bestätigung löschst Du eine Kostenstelle. Das lässt sich nicht rückgängig machen.</p>
+<p>Mit <strong>Entfernen</strong> und Bestätigung löschst Du eine Kostenstelle. Auch alle Budgetpositionen dieser Kostenstelle werden gelöscht. Das lässt sich nicht rückgängig machen.</p>
 
 <h2 id="einstellungen">5. Einstellungen</h2>
 <h3>Titel der Anwendung</h3>
@@ -86,11 +87,11 @@
 <h3>Testdaten importieren</h3>
 <ol>
   <li>Klicke auf <strong>Testdaten importieren</strong>.</li>
-  <li>Lies die Warnung. Der Import <strong>löscht alle vorhandenen Kostenstellen</strong> und die Festlegung der Abteilungsleitung, bevor er die Testdaten anlegt. Admin-Passwort und Titel bleiben erhalten.</li>
+  <li>Lies die Warnung. Der Import <strong>löscht alle vorhandenen Kostenstellen</strong>, alle Budgetpositionen und die Festlegung der Abteilungsleitung, bevor er die Testdaten anlegt. Admin-Passwort und Titel bleiben erhalten.</li>
   <li>Bestätige mit <strong>Ja, Testdaten importieren</strong>. Mit <strong>Abbrechen</strong> passiert nichts.</li>
 </ol>
 <h3>Testdaten löschen</h3>
-<p>Klicke auf <strong>Testdaten löschen</strong> und bestätige. Es werden nur die importierten Testkostenstellen entfernt. Selbst angelegte Kostenstellen bleiben erhalten.</p>
+<p>Klicke auf <strong>Testdaten löschen</strong> und bestätige. Es werden nur die importierten Testkostenstellen mit ihren Budgetpositionen entfernt. Selbst angelegte Kostenstellen und ihre Positionen bleiben erhalten. Die Freischaltung der Kalenderjahre bleibt, wie sie ist.</p>
 <div class="callout callout--warn">
   <p>Importiere Testdaten nur in einer Testumgebung. Im Echtbetrieb würden sie die echten Kostenstellen löschen.</p>
 </div>
@@ -100,13 +101,14 @@
   <thead><tr><th>Kostenstelle</th><th>Fall</th></tr></thead>
   <tbody>
     <tr><td>10000001</td><td>Abteilungsleitung mit Passwort, Navigation mit Budgetfreigaben und Upload</td></tr>
-    <tr><td>10000002</td><td>Gruppenleitung mit Passwort</td></tr>
-    <tr><td>10000003</td><td>Zweite Gruppenleitung mit Passwort</td></tr>
+    <tr><td>10000002</td><td>Gruppenleitung mit Passwort und Budgetpositionen: freigegeben (2026, 2027), wartend, abgelehnt mit und ohne Begründung</td></tr>
+    <tr><td>10000003</td><td>Zweite Gruppenleitung mit Passwort: eine freigegebene und zwei wartende Positionen für die Freigaben der Abteilungsleitung</td></tr>
     <tr><td>10000004</td><td>Erste Anmeldung: noch kein Passwort, Dialog zum Setzen</td></tr>
     <tr><td>10000005</td><td>Passwort gelöscht, Org-Einheit und Gruppe leer (im Profil ergänzen)</td></tr>
     <tr><td>10000006</td><td>Gesperrt nach Fehlversuchen (15 Minuten ab Import)</td></tr>
     <tr><td>10000007</td><td>Nicht freigegeben: Anmeldung nicht erlaubt</td></tr>
     <tr><td>10000008</td><td>Org-Einheit und Gruppe in maximaler Länge (11 und 30 Zeichen)</td></tr>
+    <tr><td>Kalenderjahre</td><td>2026 und 2027 sind für Budgetpläne freigeschaltet, 2028 ist gesperrt</td></tr>
   </tbody>
 </table>
 

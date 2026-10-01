@@ -1,0 +1,11 @@
+@{
+    var current = ViewContext.RouteData.Values["page"] as string ?? "";
+    var tabs = new[] { ("Freigaben", "/Budgetfreigaben/Index"), ("Freischaltung Budgetpläne", "/Budgetfreigaben/Freischaltung") };
+}
+<ul class="pill-tabs" aria-label="Budgetfreigaben">
+    @foreach (var t in tabs)
+    {
+        var active = string.Equals(current, t.Item2, StringComparison.OrdinalIgnoreCase);
+        <li><a class="pill@(active ? " is-active" : "")" asp-page="@t.Item2" aria-current="@(active ? "page" : null)">@t.Item1</a></li>
+    }
+</ul>

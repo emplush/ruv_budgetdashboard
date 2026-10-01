@@ -1,0 +1,78 @@
+@page
+@model GesamtModel
+@{
+    ViewData["Title"] = "Budgetplan";
+}
+<section class="page">
+    <p class="topline">Budgetplan</p>
+    <h1 class="headline">Gesamtbudgetplan</h1>
+    <partial name="_BudgetplanTabs" />
+
+    <h2 class="headline-s">Alle Kalenderjahre@(Model.IsDepartmentHead ? " im Überblick" : " Deiner Gruppe")</h2>
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th scope="col">Kalenderjahr</th>
+                    <th scope="col">Budgetplan</th>
+                    <th scope="col" class="num">Freigegebene Positionen</th>
+                    <th scope="col" class="num">Freigegeben (Brutto)</th>
+                    <th scope="col" class="num">Wartend</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var y in Model.Overview)
+                {
+                    <tr>
+                        <th scope="row">@y.Year</th>
+                        <td>@(y.Enabled ? "Freigeschaltet" : "Gesperrt")</td>
+                        <td class="num">@y.ApprovedCount</td>
+                        <td class="num">@Money.Format(y.ApprovedCents) EUR</td>
+                        <td class="num">@y.PendingCount (@Money.Format(y.PendingCents) EUR)</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th scope="row" colspan="2">Summe</th>
+                    <td class="num">@Model.Overview.Sum(y => y.ApprovedCount)</td>
+                    <td class="num"><strong>@Money.Format(Model.Overview.Sum(y => y.ApprovedCents)) EUR</strong></td>
+                    <td class="num">@Model.Overview.Sum(y => y.PendingCount)</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    @if (Model.IsDepartmentHead)
+    {
+        <h2 class="headline-s">Freigegebene Beträge je Gruppe (Brutto)</h2>
+        @if (Model.Groups.Count == 0)
+        {
+            <p class="copy">Es gibt noch keine freigegebenen Budgetpositionen.</p>
+        }
+        else
+        {
+            <div class="table-wrap">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Kostenstelle</th>
+                            <th scope="col">Gruppe</th>
+                            @foreach (var y in BudgetService.Years) { <th scope="col" class="num">@y</th> }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var g in Model.Groups)
+                        {
+                            <tr>
+                                <th scope="row">@g.CostCenter</th>
+                                <td>@g.Group</td>
+                                @foreach (var y in BudgetService.Years) { <td class="num">@Money.Format(g.ApprovedByYear[y]) EUR</td> }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+</section>

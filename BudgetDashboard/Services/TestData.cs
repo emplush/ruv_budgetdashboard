@@ -17,14 +17,17 @@ public static class TestData
     public static readonly (string Number, string Case)[] Cases =
     {
         ("10000001", "Abteilungsleitung mit Passwort, Navigation mit Budgetfreigaben und Upload"),
-        ("10000002", "Gruppenleitung mit Passwort"),
-        ("10000003", "Zweite Gruppenleitung mit Passwort"),
+        ("10000002", "Gruppenleitung mit Passwort und Budgetpositionen: freigegeben (2026, 2027), wartend, abgelehnt mit und ohne Begründung"),
+        ("10000003", "Zweite Gruppenleitung mit Passwort: eine freigegebene und zwei wartende Positionen für die Freigaben der Abteilungsleitung"),
         ("10000004", "Erste Anmeldung: noch kein Passwort, Dialog zum Setzen"),
         ("10000005", "Passwort gelöscht, Org-Einheit und Gruppe leer (im Profil ergänzen)"),
         ("10000006", "Gesperrt nach Fehlversuchen (15 Minuten ab Import)"),
         ("10000007", "Nicht freigegeben: Anmeldung nicht erlaubt"),
-        ("10000008", "Org-Einheit und Gruppe in maximaler Länge (11 und 30 Zeichen)")
+        ("10000008", "Org-Einheit und Gruppe in maximaler Länge (11 und 30 Zeichen)"),
+        ("Kalenderjahre", "2026 und 2027 sind für Budgetpläne freigeschaltet, 2028 ist gesperrt")
     };
+
+    public static readonly int[] EnabledYears = { 2026, 2027 };
 
     public static List<CostCenter> Create(string passwordHash)
     {
@@ -47,6 +50,30 @@ public static class TestData
             locked,
             Make("10000007", "ORG-5", "Gruppe Archiv", enabled: false),
             Make("10000008", "ORG-1234567", "Gruppe mit maximaler Länge 300", true)
+        };
+    }
+
+    /// <summary>Budgetpositionen für die Testkostenstellen: freigegeben, wartend und abgelehnt.</summary>
+    public static List<BudgetItem> CreateBudgetItems()
+    {
+        var now = DateTime.UtcNow;
+        BudgetItem Make(string cc, string name, long cents, int year, string note, BudgetStatus status, string? reason = null, int daysAgo = 3) => new()
+        {
+            CostCenter = cc, Name = name, AmountCents = cents, Year = year, Note = note, Status = status, RejectReason = reason,
+            CreatedUtc = now.AddDays(-daysAgo), DecidedUtc = status == BudgetStatus.Pending ? null : now.AddDays(-daysAgo + 1), IsTestData = true
+        };
+        return new List<BudgetItem>
+        {
+            Make("10000002", "Schulungen und Weiterbildung", 1_250_000, 2026, "Fachschulungen für das Team", BudgetStatus.Approved, daysAgo: 10),
+            Make("10000002", "Software-Lizenzen", 489_050, 2026, "Verlängerung der Lizenzen", BudgetStatus.Approved, daysAgo: 9),
+            Make("10000002", "Reisekosten", 320_000, 2027, "Kundentermine im Norden", BudgetStatus.Approved, daysAgo: 8),
+            Make("10000002", "Büroausstattung", 123_456, 2026, "Neue Schreibtische für zwei Arbeitsplätze", BudgetStatus.Pending, daysAgo: 1),
+            Make("10000002", "Neue Dienstwagen", 4_500_000, 2026, "Ersatz für zwei alte Fahrzeuge", BudgetStatus.Rejected,
+                "Das Budget für 2026 ist ausgeschöpft. Bitte für 2027 neu einreichen.", 4),
+            Make("10000002", "Teamevent", 80_000, 2026, "Jahresabschluss des Teams", BudgetStatus.Rejected, null, 5),
+            Make("10000003", "Beratungsleistungen", 2_000_000, 2026, "Externe Beratung zur Prozessoptimierung", BudgetStatus.Approved, daysAgo: 7),
+            Make("10000003", "Werbemittel", 275_000, 2027, "Material für die Messe im Frühjahr", BudgetStatus.Pending, daysAgo: 2),
+            Make("10000003", "Fachliteratur", 34_990, 2026, "Normen und Fachbücher", BudgetStatus.Pending, daysAgo: 1),
         };
     }
 }
