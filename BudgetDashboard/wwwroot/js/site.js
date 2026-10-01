@@ -23,3 +23,9 @@ document.addEventListener("click", function (event) {
   }
   if (el instanceof HTMLDialogElement) el.close();
 });
+
+// Auswahlfelder mit data-autosubmit senden ihr Formular sofort beim Wechsel ab.
+document.addEventListener("change", function (event) {
+  var el = event.target;
+  if (el instanceof HTMLSelectElement && el.hasAttribute("data-autosubmit") && el.form) el.form.submit();
+});

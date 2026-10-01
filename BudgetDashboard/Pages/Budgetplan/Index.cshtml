@@ -2,12 +2,12 @@
 @model AktuellerStandModel
 @{
     ViewData["Title"] = "Budgetplan";
-    var all = Model.IsDepartmentHead;
 }
 <section class="page">
     <p class="topline">Budgetplan</p>
     <h1 class="headline">Aktueller Stand</h1>
     <partial name="_BudgetplanTabs" />
+    <partial name="_ScopeSelect" model="Model.Scope" />
 
     @if (Model.Years.Count == 0)
     {
@@ -18,14 +18,14 @@
         <ul class="pill-tabs" aria-label="Kalenderjahr">
             @foreach (var y in Model.Years)
             {
-                <li><a class="pill@(y == Model.Year ? " is-active" : "")" asp-page="/Budgetplan/Index" asp-route-jahr="@y" aria-current="@(y == Model.Year ? "page" : null)">@y</a></li>
+                <li><a class="pill@(y == Model.Year ? " is-active" : "")" asp-page="/Budgetplan/Index" asp-route-jahr="@y" asp-route-ks="@Model.KsRoute" aria-current="@(y == Model.Year ? "page" : null)">@y</a></li>
             }
         </ul>
 
-        <h2 class="headline-s">Freigegebene Budgetpositionen @Model.Year@(all ? " aller Gruppen" : "")</h2>
+        <h2 class="headline-s">Freigegebene Budgetpositionen @Model.Year@Model.ScopeTitle</h2>
         @if (Model.Rows.Count == 0)
         {
-            <p class="copy">Für @Model.Year gibt es noch keine freigegebenen Budgetpositionen.</p>
+            <p class="copy">Für @Model.Year gibt es noch keine freigegebenen Budgetpositionen@(Model.ScopeTitle.Length > 0 ? " für diese Kostenstelle" : "").</p>
         }
         else
         {
@@ -33,7 +33,6 @@
                 <table class="table">
                     <thead>
                         <tr>
-                            @if (all) { <th scope="col">Kostenstelle</th><th scope="col">Gruppe</th> }
                             <th scope="col">Bezeichnung</th>
                             <th scope="col" class="num">Betrag (Brutto)</th>
                             <th scope="col">Hinweis</th>
@@ -44,7 +43,6 @@
                         @foreach (var r in Model.Rows)
                         {
                             <tr>
-                                @if (all) { <td>@r.CostCenter</td><td>@r.Group</td> }
                                 <th scope="row">@r.Name</th>
                                 <td class="num">@Money.Format(r.AmountCents) EUR</td>
                                 <td class="note">@r.Note</td>
@@ -54,7 +52,7 @@
                     </tbody>
                     <tfoot>
                         <tr>
-                            <th scope="row" colspan="@(all ? 3 : 1)">Summe @Model.Year</th>
+                            <th scope="row">Summe @Model.Year</th>
                             <td class="num"><strong>@Money.Format(Model.Rows.Sum(r => r.AmountCents)) EUR</strong> (Brutto)</td>
                             <td colspan="2"></td>
                         </tr>

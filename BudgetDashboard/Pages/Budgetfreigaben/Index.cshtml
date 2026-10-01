@@ -1,83 +1,85 @@
 @page
-@model FreigabenModel
+@model DashboardModel
 @{
     ViewData["Title"] = "Budgetfreigaben";
 }
 <section class="page">
     <p class="topline">Budgetfreigaben</p>
-    <h1 class="headline">Freigaben</h1>
+    <h1 class="headline">Dashboard</h1>
     <partial name="_FreigabenTabs" />
 
-    @if (Model.Notice != null)
+    <div class="stats">
+        <div class="stat"><div class="stat__value">@Model.PendingCount</div><div class="stat__label">offene Freigaben</div></div>
+        <div class="stat"><div class="stat__value">@Model.EnabledYears</div><div class="stat__label">Kalenderjahre freigeschaltet</div></div>
+        <div class="stat"><div class="stat__value">@Model.Overview.Sum(y => y.ApprovedCount)</div><div class="stat__label">freigegebene Positionen</div></div>
+    </div>
+    @if (Model.PendingCount > 0)
     {
-        <div class="alert alert--ok" role="status"><p><strong>Gespeichert:</strong> @Model.Notice</p></div>
+        <p class="copy"><a asp-page="/Budgetfreigaben/Offen">Zu den offenen Freigaben</a></p>
     }
-    <partial name="_Errors" model="Model.Errors" />
 
-    @if (Model.Items.Count == 0)
+    <h2 class="headline-s">Alle Kalenderjahre im Überblick</h2>
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th scope="col">Kalenderjahr</th>
+                    <th scope="col">Budgetplan</th>
+                    <th scope="col" class="num">Freigegebene Positionen</th>
+                    <th scope="col" class="num">Freigegeben (Brutto)</th>
+                    <th scope="col" class="num">Wartend</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var y in Model.Overview)
+                {
+                    <tr>
+                        <th scope="row">@y.Year</th>
+                        <td>@(y.Enabled ? "Freigeschaltet" : "Gesperrt")</td>
+                        <td class="num">@y.ApprovedCount</td>
+                        <td class="num">@Money.Format(y.ApprovedCents) EUR</td>
+                        <td class="num">@y.PendingCount (@Money.Format(y.PendingCents) EUR)</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th scope="row" colspan="2">Summe</th>
+                    <td class="num">@Model.Overview.Sum(y => y.ApprovedCount)</td>
+                    <td class="num"><strong>@Money.Format(Model.Overview.Sum(y => y.ApprovedCents)) EUR</strong></td>
+                    <td class="num">@Model.Overview.Sum(y => y.PendingCount)</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <h2 class="headline-s">Freigegebene Beträge je Gruppe (Brutto)</h2>
+    @if (Model.Groups.Count == 0)
     {
-        <div class="card card--soft"><p class="copy">Es warten keine Budgetpositionen auf Deine Freigabe.</p></div>
+        <p class="copy">Es gibt noch keine freigegebenen Budgetpositionen.</p>
     }
     else
     {
-        <h2 class="headline-s">Wartende Budgetpositionen (@Model.Items.Count)</h2>
         <div class="table-wrap">
             <table class="table">
                 <thead>
                     <tr>
                         <th scope="col">Kostenstelle</th>
                         <th scope="col">Gruppe</th>
-                        <th scope="col">Bezeichnung</th>
-                        <th scope="col" class="num">Betrag (Brutto)</th>
-                        <th scope="col">Kalenderjahr</th>
-                        <th scope="col">Hinweis zur Freigabe</th>
-                        <th scope="col">Eingereicht am</th>
-                        <th scope="col">Entscheidung</th>
+                        @foreach (var y in BudgetService.Years) { <th scope="col" class="num">@y</th> }
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var r in Model.Items)
+                    @foreach (var g in Model.Groups)
                     {
                         <tr>
-                            <td>@r.CostCenter</td>
-                            <td>@r.Group</td>
-                            <th scope="row">@r.Name</th>
-                            <td class="num">@Money.Format(r.AmountCents) EUR</td>
-                            <td>@r.Year</td>
-                            <td class="note">@r.Note</td>
-                            <td>@TimeZoneInfo.ConvertTimeFromUtc(r.CreatedUtc, TimeZoneInfo.Local).ToString("dd.MM.yyyy")</td>
-                            <td>
-                                <div class="inline-form">
-                                    <form method="post" asp-page-handler="Approve" class="inline-form">
-                                        <input type="hidden" name="id" value="@r.Id" />
-                                        <button type="submit" class="btn btn--primary btn--small">Freigabe</button>
-                                    </form>
-                                    <button type="button" class="btn btn--ghost btn--small" data-open="ablehnung-@r.Id" aria-haspopup="dialog">Ablehnung</button>
-                                </div>
-                            </td>
+                            <th scope="row">@g.CostCenter</th>
+                            <td>@g.Group</td>
+                            @foreach (var y in BudgetService.Years) { <td class="num">@Money.Format(g.ApprovedByYear[y]) EUR</td> }
                         </tr>
                     }
                 </tbody>
             </table>
         </div>
-
-        @foreach (var r in Model.Items)
-        {
-            <dialog class="popup" id="ablehnung-@r.Id" aria-labelledby="ablehnung-titel-@r.Id">
-                <form method="post" asp-page-handler="Reject" class="form">
-                    <h2 class="headline-s" id="ablehnung-titel-@r.Id">Ablehnung begründen</h2>
-                    <p class="copy"><strong>@r.Name</strong>, @Money.Format(r.AmountCents) EUR (Brutto), @r.Year, Kostenstelle @r.CostCenter</p>
-                    <input type="hidden" name="id" value="@r.Id" />
-                    <div class="field">
-                        <label for="grund-@r.Id">Grund (optional)</label>
-                        <textarea id="grund-@r.Id" name="reason" rows="3" maxlength="@BudgetService.ReasonMax"></textarea>
-                    </div>
-                    <div class="actions">
-                        <button type="submit" class="btn btn--primary">OK</button>
-                        <button type="button" class="btn btn--ghost" data-close>Abbrechen</button>
-                    </div>
-                </form>
-            </dialog>
-        }
     }
 </section>

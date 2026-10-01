@@ -165,23 +165,23 @@ submit "Smoke-Position-A" "1.234,56"
 check "Einreichen bestätigt" "zur Freigabe"
 check "Position wartet in der Tabelle" "Smoke-Position-A"
 submit "Smoke-Position-Zahl" "2500"; check "Betrag ohne Komma wird 2.500,00" "2.500,00 EUR"
-get al /Budgetfreigaben >/dev/null
+get al /Budgetfreigaben/Offen >/dev/null
 check "AL sieht Position unter Freigaben" "Smoke-Position-A"; check "AL sieht Betrag" "1.234,56 EUR"; check "AL sieht Hinweis" "Smoke-Hinweis Smoke-Position-A"
 check "Button Freigabe" ">Freigabe</button>"; check "Button Ablehnung" ">Ablehnung</button>"
 check "Unterpunkt Freischaltung Budgetpläne" "Freischaltung Budgetpl"
 IDA=$(grep -o 'ablehnung-titel-[a-f0-9]\{32\}">Ablehnung begr[^<]*</h2>[^"]*<p class="copy"><strong>Smoke-Position-A' <(tr '\n' ' ' < "$TMP/out.html") | grep -o '[a-f0-9]\{32\}' | head -1)
 [[ -n "$IDA" ]] && ok "ID der Position gefunden" || fail "ID Position A"
-post al "/Budgetfreigaben?handler=Approve" --data-urlencode "id=$IDA" >/dev/null; check "Freigabe erteilt" "ist freigegeben"
+post al "/Budgetfreigaben/Offen?handler=Approve" --data-urlencode "id=$IDA" >/dev/null; check "Freigabe erteilt" "ist freigegeben"
 nocheck "freigegebene Position nicht mehr unter Freigaben" "Smoke-Position-A"
 get gl "/Budgetplan?jahr=2026" >/dev/null; check "Position im Budgetplan 2026" "Smoke-Position-A"
 get gl /Budgetplan/Eingabe >/dev/null; nocheck "Position nicht mehr in der Statustabelle" "Smoke-Position-A"
 submit "Smoke-Position-B" "100,00"; submit "Smoke-Position-C" "200,00"
-get al /Budgetfreigaben >/dev/null
+get al /Budgetfreigaben/Offen >/dev/null
 idof() { tr '\n' ' ' < "$TMP/out.html" | grep -o "ablehnung-titel-[a-f0-9]\{32\}\">Ablehnung begr[^<]*</h2>[^\"]*<p class=\"copy\"><strong>$1" | grep -o '[a-f0-9]\{32\}' | head -1; }
 IDB=$(idof Smoke-Position-B); IDC=$(idof Smoke-Position-C)
-post al "/Budgetfreigaben?handler=Reject" --data-urlencode "id=$IDB" --data-urlencode "reason=Zu teuer fuer 2026" >/dev/null; check "Ablehnung mit Grund" "ist abgelehnt"
-get al /Budgetfreigaben >/dev/null
-post al "/Budgetfreigaben?handler=Reject" --data-urlencode "id=$IDC" --data-urlencode "reason=" >/dev/null; check "Ablehnung ohne Grund" "ist abgelehnt"
+post al "/Budgetfreigaben/Offen?handler=Reject" --data-urlencode "id=$IDB" --data-urlencode "reason=Zu teuer fuer 2026" >/dev/null; check "Ablehnung mit Grund" "ist abgelehnt"
+get al /Budgetfreigaben/Offen >/dev/null
+post al "/Budgetfreigaben/Offen?handler=Reject" --data-urlencode "id=$IDC" --data-urlencode "reason=" >/dev/null; check "Ablehnung ohne Grund" "ist abgelehnt"
 get gl /Budgetplan/Eingabe >/dev/null
 check "Gruppenleitung sieht Ablehnungsgrund" "Zu teuer fuer 2026"
 nocheck "abgelehnte Position nicht im Budgetplan" "zzz-nie-vorhanden"
@@ -192,14 +192,14 @@ IDGB=$(tr '\n' ' ' < "$TMP/out.html" | grep -o 'name="id" value="[a-f0-9]\{32\}"
 post gl "/Budgetplan/Eingabe?handler=Delete" --data-urlencode "id=$IDGB" >/dev/null; check "abgelehnte Position gelöscht" "Eintrag ist gel"
 nocheck "gelöschte abgelehnte Position verschwunden" "Smoke-Position-B"
 submit "Smoke-Position-D" "50,00"
-get al /Budgetfreigaben >/dev/null; check "D wartet beim AL" "Smoke-Position-D"
+get al /Budgetfreigaben/Offen >/dev/null; check "D wartet beim AL" "Smoke-Position-D"
 get gl /Budgetplan/Eingabe >/dev/null
 IDGD=$(tr '\n' ' ' < "$TMP/out.html" | grep -o 'name="id" value="[a-f0-9]\{32\}" />[^<]*<button[^>]*aria-label="Eintrag „Smoke-Position-D' | grep -o '[a-f0-9]\{32\}' | head -1)
 post gl2 "/Budgetplan/Eingabe?handler=Delete" --data-urlencode "id=$IDGD" >/dev/null; check "fremde Position nicht löschbar" "gibt es nicht mehr"
 post gl "/Budgetplan/Eingabe?handler=Delete" --data-urlencode "id=$IDGD" >/dev/null; check "wartende Position gelöscht" "Eintrag ist gel"
-get al /Budgetfreigaben >/dev/null; nocheck "gelöschte wartende Position beim AL verschwunden" "Smoke-Position-D"
+get al /Budgetfreigaben/Offen >/dev/null; nocheck "gelöschte wartende Position beim AL verschwunden" "Smoke-Position-D"
 post gl "/Budgetplan/Eingabe?handler=Delete" --data-urlencode "id=$IDA" >/dev/null; check "freigegebene Position nicht löschbar" "Freigegebene Positionen lassen sich nicht"
-post al "/Budgetfreigaben?handler=Approve" --data-urlencode "id=$IDA" >/dev/null; check "doppelte Freigabe verhindert" "wartet nicht mehr"
+post al "/Budgetfreigaben/Offen?handler=Approve" --data-urlencode "id=$IDA" >/dev/null; check "doppelte Freigabe verhindert" "wartet nicht mehr"
 
 echo "Freischaltung"
 get al /Budgetfreigaben/Freischaltung >/dev/null; check "Freischaltung zeigt 2028 deaktiviert" "Deaktiviert"
@@ -214,8 +214,21 @@ echo "Rechte im Budgetplan"
 r=$(get gl /Budgetfreigaben); [[ $r == *"AccessDenied"* ]] && ok "Gruppenleitung: Freigaben gesperrt" || fail "$r"
 r=$(get gl /Budgetfreigaben/Freischaltung); [[ $r == *"AccessDenied"* ]] && ok "Gruppenleitung: Freischaltung gesperrt" || fail "$r"
 r=$(get al /Budgetplan/Eingabe); [[ $r == *"AccessDenied"* ]] && ok "Abteilungsleitung: Eingabe gesperrt" || fail "$r"
-get al /Budgetplan >/dev/null; check "AL sieht Budgetplan aller Gruppen" "aller Gruppen"; check "AL sieht Positionen der Gruppe Süd" "Beratungsleistungen"
-get al /Budgetplan/Gesamt >/dev/null; check "AL: Beträge je Gruppe" "je Gruppe"
+get al /Budgetplan >/dev/null
+check "AL: Budgetplan startet mit eigener Kostenstelle" "Kostenstelle 10000001"
+check "AL: Auswahl aller Kostenstellen" 'name="ks"'; check "AL: eigene Kostenstelle in der Auswahl" "eigene Kostenstelle"; check "AL: Gruppe Süd wählbar" "10000003"
+nocheck "AL: eigener Budgetplan ohne fremde Positionen" "Beratungsleistungen"
+get al "/Budgetplan?ks=10000003" >/dev/null; check "AL wechselt auf Kostenstelle 10000003" "Beratungsleistungen"; check "AL: Titel nennt die Kostenstelle" "der Kostenstelle 10000003"
+get al "/Budgetplan?ks=99999999" >/dev/null; check "AL: unbekannte Kostenstelle fällt auf eigene zurück" "Kostenstelle 10000001"
+get al "/Budgetplan/Gesamt?ks=10000003" >/dev/null; check "AL: Gesamtbudgetplan je Kostenstelle" "der Kostenstelle 10000003"
+nocheck "AL: Gesamtbudgetplan ohne Gruppentabelle" "je Gruppe"
+get gl /Budgetplan >/dev/null; nocheck "Gruppenleitung: keine Kostenstellen-Auswahl" 'name="ks"'
+get gl "/Budgetplan?ks=10000003" >/dev/null; nocheck "Gruppenleitung kann keine fremde Kostenstelle ansehen" "Beratungsleistungen"
+r=$(get al /Budgetfreigaben); [[ $r == 200*"/Budgetfreigaben" ]] && ok "Budgetfreigaben öffnet das Dashboard" || fail "$r"
+check "Dashboard ist der erste Unterpunkt" ">Dashboard</a>"; check "offene Freigaben mit Anzahl" "offene Freigaben ("; check "Dashboard: Übersicht je Gruppe" "je Gruppe"; check "Dashboard: Jahresübersicht" "im Überblick"
+tr '\n' ' ' < "$TMP/out.html" | grep -o 'aria-label="Budgetfreigaben">.*' | grep -q 'Dashboard</a></li>.*offene Freigaben (.*Freischaltung' && ok "Reihenfolge: Dashboard, offene Freigaben, Freischaltung" || fail "Reihenfolge der Unterpunkte"
+nocheck "Unterpunkt heißt nicht mehr Freigaben" ">Freigaben</a>"
+get al /Budgetfreigaben/Offen >/dev/null; check "Offene Freigaben zeigen Anzahl im Reiter" "offene Freigaben ("
 r=$(get admin /Budgetplan); [[ $r == *"AccessDenied"* ]] && ok "Administration: kein Budgetplan" || fail "$r"
 
 echo "Ansicht einer Kostenstelle durch die Administration"
@@ -238,7 +251,7 @@ check "Ansicht ist schreibgeschützt" "Hier sind keine"
 get admin /_ansicht/Profil >/dev/null; nocheck "nichts wurde geändert" 'value="HACK"'
 r=$(post admin "/Admin/Kostenstellen?handler=ViewAs" --data-urlencode "number=10000001"); [[ $r == *"/_ansicht/Dashboard" ]] && ok "Ansicht der Abteilungsleitung" || fail "$r"
 check "Ansicht: Navigation mit Budgetfreigaben" ">Budgetfreigaben</a>"
-get admin /_ansicht/Budgetfreigaben >/dev/null; check "Ansicht: Freigaben der Abteilungsleitung" "Wartende Budgetpositionen"
+get admin /_ansicht/Budgetfreigaben/Offen >/dev/null; check "Ansicht: Freigaben der Abteilungsleitung" "Wartende Budgetpositionen"
 get admin /_ansicht/Handbuch >/dev/null; check "Ansicht: Handbuch der Abteilungsleitung" "die Abteilungsleitung</h1>"
 r=$(post admin "/Admin/Kostenstellen?handler=ViewAs" --data-urlencode "number=10000007"); [[ $r == *"_ansicht/Dashboard" ]] && fail "Ansicht einer gesperrten Kostenstelle: $r" || ok "keine Ansicht für nicht freigegebene Kostenstellen"
 r=$(get anon "/_ansicht/AnsichtStart?t=gefaelscht"); [[ $r == *AnsichtBeendet* ]] && ok "gefälschte Marke abgelehnt" || fail "$r"

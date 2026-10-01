@@ -9,6 +9,9 @@ public record BudgetRow(
 
 public record YearSummary(int Year, bool Enabled, int ApprovedCount, long ApprovedCents, int PendingCount, long PendingCents);
 
+/// <summary>Gewählte Kostenstelle eines Budgetplans und die Auswahl für die Abteilungsleitung.</summary>
+public record ScopeInfo(string Number, List<(string Number, string Label)> Choices, string Own, string Group = "");
+
 public record GroupYearRow(string CostCenter, string Group, Dictionary<int, long> ApprovedByYear);
 
 public static class Money
@@ -53,6 +56,25 @@ public sealed partial class BudgetService
         var cents = long.Parse(whole) * 100 + (frac.Length == 0 ? 0 : long.Parse(frac.PadRight(2, '0')));
         return cents is > 0 and <= MaxCents ? cents : null;
     }
+
+    public int PendingCount() => _store.Read(d => d.BudgetItems.Count(i => i.Status == BudgetStatus.Pending));
+
+    /// <summary>
+    /// Bestimmt, welche Kostenstelle ein Budgetplan zeigt. Die Abteilungsleitung startet bei der eigenen und kann
+    /// zu jeder Kostenstelle wechseln; Gruppenleitungen sehen nur die eigene.
+    /// </summary>
+    public (string Scope, List<(string Number, string Label)> Choices) ResolveScope(string own, bool isDepartmentHead, string? requested) => _store.Read(d =>
+    {
+        if (!isDepartmentHead) return (own, new List<(string, string)>());
+        string Label(CostCenter c) => c.Number + (c.Group.Length > 0 ? " · " + c.Group : "") + (c.Number == own ? " (eigene Kostenstelle)" : "");
+        var choices = d.CostCenters.OrderBy(c => c.Number == own ? 0 : 1).ThenBy(c => c.Number, StringComparer.Ordinal)
+            .Select(c => (c.Number, Label(c))).ToList();
+        var scope = requested != null && choices.Any(c => c.Number == requested) ? requested : own;
+        return (scope, choices);
+    });
+
+    public (string Number, string Group)? CostCenterInfo(string number) => _store.Read(d =>
+        d.CostCenters.Where(c => c.Number == number).Select(c => ((string, string)?)(c.Number, c.Group)).FirstOrDefault());
 
     public List<int> EnabledYears() => _store.Read(d => d.Settings.EnabledYears.Where(Years.Contains).OrderBy(y => y).ToList());
 

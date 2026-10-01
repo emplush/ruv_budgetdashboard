@@ -281,3 +281,5 @@ select { padding: 12px; border: 1px solid var(--ink-muted); border-radius: var(-
 /* Ansicht einer Kostenstelle durch die Administration */
 .view-bar { background: var(--orange-light); color: var(--primary); padding: 8px var(--space-4); font: 400 14px/21px var(--font-sans); }
 .view-bar strong { font-weight: 900; }
+.scope-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3); margin-top: var(--space-4); }
+.scope-form select { min-width: 280px; max-width: 100%; }

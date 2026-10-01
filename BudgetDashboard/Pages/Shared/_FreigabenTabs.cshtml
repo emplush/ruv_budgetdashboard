@@ -1,6 +1,12 @@
+@inject BudgetService Budget
 @{
     var current = ViewContext.RouteData.Values["page"] as string ?? "";
-    var tabs = new[] { ("Freigaben", "/Budgetfreigaben/Index"), ("Freischaltung Budgetpläne", "/Budgetfreigaben/Freischaltung") };
+    var tabs = new[]
+    {
+        ("Dashboard", "/Budgetfreigaben/Index"),
+        ($"offene Freigaben ({Budget.PendingCount()})", "/Budgetfreigaben/Offen"),
+        ("Freischaltung Budgetpläne", "/Budgetfreigaben/Freischaltung")
+    };
 }
 <ul class="pill-tabs" aria-label="Budgetfreigaben">
     @foreach (var t in tabs)

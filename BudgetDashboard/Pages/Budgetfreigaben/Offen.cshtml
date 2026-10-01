@@ -1,0 +1,83 @@
+@page
+@model OffeneFreigabenModel
+@{
+    ViewData["Title"] = "Budgetfreigaben";
+}
+<section class="page">
+    <p class="topline">Budgetfreigaben</p>
+    <h1 class="headline">Offene Freigaben</h1>
+    <partial name="_FreigabenTabs" />
+
+    @if (Model.Notice != null)
+    {
+        <div class="alert alert--ok" role="status"><p><strong>Gespeichert:</strong> @Model.Notice</p></div>
+    }
+    <partial name="_Errors" model="Model.Errors" />
+
+    @if (Model.Items.Count == 0)
+    {
+        <div class="card card--soft"><p class="copy">Es warten keine Budgetpositionen auf Deine Freigabe.</p></div>
+    }
+    else
+    {
+        <h2 class="headline-s">Wartende Budgetpositionen (@Model.Items.Count)</h2>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th scope="col">Kostenstelle</th>
+                        <th scope="col">Gruppe</th>
+                        <th scope="col">Bezeichnung</th>
+                        <th scope="col" class="num">Betrag (Brutto)</th>
+                        <th scope="col">Kalenderjahr</th>
+                        <th scope="col">Hinweis zur Freigabe</th>
+                        <th scope="col">Eingereicht am</th>
+                        <th scope="col">Entscheidung</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.Items)
+                    {
+                        <tr>
+                            <td>@r.CostCenter</td>
+                            <td>@r.Group</td>
+                            <th scope="row">@r.Name</th>
+                            <td class="num">@Money.Format(r.AmountCents) EUR</td>
+                            <td>@r.Year</td>
+                            <td class="note">@r.Note</td>
+                            <td>@TimeZoneInfo.ConvertTimeFromUtc(r.CreatedUtc, TimeZoneInfo.Local).ToString("dd.MM.yyyy")</td>
+                            <td>
+                                <div class="inline-form">
+                                    <form method="post" asp-page-handler="Approve" class="inline-form">
+                                        <input type="hidden" name="id" value="@r.Id" />
+                                        <button type="submit" class="btn btn--primary btn--small">Freigabe</button>
+                                    </form>
+                                    <button type="button" class="btn btn--ghost btn--small" data-open="ablehnung-@r.Id" aria-haspopup="dialog">Ablehnung</button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @foreach (var r in Model.Items)
+        {
+            <dialog class="popup" id="ablehnung-@r.Id" aria-labelledby="ablehnung-titel-@r.Id">
+                <form method="post" asp-page-handler="Reject" class="form">
+                    <h2 class="headline-s" id="ablehnung-titel-@r.Id">Ablehnung begründen</h2>
+                    <p class="copy"><strong>@r.Name</strong>, @Money.Format(r.AmountCents) EUR (Brutto), @r.Year, Kostenstelle @r.CostCenter</p>
+                    <input type="hidden" name="id" value="@r.Id" />
+                    <div class="field">
+                        <label for="grund-@r.Id">Grund (optional)</label>
+                        <textarea id="grund-@r.Id" name="reason" rows="3" maxlength="@BudgetService.ReasonMax"></textarea>
+                    </div>
+                    <div class="actions">
+                        <button type="submit" class="btn btn--primary">OK</button>
+                        <button type="button" class="btn btn--ghost" data-close>Abbrechen</button>
+                    </div>
+                </form>
+            </dialog>
+        }
+    }
+</section>

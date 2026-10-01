@@ -7,8 +7,9 @@
     <p class="topline">Budgetplan</p>
     <h1 class="headline">Gesamtbudgetplan</h1>
     <partial name="_BudgetplanTabs" />
+    <partial name="_ScopeSelect" model="Model.Scope" />
 
-    <h2 class="headline-s">Alle Kalenderjahre@(Model.IsDepartmentHead ? " im Überblick" : " Deiner Gruppe")</h2>
+    <h2 class="headline-s">Alle Kalenderjahre@(Model.ScopeTitle.Length > 0 ? Model.ScopeTitle : " Deiner Kostenstelle")</h2>
     <div class="table-wrap">
         <table class="table">
             <thead>
@@ -42,37 +43,4 @@
             </tfoot>
         </table>
     </div>
-
-    @if (Model.IsDepartmentHead)
-    {
-        <h2 class="headline-s">Freigegebene Beträge je Gruppe (Brutto)</h2>
-        @if (Model.Groups.Count == 0)
-        {
-            <p class="copy">Es gibt noch keine freigegebenen Budgetpositionen.</p>
-        }
-        else
-        {
-            <div class="table-wrap">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Kostenstelle</th>
-                            <th scope="col">Gruppe</th>
-                            @foreach (var y in BudgetService.Years) { <th scope="col" class="num">@y</th> }
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var g in Model.Groups)
-                        {
-                            <tr>
-                                <th scope="row">@g.CostCenter</th>
-                                <td>@g.Group</td>
-                                @foreach (var y in BudgetService.Years) { <td class="num">@Money.Format(g.ApprovedByYear[y]) EUR</td> }
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        }
-    }
 </section>
