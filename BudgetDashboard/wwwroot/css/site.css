@@ -37,6 +37,7 @@
 
   --control-h: 48px;
   --control-h-s: 36px;
+  --footer-h: 48px;
 }
 
 :root,
@@ -147,13 +148,17 @@ code { background: var(--grey-1); padding: 1px 6px; border-radius: var(--radius-
 .app-nav__link:focus-visible { outline-offset: -3px; }
 
 /* ---------- Inhalt in voller Breite ---------- */
-.content { flex: 1; width: 100%; padding: var(--space-5) var(--space-4) var(--space-6); }
+.content { flex: 1; width: 100%; padding: var(--space-5) var(--space-4) calc(var(--space-6) + var(--footer-h)); }
 .page > * + * { margin-top: var(--space-4); }
 .page > .topline + .headline { margin-top: var(--space-1); }
 .page > .headline + * { margin-top: var(--space-4); }
 .page > .pill-tabs { margin-top: var(--space-4); }
 
-.app-footer { padding: var(--space-3) var(--space-4); background: var(--footer); color: var(--ink-muted); font: 400 14px/21px var(--font-sans); }
+.app-footer {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 15; height: var(--footer-h);
+  display: flex; align-items: center; padding: 0 var(--space-4);
+  background: var(--footer); border-top: 1px solid var(--border); color: var(--ink-muted); font: 400 14px/21px var(--font-sans);
+}
 
 /* ---------- Karten und Kacheln ---------- */
 .card { background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: var(--radius-base); padding: var(--space-4); }
@@ -319,7 +324,8 @@ td .hint { display: block; }
   .app-header__user { align-items: flex-end; }
   .app-header__title { padding-left: var(--space-3); }
   .headline { font-size: 28px; }
-  .content { padding: var(--space-4) var(--space-3) var(--space-5); }
+  .content { padding: var(--space-4) var(--space-3) calc(var(--space-5) + var(--footer-h)); }
+  .app-footer { padding: 0 var(--space-3); }
   .form--row .field, .amount-link .field { width: 100%; }
   .amount-link__op { display: none; }
   .auth__card { padding: var(--space-4); }
