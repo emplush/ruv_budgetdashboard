@@ -30,6 +30,10 @@ alle Daten liegen in einer JSON-Datei (`App_Data/data.json`).
 - Anti-Forgery-Schutz auf allen Formularen, Content-Security-Policy, X-Frame-Options, und optional HSTS mit HTTPS-Umleitung (`Security:RequireHttps`).
 - Beim ersten Admin-Login mit dem Standardpasswort wird ein eigenes Passwort verlangt.
 
+## Klickbarer Prototyp
+
+`prototype/index.html` ist eine eigenständige Demo, die Login, Rollen, Navigation und Admin-Bereich im Browser nachbildet (Daten im `localStorage`, keine Server-Sicherheit). Sie dient nur zum Ausprobieren und ersetzt die ASP.NET-Anwendung nicht. Datei im Browser öffnen genügt.
+
 ## Lokal starten
 
 ```bash
@@ -76,6 +80,7 @@ BudgetDashboard/
   wwwroot/              CSS, Schriften (R+V Sans/Slab), JavaScript
   web.config            IIS-Konfiguration
 tools/smoke-test.sh     Rauchtest der Abläufe
+prototype/index.html    klickbare Demo ohne Server
 ```
 
 Design: Design-System „R+V Design“ (Tokens, Schriften, Logo, Komponenten).
