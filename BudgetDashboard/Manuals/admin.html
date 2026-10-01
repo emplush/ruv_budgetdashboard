@@ -1,4 +1,4 @@
-<p class="meta">Version 1.3 · Stand Oktober 2026</p>
+<p class="meta">Version 1.4 · Stand Oktober 2026</p>
 <p>Dieses Handbuch richtet sich an die Administration. Du verwaltest die Kostenstellen, bestimmst die Abteilungsleitung, pflegst die Einstellungen und kannst Testdaten importieren.</p>
 
 <nav class="toc" aria-label="Inhalt">
@@ -8,6 +8,7 @@
     <li><a href="#navigation">Die Navigation</a></li>
     <li><a href="#dashboard">Dashboard</a></li>
     <li><a href="#kostenstellen">Kostenstellen verwalten</a></li>
+    <li><a href="#ansicht">Ansicht einer Kostenstelle</a></li>
     <li><a href="#einstellungen">Einstellungen</a></li>
     <li><a href="#testdaten">Testdaten</a></li>
     <li><a href="#betrieb">Sicherheit und Betrieb</a></li>
@@ -27,7 +28,7 @@
   <thead><tr><th>Menüpunkt</th><th>Wofür er da ist</th></tr></thead>
   <tbody>
     <tr><td>Dashboard</td><td>Kennzahlen zu den Kostenstellen und die aktuelle Abteilungsleitung.</td></tr>
-    <tr><td>Kostenstellen</td><td>Kostenstellen anlegen, bearbeiten, freigeben und entfernen.</td></tr>
+    <tr><td>Kostenstellen</td><td>Kostenstellen anlegen, bearbeiten, freigeben und entfernen. Die Ansicht einer Kostenstelle öffnen.</td></tr>
     <tr><td>Einstellungen</td><td>Titel der Anwendung, Admin-Passwort und Testdaten.</td></tr>
     <tr><td>Abmelden</td><td>Sitzung beenden.</td></tr>
   </tbody>
@@ -76,13 +77,31 @@
 <h3>Kostenstelle entfernen</h3>
 <p>Mit <strong>Entfernen</strong> und Bestätigung löschst Du eine Kostenstelle. Auch alle Budgetpositionen dieser Kostenstelle werden gelöscht. Das lässt sich nicht rückgängig machen.</p>
 
-<h2 id="einstellungen">5. Einstellungen</h2>
+<h2 id="ansicht">5. Ansicht einer Kostenstelle</h2>
+<p>Mit der Ansicht siehst Du die Anwendung so, wie eine Kostenstelle sie sieht. Du erkennst, welche Navigation und welche Funktionen eine Gruppenleitung oder die Abteilungsleitung hat.</p>
+<ol>
+  <li>Öffne <strong>Kostenstellen</strong>.</li>
+  <li>Klicke in der Zeile der Kostenstelle auf <strong>Ansicht</strong>. Der Button erscheint nur bei freigegebenen Kostenstellen.</li>
+  <li>Die Ansicht öffnet sich in einem <strong>neuen Tab</strong>. Dein Admin-Tab bleibt unverändert angemeldet.</li>
+</ol>
+<p>Ein orangefarbenes Band über dem Kopfbereich zeigt, welche Kostenstelle Du ansiehst. Die Navigation, die Seiten und das Handbuch entsprechen der Rolle der Kostenstelle: Gruppenleitung oder Abteilungsleitung.</p>
+<ul>
+  <li><strong>Nur ansehen:</strong> In der Ansicht kannst Du nichts speichern, freigeben, löschen oder ändern. Formulare lassen sich nicht absenden. Es erscheint ein Hinweis, dass keine Änderungen möglich sind.</li>
+  <li><strong>Keine Anmeldung nötig:</strong> Das Passwort der Kostenstelle brauchst Du nicht. Die Ansicht ändert weder Passwort noch letzte Anmeldung.</li>
+  <li><strong>Beenden:</strong> Klicke in der Navigation auf <strong>Ansicht beenden</strong> oder schließe den Tab. Meldest Du Dich als Administration ab, endet jede Ansicht ebenfalls.</li>
+  <li><strong>Mehrere Ansichten:</strong> Eine neue Ansicht ersetzt die vorherige im selben Browser. Du kannst gleichzeitig Dein Admin-Tab und eine Ansicht offen haben.</li>
+</ul>
+<div class="callout">
+  <p>Möchtest Du Funktionen wie das Einreichen von Budgetpositionen ausprobieren, nutze die Testdaten und melde Dich mit einer Testkostenstelle an (Abschnitt 7).</p>
+</div>
+
+<h2 id="einstellungen">6. Einstellungen</h2>
 <h3>Titel der Anwendung</h3>
 <p>Der Titel erscheint im Kopfbereich, in der Fußzeile und im Browser-Tab. Er darf 1 bis 60 Zeichen haben.</p>
 <h3>Admin-Passwort ändern</h3>
 <p>Gib das aktuelle Passwort und zweimal das neue ein. Es gelten dieselben Regeln wie für alle: mindestens 12 Zeichen, Groß- und Kleinbuchstaben, Ziffer und Sonderzeichen.</p>
 
-<h2 id="testdaten">6. Testdaten</h2>
+<h2 id="testdaten">7. Testdaten</h2>
 <p>Unter <strong>Einstellungen</strong> findest Du den Abschnitt <strong>Testdaten</strong>. Mit den Testdaten probierst Du alle typischen Fälle der App aus, ohne selbst Kostenstellen anzulegen.</p>
 <h3>Testdaten importieren</h3>
 <ol>
@@ -112,7 +131,7 @@
   </tbody>
 </table>
 
-<h2 id="betrieb">7. Sicherheit und Betrieb</h2>
+<h2 id="betrieb">8. Sicherheit und Betrieb</h2>
 <ul>
   <li><strong>Sperre:</strong> Nach 5 Fehlversuchen ist eine Kostenstelle 15 Minuten gesperrt. Die Sperre siehst Du in der Tabelle der Kostenstellen.</li>
   <li><strong>Sitzung:</strong> Nach 30 Minuten ohne Aktivität werden Nutzende abgemeldet.</li>
@@ -121,13 +140,15 @@
   <li><strong>Betrieb auf dem IIS:</strong> Die Schritte zur Bereitstellung stehen in der README des Projekts.</li>
 </ul>
 
-<h2 id="probleme">8. Wenn etwas nicht klappt</h2>
+<h2 id="probleme">9. Wenn etwas nicht klappt</h2>
 <table>
   <thead><tr><th>Situation</th><th>Was Du tun kannst</th></tr></thead>
   <tbody>
     <tr><td>Jemand kann sich nicht anmelden</td><td>Prüfe unter Kostenstellen, ob <strong>Anmeldung erlaubt</strong> angehakt ist und ob eine Sperre besteht. Löse eine Sperre mit <strong>Passwort löschen</strong>.</td></tr>
     <tr><td>Passwort vergessen</td><td>Klicke bei der Kostenstelle auf <strong>Passwort löschen</strong>.</td></tr>
     <tr><td>Admin-Passwort vergessen</td><td>Stoppe die Anwendung, benenne <code>App_Data/data.json</code> um und starte sie neu. Die Anwendung legt dann einen neuen Datenbestand mit dem Standardpasswort an. Die alten Kostenstellen stehen danach nicht mehr zur Verfügung.</td></tr>
+    <tr><td>Der Button „Ansicht“ fehlt</td><td>Die Kostenstelle ist nicht freigegeben. Hake „Anmeldung erlaubt“ an und speichere.</td></tr>
+    <tr><td>Die Ansicht endet plötzlich</td><td>Du wurdest als Administration abgemeldet oder die Sitzung ist nach 30 Minuten ohne Aktivität abgelaufen. Melde Dich an und öffne die Ansicht neu.</td></tr>
     <tr><td>Anwendung speichert nicht</td><td>Prüfe, ob das Konto des Anwendungspools Schreibrechte auf <code>App_Data</code> hat.</td></tr>
   </tbody>
 </table>

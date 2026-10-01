@@ -277,3 +277,7 @@ select { padding: 12px; border: 1px solid var(--ink-muted); border-radius: var(-
 .popup > * + * { margin-top: var(--space-3); }
 .popup__reason { white-space: pre-wrap; border: 2px solid var(--border); border-radius: var(--radius-base); padding: var(--space-3); }
 .page > .pill-tabs { margin-top: var(--space-4); }
+
+/* Ansicht einer Kostenstelle durch die Administration */
+.view-bar { background: var(--orange-light); color: var(--primary); padding: 8px var(--space-4); font: 400 14px/21px var(--font-sans); }
+.view-bar strong { font-weight: 900; }

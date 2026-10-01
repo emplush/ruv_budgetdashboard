@@ -2,5 +2,6 @@
 @attribute [AllowAnonymous]
 @functions {
     public IActionResult OnGet() =>
-        User.Identity?.IsAuthenticated == true ? LocalRedirect(User.HomeFor()) : RedirectToPage("/Login");
+        User.Identity?.IsAuthenticated == true ? LocalRedirect(User.HomeFor())
+        : Request.IsViewScope() ? RedirectToPage("/AnsichtBeendet") : RedirectToPage("/Login");
 }

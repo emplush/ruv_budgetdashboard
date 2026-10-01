@@ -1,0 +1,19 @@
+@page
+@attribute [AllowAnonymous]
+@inject ViewAsTokenService Tokens
+@inject AccountService Accounts
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@functions {
+    public async Task<IActionResult> OnGetAsync(string? t)
+    {
+        if (!Request.IsViewScope()) return RedirectToPage("/Index");
+        var admin = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        var number = Tokens.Read(t);
+        var account = number is null ? null : Accounts.Find(number);
+        if (!admin.Succeeded || !admin.Principal!.IsInRole(Roles.Admin) || account is null || account.Role == Roles.Admin)
+            return RedirectToPage("/AnsichtBeendet");
+        await HttpContext.SignInViewAsync(account);
+        return LocalRedirect("~/Dashboard");
+    }
+}

@@ -31,7 +31,7 @@
         }
         <li class="app-nav__end">
             <form method="post" asp-page="/Logout">
-                <button class="app-nav__link" type="submit">Abmelden</button>
+                <button class="app-nav__link" type="submit">@(Context.Request.IsViewScope() ? "Ansicht beenden" : "Abmelden")</button>
             </form>
         </li>
     </ul>

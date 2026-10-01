@@ -218,6 +218,40 @@ get al /Budgetplan >/dev/null; check "AL sieht Budgetplan aller Gruppen" "aller 
 get al /Budgetplan/Gesamt >/dev/null; check "AL: Beträge je Gruppe" "je Gruppe"
 r=$(get admin /Budgetplan); [[ $r == *"AccessDenied"* ]] && ok "Administration: kein Budgetplan" || fail "$r"
 
+echo "Ansicht einer Kostenstelle durch die Administration"
+get admin /Admin/Kostenstellen >/dev/null
+check "Button Ansicht in der Kostenstellen-Tabelle" ">Ansicht</button>"
+r=$(post admin "/Admin/Kostenstellen?handler=ViewAs" --data-urlencode "number=10000002"); [[ $r == 200*"/_ansicht/Dashboard" ]] && ok "Ansicht der Gruppenleitung öffnet im eigenen Pfad" || fail "$r"
+check "Banner zeigt die Kostenstelle" "Ansicht der Kostenstelle 10000002"
+check "Ansicht: Navigation der Gruppenleitung" ">Budgetplan</a>"
+nocheck "Ansicht: keine Budgetfreigaben für Gruppenleitung" ">Budgetfreigaben</a>"
+check "Ansicht beenden statt Abmelden" "Ansicht beenden"
+r=$(get admin /_ansicht/Budgetplan/Eingabe); [[ $r == 200* ]] && ok "Ansicht: Eingabe Budgetposition erreichbar" || fail "$r"
+check "Ansicht: Formular der Gruppenleitung" "Neue Budgetposition"
+check "Ansicht: Status-Tabelle der Gruppenleitung" "Status der Freigaben"
+r=$(get admin /_ansicht/Admin/Kostenstellen); [[ $r == *"AccessDenied"* ]] && ok "Ansicht: kein Admin-Bereich" || fail "$r"
+r=$(get admin /Admin/Kostenstellen); [[ $r == 200*"/Admin/Kostenstellen" ]] && ok "Admin-Sitzung im anderen Tab bleibt erhalten" || fail "$r"
+nocheck "Admin-Tab ohne Ansicht-Banner" "Ansicht der Kostenstelle"
+get admin /_ansicht/Profil >/dev/null
+post admin "/_ansicht/Profil?handler=Details" --data-urlencode "Org=HACK" --data-urlencode "Group=HACK" >/dev/null
+check "Ansicht ist schreibgeschützt" "Hier sind keine"
+get admin /_ansicht/Profil >/dev/null; nocheck "nichts wurde geändert" 'value="HACK"'
+r=$(post admin "/Admin/Kostenstellen?handler=ViewAs" --data-urlencode "number=10000001"); [[ $r == *"/_ansicht/Dashboard" ]] && ok "Ansicht der Abteilungsleitung" || fail "$r"
+check "Ansicht: Navigation mit Budgetfreigaben" ">Budgetfreigaben</a>"
+get admin /_ansicht/Budgetfreigaben >/dev/null; check "Ansicht: Freigaben der Abteilungsleitung" "Wartende Budgetpositionen"
+get admin /_ansicht/Handbuch >/dev/null; check "Ansicht: Handbuch der Abteilungsleitung" "die Abteilungsleitung</h1>"
+r=$(post admin "/Admin/Kostenstellen?handler=ViewAs" --data-urlencode "number=10000007"); [[ $r == *"_ansicht/Dashboard" ]] && fail "Ansicht einer gesperrten Kostenstelle: $r" || ok "keine Ansicht für nicht freigegebene Kostenstellen"
+r=$(get anon "/_ansicht/AnsichtStart?t=gefaelscht"); [[ $r == *AnsichtBeendet* ]] && ok "gefälschte Marke abgelehnt" || fail "$r"
+r=$(get anon "/_ansicht/Dashboard"); [[ $r == *AnsichtBeendet* ]] && ok "Ansicht ohne Anmeldung nicht erreichbar" || fail "$r"
+r=$(post al "/Admin/Kostenstellen?handler=ViewAs" --data-urlencode "number=10000002"); [[ $r == *"_ansicht/Dashboard" ]] && fail "Abteilungsleitung startete Ansicht" || ok "Nur die Administration startet eine Ansicht"
+r=$(post admin "/_ansicht/Logout"); [[ $r == *AnsichtBeendet* ]] && ok "Ansicht beenden" || fail "$r"
+r=$(get admin /_ansicht/Dashboard); [[ $r == *AnsichtBeendet* ]] && ok "Ansicht nach dem Beenden geschlossen" || fail "$r"
+r=$(get admin /Admin/Dashboard); [[ $r == 200*"/Admin/Dashboard" ]] && ok "Admin bleibt angemeldet" || fail "$r"
+post admin "/Admin/Kostenstellen?handler=ViewAs" --data-urlencode "number=10000003" >/dev/null
+post admin /Logout >/dev/null
+r=$(get admin /_ansicht/Dashboard); [[ $r == *AnsichtBeendet* ]] && ok "Ansicht endet mit der Admin-Abmeldung" || fail "$r"
+login admin 00000000 'Adm1n-Start#2026' >/dev/null
+
 post admin "/Admin/Kostenstellen?handler=Add" --data-urlencode "NewNumber=22222222" --data-urlencode "NewEnabled=true" >/dev/null
 post admin "/Admin/Einstellungen?handler=AskDelete" >/dev/null
 check "Löschen verlangt Bestätigung" "Alle <strong>8 Testkostenstellen"

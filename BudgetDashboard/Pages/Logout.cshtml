@@ -6,6 +6,11 @@
 
     public async Task<IActionResult> OnPostAsync()
     {
+        if (Request.IsViewScope())
+        {
+            await HttpContext.SignOutAsync("View");
+            return RedirectToPage("/AnsichtBeendet");
+        }
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return RedirectToPage("/Login");
     }

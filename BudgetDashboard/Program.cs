@@ -15,6 +15,7 @@ builder.Services.AddSingleton<PasswordService>();
 builder.Services.AddSingleton<DataStore>();
 builder.Services.AddSingleton<AccountService>();
 builder.Services.AddSingleton<SetupTokenService>();
+builder.Services.AddSingleton<ViewAsTokenService>();
 builder.Services.AddSingleton<BudgetService>();
 
 // Schlüssel liegen im Datenordner, weil der IIS-Anwendungspool oft kein Benutzerprofil hat.
@@ -28,31 +29,47 @@ builder.Services.AddDataProtection()
     .SetApplicationName("BudgetDashboard2")
     .PersistKeysToFileSystem(new DirectoryInfo(keyDir));
 
-builder.Services
-    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(o =>
+const string ViewScheme = "View";
+
+void ConfigureCookie(CookieAuthenticationOptions o, string name, bool view)
+{
+    o.Cookie.Name = name;
+    o.Cookie.HttpOnly = true;
+    o.Cookie.SameSite = SameSiteMode.Strict;
+    o.Cookie.SecurePolicy = requireHttps ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
+    o.ExpireTimeSpan = TimeSpan.FromMinutes(builder.Configuration.GetValue("Security:SessionMinutes", 30));
+    o.SlidingExpiration = true;
+    o.LoginPath = view ? "/AnsichtBeendet" : "/Login";
+    o.AccessDeniedPath = "/AccessDenied";
+    o.Events.OnValidatePrincipal = async ctx =>
     {
-        o.Cookie.Name = "bd2.auth";
-        o.Cookie.HttpOnly = true;
-        o.Cookie.SameSite = SameSiteMode.Strict;
-        o.Cookie.SecurePolicy = requireHttps ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
-        o.ExpireTimeSpan = TimeSpan.FromMinutes(builder.Configuration.GetValue("Security:SessionMinutes", 30));
-        o.SlidingExpiration = true;
-        o.LoginPath = "/Login";
-        o.AccessDeniedPath = "/AccessDenied";
-        o.Events.OnValidatePrincipal = async ctx =>
+        var accounts = ctx.HttpContext.RequestServices.GetRequiredService<AccountService>();
+        var info = accounts.Find(ctx.Principal?.FindFirstValue(ClaimTypes.NameIdentifier));
+        var valid = info != null
+            && info.Stamp == ctx.Principal?.FindFirstValue("stamp")
+            && info.Role == ctx.Principal?.FindFirstValue(ClaimTypes.Role);
+        // Eine Kostenstellen-Ansicht gilt nur, solange die Administration angemeldet ist.
+        if (valid && view)
         {
-            var accounts = ctx.HttpContext.RequestServices.GetRequiredService<AccountService>();
-            var info = accounts.Find(ctx.Principal?.FindFirstValue(ClaimTypes.NameIdentifier));
-            if (info == null
-                || info.Stamp != ctx.Principal?.FindFirstValue("stamp")
-                || info.Role != ctx.Principal?.FindFirstValue(ClaimTypes.Role))
-            {
-                ctx.RejectPrincipal();
-                await ctx.HttpContext.SignOutAsync();
-            }
-        };
-    });
+            var admin = await ctx.HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            valid = admin.Succeeded && admin.Principal!.IsInRole(Roles.Admin);
+        }
+        if (!valid)
+        {
+            ctx.RejectPrincipal();
+            await ctx.HttpContext.SignOutAsync(view ? ViewScheme : CookieAuthenticationDefaults.AuthenticationScheme);
+        }
+    };
+}
+
+// Die Ansicht einer Kostenstelle läuft unter dem Pfad /_ansicht mit eigenem Cookie, damit die
+// Admin-Sitzung im anderen Tab erhalten bleibt.
+builder.Services
+    .AddAuthentication("Smart")
+    .AddPolicyScheme("Smart", "Smart", o =>
+        o.ForwardDefaultSelector = ctx => ctx.Request.IsViewScope() ? ViewScheme : CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, o => ConfigureCookie(o, "bd2.auth", false))
+    .AddCookie(ViewScheme, o => ConfigureCookie(o, "bd2.view", true));
 
 builder.Services.AddAuthorization(o =>
 {
@@ -89,6 +106,24 @@ if (requireHttps)
 }
 
 var app = builder.Build();
+
+// /_ansicht/... wird zum PathBase; in der Ansicht sind nur Lesezugriffe erlaubt (Ausnahme: Beenden).
+app.Use(async (ctx, next) =>
+{
+    if (ctx.Request.Path.StartsWithSegments(SignInHelper.ViewSegment, out var rest))
+    {
+        ctx.Request.PathBase = ctx.Request.PathBase.Add(SignInHelper.ViewSegment);
+        ctx.Request.Path = rest;
+        if (!HttpMethods.IsGet(ctx.Request.Method) && !HttpMethods.IsHead(ctx.Request.Method)
+            && !rest.StartsWithSegments("/Logout"))
+        {
+            ctx.Request.Method = HttpMethods.Get;
+            ctx.Request.Path = "/AnsichtNurLesen";
+            ctx.Request.QueryString = QueryString.Empty;
+        }
+    }
+    await next();
+});
 
 if (requireHttps)
 {

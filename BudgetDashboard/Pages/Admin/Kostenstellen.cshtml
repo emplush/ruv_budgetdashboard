@@ -96,6 +96,10 @@
                                 <form id="@fid" method="post" asp-page-handler="Save" class="inline-form">
                                     <input type="hidden" name="number" value="@r.Number" />
                                     <button type="submit" class="btn btn--primary btn--small">Speichern</button>
+                                    @if (r.Enabled)
+                                    {
+                                        <button type="submit" asp-page-handler="ViewAs" formtarget="_blank" class="btn btn--ghost btn--small" title="Öffnet die Ansicht dieser Kostenstelle in einem neuen Tab">Ansicht</button>
+                                    }
                                     <button type="submit" asp-page-handler="ResetPassword" class="btn btn--ghost btn--small" data-confirm="Passwort der Kostenstelle @r.Number löschen? Bei der nächsten Anmeldung muss ein neues Passwort gesetzt werden.">Passwort löschen</button>
                                     <button type="submit" asp-page-handler="Delete" class="btn btn--ghost btn--small" data-confirm="Kostenstelle @r.Number entfernen?">Entfernen</button>
                                 </form>

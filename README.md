@@ -18,6 +18,7 @@ alle Daten liegen in einer JSON-Datei (`App_Data/data.json`).
   - Org-Einheit (Text, max. 11 Zeichen) und Gruppe (Text, max. 30 Zeichen) je Kostenstelle
   - Abteilungsleitung festlegen oder entziehen
   - Passwort einer Kostenstelle löschen (danach Erstanmeldung mit neuem Passwort)
+  - Ansicht einer Kostenstelle in einem neuen Tab (schreibgeschützt, Navigation und Funktionen der jeweiligen Rolle)
   - Titel der Anwendung ändern, Admin-Passwort ändern
   - Testdaten importieren (löscht vorher alle Kostenstellen) und löschen, jeweils mit Bestätigung
 - Budgetplan: Gruppenleitungen reichen Budgetpositionen für die freigeschalteten Kalenderjahre zur Freigabe ein (Aktueller Stand, Gesamtbudgetplan, Eingabe Budgetposition). Die Abteilungsleitung schaltet 2026 bis 2028 frei und gibt Positionen unter „Budgetfreigaben“ frei oder lehnt sie ab.

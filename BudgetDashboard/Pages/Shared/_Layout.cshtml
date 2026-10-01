@@ -19,6 +19,12 @@
 </head>
 <body>
     <a class="skip-link" href="#main">Zum Inhalt springen</a>
+    @if (authenticated && Context.Request.IsViewScope())
+    {
+        <div class="view-bar" role="status">
+            <p><strong>Ansicht der Kostenstelle @User.Identity!.Name</strong> (@Roles.Label(role ?? "")). Du siehst die Anwendung wie diese Kostenstelle. Änderungen sind hier nicht möglich.</p>
+        </div>
+    }
     <header class="app-header" data-theme="dunkel">
         <div class="app-header__inner">
             <a class="app-header__brand" asp-page="/Index" aria-label="@title – Startseite">

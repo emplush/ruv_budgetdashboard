@@ -1,3 +1,4 @@
+using BudgetDashboard.Models;
 using BudgetDashboard.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,7 +10,8 @@ namespace BudgetDashboard.Pages.Admin;
 public class KostenstellenModel : PageModel
 {
     private readonly AccountService _accounts;
-    public KostenstellenModel(AccountService accounts) => _accounts = accounts;
+    private readonly ViewAsTokenService _tokens;
+    public KostenstellenModel(AccountService accounts, ViewAsTokenService tokens) { _accounts = accounts; _tokens = tokens; }
 
     [BindProperty] public string? NewNumber { get; set; }
     [BindProperty] public string? NewOrgUnit { get; set; }
@@ -47,6 +49,18 @@ public class KostenstellenModel : PageModel
     public IActionResult OnPostHead(string number, bool makeHead) =>
         Handle(_accounts.SetDepartmentHead(makeHead ? number : null),
             makeHead ? $"Kostenstelle {number} hat jetzt Abteilungsleiterrechte." : $"Kostenstelle {number} hat keine Abteilungsleiterrechte mehr.");
+
+    /// <summary>Öffnet die schreibgeschützte Ansicht einer freigegebenen Kostenstelle (im neuen Tab, eigene Sitzung).</summary>
+    public IActionResult OnPostViewAs(string number)
+    {
+        if (_accounts.Find(number) is null || number == Roles.AdminNumber)
+        {
+            Errors = new() { "Für diese Kostenstelle ist keine Ansicht möglich. Sie muss freigegeben sein." };
+            Rows = _accounts.List();
+            return Page();
+        }
+        return Redirect(Url.Content("~/_ansicht/AnsichtStart") + "?t=" + Uri.EscapeDataString(_tokens.Create(number)));
+    }
 
     private IActionResult Handle(OperationResult result, string notice)
     {

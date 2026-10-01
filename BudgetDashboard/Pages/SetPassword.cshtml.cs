@@ -45,7 +45,7 @@ public class SetPasswordModel : PageModel
 
         Response.Cookies.Delete(SetupTokenService.CookieName);
         await HttpContext.SignInAsync(account!);
-        return LocalRedirect("/Dashboard");
+        return LocalRedirect("~/Dashboard");
     }
 
     private bool Load()
