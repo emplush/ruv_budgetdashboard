@@ -1,0 +1,47 @@
+@inject DataStore Store
+@{
+    var title = Store.Title;
+    var authenticated = User.Identity?.IsAuthenticated == true;
+    var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+}
+<!DOCTYPE html>
+<html lang="de" data-theme="hell">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>@(ViewData["Title"] is string t ? t + " – " : "")@title</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <a class="skip-link" href="#main">Zum Inhalt springen</a>
+    <header class="app-header" data-theme="dunkel">
+        <div class="app-header__inner">
+            <a class="app-header__brand" asp-page="/Index" aria-label="@title – Startseite">
+                <svg class="app-header__logo" xmlns="http://www.w3.org/2000/svg" viewBox="53 40 96 48" role="img" aria-label="R+V">
+                    <path fill="#ffffff" d="M147.4015961,42.5196075h-14.4109955l-14.2090073,21.2249985v-21.2249985h-13.6919937l-.0040054,16.6320038h-9.7279968v-11.2420044h-9.560997l-.0010071,11.2420044h-9.7939987c.7529984-1.5350037,1.1790009-3.2610016,1.1790009-5.0870056,0-6.3730011-5.6869965-11.5390015-12.048996-11.5449982h-22.6120071v42.5200005h13.6580048v-31.6499977h2.7210007c2.8679962,0,5.1920013,2.3279953,5.1920013,5.1989975,0,2.8679962-2.3250046,5.185997-5.1880035,5.1910019l8.6439972,21.2599983h14.526001l-6.8089981-16.4949989h10.5330048v11.2459984h9.560997v-11.2459984h9.7320023v16.4949989h13.6919937l28.6200027-42.5200005Z"></path>
+                </svg>
+                <span class="app-header__title">@title</span>
+            </a>
+            @if (authenticated)
+            {
+                <p class="app-header__user">
+                    <span>Kostenstelle @User.Identity!.Name</span>
+                    <span class="app-header__role">@Roles.Label(role ?? "")</span>
+                </p>
+            }
+        </div>
+    </header>
+    @if (authenticated)
+    {
+        <partial name="_Nav" />
+    }
+    <main id="main" class="content">
+        @RenderBody()
+    </main>
+    <footer class="app-footer">
+        <p>@title</p>
+    </footer>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+</body>
+</html>

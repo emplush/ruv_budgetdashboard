@@ -1,0 +1,109 @@
+@page
+@attribute [Authorize(Policy = "AdminOnly")]
+@model KostenstellenModel
+@{
+    ViewData["Title"] = "Kostenstellen";
+}
+<section class="page">
+    <p class="topline">Administration</p>
+    <h1 class="headline">Kostenstellen</h1>
+
+    @if (Model.Notice != null)
+    {
+        <div class="alert alert--ok" role="status"><p><strong>Gespeichert:</strong> @Model.Notice</p></div>
+    }
+    <partial name="_Errors" model="Model.Errors" />
+
+    <div class="card card--soft card--form">
+        <h2 class="headline-s">Neue Kostenstelle anlegen</h2>
+        <form method="post" asp-page-handler="Add" class="form form--row" autocomplete="off">
+            <div class="field">
+                <label for="new-number">Kostenstelle</label>
+                <input id="new-number" name="NewNumber" value="@Model.NewNumber" inputmode="numeric" pattern="[0-9]{8}" maxlength="8" required />
+            </div>
+            <div class="field">
+                <label for="new-org">Org-Einheit</label>
+                <input id="new-org" name="NewOrgUnit" value="@Model.NewOrgUnit" maxlength="@AccountService.OrgUnitMax" />
+            </div>
+            <div class="field">
+                <label for="new-group">Gruppe</label>
+                <input id="new-group" name="NewGroup" value="@Model.NewGroup" maxlength="@AccountService.GroupMax" />
+            </div>
+            <div class="field field--check">
+                <label><input type="checkbox" name="NewEnabled" value="true" @(Model.NewEnabled ? "checked" : null) /> Darf sich anmelden</label>
+                <label><input type="checkbox" name="NewHead" value="true" @(Model.NewHead ? "checked" : null) /> Abteilungsleitung</label>
+            </div>
+            <button type="submit" class="btn btn--primary">Kostenstelle anlegen</button>
+        </form>
+    </div>
+
+    <h2 class="headline-s">Alle Kostenstellen (@Model.Rows.Count)</h2>
+    @if (Model.Rows.Count == 0)
+    {
+        <p class="copy">Es sind noch keine Kostenstellen angelegt.</p>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th scope="col">Kostenstelle</th>
+                        <th scope="col">Org-Einheit</th>
+                        <th scope="col">Gruppe</th>
+                        <th scope="col">Anmeldung erlaubt</th>
+                        <th scope="col">Passwort</th>
+                        <th scope="col">Abteilungsleitung</th>
+                        <th scope="col">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.Rows)
+                    {
+                        var fid = "row-" + r.Number;
+                        <tr>
+                            <th scope="row">@r.Number</th>
+                            <td><input class="cell-input" form="@fid" name="orgUnit" value="@r.OrgUnit" maxlength="@AccountService.OrgUnitMax" aria-label="Org-Einheit für @r.Number" /></td>
+                            <td><input class="cell-input cell-input--wide" form="@fid" name="group" value="@r.Group" maxlength="@AccountService.GroupMax" aria-label="Gruppe für @r.Number" /></td>
+                            <td><label class="check"><input type="checkbox" form="@fid" name="enabled" value="true" @(r.Enabled ? "checked" : null) /> <span>@(r.Enabled ? "Ja" : "Nein")</span></label></td>
+                            <td>
+                                @(r.HasPassword ? "gesetzt" : "nicht gesetzt")
+                                @if (r.Locked)
+                                {
+                                    <span class="badge">gesperrt</span>
+                                }
+                                @if (r.LastLoginUtc is { } t)
+                                {
+                                    <span class="hint">zuletzt @TimeZoneInfo.ConvertTimeFromUtc(t, TimeZoneInfo.Local).ToString("dd.MM.yyyy HH:mm")</span>
+                                }
+                            </td>
+                            <td>
+                                @if (r.IsDepartmentHead)
+                                {
+                                    <strong>Ja</strong>
+                                    <button type="submit" form="@fid" asp-page-handler="Head" name="makeHead" value="false" class="btn btn--ghost btn--small">Entziehen</button>
+                                }
+                                else if (r.Enabled)
+                                {
+                                    <button type="submit" form="@fid" asp-page-handler="Head" name="makeHead" value="true" class="btn btn--ghost btn--small">Festlegen</button>
+                                }
+                                else
+                                {
+                                    <span>Nein</span>
+                                }
+                            </td>
+                            <td class="actions">
+                                <form id="@fid" method="post" asp-page-handler="Save" class="inline-form">
+                                    <input type="hidden" name="number" value="@r.Number" />
+                                    <button type="submit" class="btn btn--primary btn--small">Speichern</button>
+                                    <button type="submit" asp-page-handler="ResetPassword" class="btn btn--ghost btn--small" data-confirm="Passwort der Kostenstelle @r.Number löschen? Bei der nächsten Anmeldung muss ein neues Passwort gesetzt werden.">Passwort löschen</button>
+                                    <button type="submit" asp-page-handler="Delete" class="btn btn--ghost btn--small" data-confirm="Kostenstelle @r.Number entfernen?">Entfernen</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

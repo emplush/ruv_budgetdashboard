@@ -1,0 +1,6 @@
+@page
+@attribute [AllowAnonymous]
+@functions {
+    public IActionResult OnGet() =>
+        User.Identity?.IsAuthenticated == true ? LocalRedirect(User.HomeFor()) : RedirectToPage("/Login");
+}

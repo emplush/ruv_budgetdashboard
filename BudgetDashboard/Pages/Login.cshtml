@@ -1,0 +1,33 @@
+@page
+@model LoginModel
+@{
+    ViewData["Title"] = "Anmeldung";
+}
+<section class="auth">
+    <div class="card auth__card">
+        <p class="topline">Anmeldung</p>
+        <h1 class="headline">Willkommen</h1>
+        <p class="copy">Melde Dich mit Deiner Kostenstelle an.</p>
+
+        @if (Model.Error != null)
+        {
+            <partial name="_Errors" model="new[] { Model.Error }" />
+        }
+
+        <form method="post" class="form" autocomplete="off">
+            <input type="hidden" name="ReturnUrl" value="@Model.ReturnUrl" />
+            <div class="field">
+                <label for="kostenstelle">Kostenstelle</label>
+                <input id="kostenstelle" name="Kostenstelle" value="@Model.Kostenstelle" type="text" inputmode="numeric"
+                       pattern="[0-9]{8}" maxlength="8" required autocomplete="username" autofocus aria-describedby="kostenstelle-hint" />
+                <p id="kostenstelle-hint" class="hint">8 Ziffern</p>
+            </div>
+            <div class="field">
+                <label for="passwort">Passwort</label>
+                <input id="passwort" name="Passwort" type="password" maxlength="128" autocomplete="current-password" aria-describedby="passwort-hint" />
+                <p id="passwort-hint" class="hint">Meldest Du Dich zum ersten Mal an? Lass das Feld leer. Danach legst Du Dein Passwort fest.</p>
+            </div>
+            <button type="submit" class="btn btn--primary">Jetzt anmelden</button>
+        </form>
+    </div>
+</section>

@@ -1,0 +1,10 @@
+@model IEnumerable<string>
+@if (Model.Any())
+{
+    <div class="alert alert--error" role="alert">
+        @foreach (var e in Model)
+        {
+            <p><strong>Fehler:</strong> @e</p>
+        }
+    </div>
+}

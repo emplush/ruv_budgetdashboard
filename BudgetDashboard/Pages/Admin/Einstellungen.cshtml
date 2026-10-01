@@ -1,0 +1,56 @@
+@page
+@attribute [Authorize(Policy = "AdminOnly")]
+@model EinstellungenModel
+@{
+    ViewData["Title"] = "Einstellungen";
+}
+<section class="page">
+    <p class="topline">Administration</p>
+    <h1 class="headline">Einstellungen</h1>
+
+    @if (Model.MustChange)
+    {
+        <div class="alert alert--info" role="status">
+            <p><strong>Hinweis:</strong> Es ist noch das Standardpasswort aktiv. Bitte lege zuerst ein eigenes Admin-Passwort fest.</p>
+        </div>
+    }
+    @if (Model.Notice != null)
+    {
+        <div class="alert alert--ok" role="status"><p><strong>Gespeichert:</strong> @Model.Notice</p></div>
+    }
+    <partial name="_Errors" model="Model.Errors" />
+
+    <div class="grid-2">
+        <div class="card card--soft card--form">
+            <h2 class="headline-s">Titel der Anwendung</h2>
+            <form method="post" asp-page-handler="Title" class="form" autocomplete="off">
+                <div class="field">
+                    <label for="title">Titel</label>
+                    <input id="title" name="Title" value="@Model.Title" maxlength="60" required />
+                    <p class="hint">Erscheint im Kopfbereich und im Browser-Tab.</p>
+                </div>
+                <button type="submit" class="btn btn--primary">Titel speichern</button>
+            </form>
+        </div>
+
+        <div class="card card--soft card--form">
+            <h2 class="headline-s">Admin-Passwort ändern</h2>
+            <form method="post" asp-page-handler="Password" class="form" autocomplete="off">
+                <div class="field">
+                    <label for="aktuell">Aktuelles Passwort</label>
+                    <input id="aktuell" name="Aktuell" type="password" maxlength="128" required autocomplete="current-password" />
+                </div>
+                <div class="field">
+                    <label for="neu">Neues Passwort</label>
+                    <input id="neu" name="Neu" type="password" maxlength="128" required autocomplete="new-password" />
+                </div>
+                <div class="field">
+                    <label for="wdh">Neues Passwort wiederholen</label>
+                    <input id="wdh" name="Wiederholung" type="password" maxlength="128" required autocomplete="new-password" />
+                </div>
+                <partial name="_PasswordRules" />
+                <button type="submit" class="btn btn--primary">Passwort speichern</button>
+            </form>
+        </div>
+    </div>
+</section>

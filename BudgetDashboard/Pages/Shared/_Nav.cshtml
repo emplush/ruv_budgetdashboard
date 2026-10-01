@@ -1,0 +1,37 @@
+@{
+    var current = ViewContext.RouteData.Values["page"] as string ?? "";
+    var items = new List<(string Label, string Page)>();
+    if (User.IsInRole(Roles.Admin))
+    {
+        items.Add(("Kostenstellen", "/Admin/Kostenstellen"));
+        items.Add(("Einstellungen", "/Admin/Einstellungen"));
+    }
+    else
+    {
+        items.Add(("Dashboard", "/Dashboard"));
+        items.Add(("Budgetplan", "/Budgetplan"));
+        items.Add(("Jahresbudget", "/Jahresbudget"));
+        if (User.IsInRole(Roles.DepartmentHead))
+        {
+            items.Add(("Budgetfreigaben", "/Budgetfreigaben"));
+            items.Add(("Upload", "/Upload"));
+        }
+        items.Add(("Profil", "/Profil"));
+    }
+}
+<nav class="app-nav" aria-label="Hauptnavigation">
+    <ul class="app-nav__list">
+        @foreach (var item in items)
+        {
+            var active = string.Equals(current, item.Page, StringComparison.OrdinalIgnoreCase);
+            <li>
+                <a class="app-nav__link@(active ? " is-active" : "")" asp-page="@item.Page" aria-current="@(active ? "page" : null)">@item.Label</a>
+            </li>
+        }
+        <li class="app-nav__end">
+            <form method="post" asp-page="/Logout">
+                <button class="app-nav__link" type="submit">Abmelden</button>
+            </form>
+        </li>
+    </ul>
+</nav>

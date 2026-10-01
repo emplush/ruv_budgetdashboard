@@ -1,0 +1,37 @@
+@page
+@attribute [Authorize(Policy = "User")]
+@model ProfilModel
+@{
+    ViewData["Title"] = "Profil";
+}
+<section class="page">
+    <p class="topline">Mein Bereich</p>
+    <h1 class="headline">Profil</h1>
+
+    <div class="card card--soft card--form">
+        <h2 class="headline-s">Passwort ändern</h2>
+
+        @if (Model.Success)
+        {
+            <div class="alert alert--ok" role="status"><p><strong>Gespeichert:</strong> Dein Passwort ist geändert.</p></div>
+        }
+        <partial name="_Errors" model="Model.Errors" />
+
+        <form method="post" class="form" autocomplete="off">
+            <div class="field">
+                <label for="aktuell">Aktuelles Passwort</label>
+                <input id="aktuell" name="Aktuell" type="password" maxlength="128" required autocomplete="current-password" />
+            </div>
+            <div class="field">
+                <label for="neu">Neues Passwort</label>
+                <input id="neu" name="Neu" type="password" maxlength="128" required autocomplete="new-password" />
+            </div>
+            <div class="field">
+                <label for="wdh">Neues Passwort wiederholen</label>
+                <input id="wdh" name="Wiederholung" type="password" maxlength="128" required autocomplete="new-password" />
+            </div>
+            <partial name="_PasswordRules" />
+            <button type="submit" class="btn btn--primary">Passwort speichern</button>
+        </form>
+    </div>
+</section>
