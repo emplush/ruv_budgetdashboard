@@ -8,30 +8,61 @@
     <p class="topline">Mein Bereich</p>
     <h1 class="headline">Profil</h1>
 
-    <div class="card card--soft card--form">
-        <h2 class="headline-s">Passwort ändern</h2>
+    <div class="grid-2">
+        <div class="card card--soft card--form">
+            <h2 class="headline-s">Meine Angaben</h2>
 
-        @if (Model.Success)
-        {
-            <div class="alert alert--ok" role="status"><p><strong>Gespeichert:</strong> Dein Passwort ist geändert.</p></div>
-        }
-        <partial name="_Errors" model="Model.Errors" />
+            @if (Model.DetailsSaved)
+            {
+                <div class="alert alert--ok" role="status"><p><strong>Gespeichert:</strong> Deine Angaben sind aktualisiert.</p></div>
+            }
+            <partial name="_Errors" model="Model.DetailErrors" />
 
-        <form method="post" class="form" autocomplete="off">
-            <div class="field">
-                <label for="aktuell">Aktuelles Passwort</label>
-                <input id="aktuell" name="Aktuell" type="password" maxlength="128" required autocomplete="current-password" />
-            </div>
-            <div class="field">
-                <label for="neu">Neues Passwort</label>
-                <input id="neu" name="Neu" type="password" maxlength="128" required autocomplete="new-password" />
-            </div>
-            <div class="field">
-                <label for="wdh">Neues Passwort wiederholen</label>
-                <input id="wdh" name="Wiederholung" type="password" maxlength="128" required autocomplete="new-password" />
-            </div>
-            <partial name="_PasswordRules" />
-            <button type="submit" class="btn btn--primary">Passwort speichern</button>
-        </form>
+            <form method="post" asp-page-handler="Details" class="form" autocomplete="off">
+                <div class="field">
+                    <label for="kostenstelle">Kostenstelle</label>
+                    <input id="kostenstelle" value="@User.Identity!.Name" readonly aria-describedby="ks-hint" />
+                    <p id="ks-hint" class="hint">Die Kostenstelle lässt sich nicht ändern.</p>
+                </div>
+                <div class="field">
+                    <label for="org">Org-Einheit</label>
+                    <input id="org" name="Org" value="@Model.Org" maxlength="@AccountService.OrgUnitMax" />
+                    <p class="hint">Höchstens @AccountService.OrgUnitMax Zeichen.</p>
+                </div>
+                <div class="field">
+                    <label for="gruppe">Gruppe</label>
+                    <input id="gruppe" name="Group" value="@Model.Group" maxlength="@AccountService.GroupMax" />
+                    <p class="hint">Höchstens @AccountService.GroupMax Zeichen.</p>
+                </div>
+                <button type="submit" class="btn btn--primary">Angaben speichern</button>
+            </form>
+        </div>
+
+        <div class="card card--soft card--form">
+            <h2 class="headline-s">Passwort ändern</h2>
+
+            @if (Model.Success)
+            {
+                <div class="alert alert--ok" role="status"><p><strong>Gespeichert:</strong> Dein Passwort ist geändert.</p></div>
+            }
+            <partial name="_Errors" model="Model.Errors" />
+
+            <form method="post" asp-page-handler="Password" class="form" autocomplete="off">
+                <div class="field">
+                    <label for="aktuell">Aktuelles Passwort</label>
+                    <input id="aktuell" name="Aktuell" type="password" maxlength="128" required autocomplete="current-password" />
+                </div>
+                <div class="field">
+                    <label for="neu">Neues Passwort</label>
+                    <input id="neu" name="Neu" type="password" maxlength="128" required autocomplete="new-password" />
+                </div>
+                <div class="field">
+                    <label for="wdh">Neues Passwort wiederholen</label>
+                    <input id="wdh" name="Wiederholung" type="password" maxlength="128" required autocomplete="new-password" />
+                </div>
+                <partial name="_PasswordRules" />
+                <button type="submit" class="btn btn--primary">Passwort speichern</button>
+            </form>
+        </div>
     </div>
 </section>

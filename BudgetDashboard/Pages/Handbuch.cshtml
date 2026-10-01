@@ -1,0 +1,26 @@
+@page
+@model HandbuchModel
+@{
+    ViewData["Title"] = "Handbuch";
+}
+<section class="page manual-page">
+    <p class="topline">Handbuch</p>
+    <h1 class="headline">@Model.Current.Title</h1>
+
+    <div class="manual-bar">
+        @if (Model.Available.Count > 1)
+        {
+            <ul class="manual-tabs" aria-label="Handbücher">
+                @foreach (var m in Model.Available)
+                {
+                    <li><a class="manual-tab@(m.Key == Model.Current.Key ? " is-active" : "")" asp-page="/Handbuch" asp-route-typ="@m.Key" aria-current="@(m.Key == Model.Current.Key ? "page" : null)">@m.Short</a></li>
+                }
+            </ul>
+        }
+        <a class="btn btn--primary" asp-page="/Handbuch" asp-page-handler="Pdf" asp-route-typ="@Model.Current.Key">PDF herunterladen</a>
+    </div>
+
+    <article class="manual">
+        @Html.Raw(Model.Html)
+    </article>
+</section>

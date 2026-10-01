@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <Content Update="App_Data\**" CopyToPublishDirectory="Never" />
+    <Content Include="Manuals\**" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

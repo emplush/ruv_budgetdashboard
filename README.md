@@ -12,13 +12,15 @@ alle Daten liegen in einer JSON-Datei (`App_Data/data.json`).
   - Alle Kostenstellen: Dashboard, Budgetplan, Jahresbudget, Profil, Abmelden
   - Abteilungsleitung zusätzlich nach „Jahresbudget“: Budgetfreigaben, Upload
   - Administration: Dashboard, Kostenstellen, Einstellungen, Abmelden
-- Die Fachseiten sind zunächst leer und werden später gefüllt. Unter „Profil“ ändern Nutzende ihr Passwort.
+- Die Fachseiten sind zunächst leer und werden später gefüllt. Unter „Profil“ ändern Nutzende ihre Org-Einheit, ihre Gruppe (die Kostenstelle ist nicht änderbar) und ihr Passwort.
 - Admin-Bereich
   - Kostenstellen anlegen, freigeben oder sperren, entfernen
   - Org-Einheit (Text, max. 11 Zeichen) und Gruppe (Text, max. 30 Zeichen) je Kostenstelle
   - Abteilungsleitung festlegen oder entziehen
   - Passwort einer Kostenstelle löschen (danach Erstanmeldung mit neuem Passwort)
   - Titel der Anwendung ändern, Admin-Passwort ändern
+  - Testdaten importieren (löscht vorher alle Kostenstellen) und löschen, jeweils mit Bestätigung
+- Handbücher für Nutzende, Abteilungsleitung und Administration als HTML in der App (Schaltfläche „Handbuch“ im Header), jeweils mit PDF-Download
 
 ## Sicherheit
 
@@ -32,7 +34,15 @@ alle Daten liegen in einer JSON-Datei (`App_Data/data.json`).
 
 ## Klickbarer Prototyp
 
-`prototype/index.html` ist eine eigenständige Demo, die Login, Rollen, Navigation und Admin-Bereich im Browser nachbildet (Daten im `localStorage`, keine Server-Sicherheit). Sie dient nur zum Ausprobieren und ersetzt die ASP.NET-Anwendung nicht. Datei im Browser öffnen genügt.
+`prototype/index.html` bildet Anmeldung, Rollen, Navigation, Profil, Admin-Bereich, Testdaten und Handbücher im Browser nach (Daten im `localStorage`, keine Server-Sicherheit). Er ist die Fassung für das Artefakt und ersetzt die ASP.NET-Anwendung nicht. Datei im Browser öffnen genügt.
+
+## Handbücher
+
+Die Quellen liegen als HTML in `BudgetDashboard/Manuals/` (`nutzer.html`, `abteilungsleitung.html`, `admin.html`). Die App zeigt sie unter „Handbuch“ an. Die PDF-Fassungen entstehen mit `node tools/build-manuals.js` (Node und Playwright mit Chromium nötig) und liegen daneben. Nach jeder Änderung an App oder Handbuch neu erzeugen und mit einchecken.
+
+## Testdaten
+
+Im Admin-Bereich unter „Einstellungen“ importiert der Abschnitt „Testdaten“ acht Kostenstellen (`10000001` bis `10000008`) mit den typischen Fällen. Der Import löscht vorher alle Kostenstellen und verlangt eine Bestätigung. Das Passwort der Testkostenstellen steht im Abschnitt und im Admin-Handbuch. Definition: `BudgetDashboard/Services/TestData.cs`.
 
 ## Lokal starten
 
@@ -75,11 +85,13 @@ Die Anwendung ist für **eine** Instanz ausgelegt (der Datenbestand liegt im Arb
 BudgetDashboard/
   Program.cs            Start, Authentifizierung, Sicherheits-Header
   Models/               Datenmodell (StoreData, CostCenter, Rollen)
-  Services/             DataStore (JSON), PasswordService, AccountService, SetupTokenService
+  Services/             DataStore (JSON), PasswordService, AccountService, SetupTokenService, TestData
+  Manuals/              Handbücher (HTML und PDF)
   Pages/                Razor Pages (Login, SetPassword, Dashboard, ..., Admin/)
   wwwroot/              CSS, Schriften (R+V Sans/Slab), JavaScript
   web.config            IIS-Konfiguration
 tools/smoke-test.sh     Rauchtest der Abläufe
+tools/build-manuals.js  erzeugt die Handbuch-PDFs
 prototype/index.html    klickbare Demo ohne Server
 ```
 

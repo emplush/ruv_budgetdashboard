@@ -183,6 +183,23 @@ public sealed partial class AccountService
         });
     }
 
+    /// <summary>Eigene Angaben (Org-Einheit, Gruppe) ändern; die Kostenstelle bleibt unverändert.</summary>
+    public OperationResult UpdateOwnDetails(string number, string? orgUnit, string? group)
+    {
+        orgUnit = (orgUnit ?? "").Trim();
+        group = (group ?? "").Trim();
+        var errors = ValidateTexts(orgUnit, group);
+        if (errors.Count > 0) return OperationResult.Fail(errors);
+        return _store.Write(d =>
+        {
+            var c = FindRaw(d, number);
+            if (c is not { Enabled: true } || number == Roles.AdminNumber) return OperationResult.Fail("Das Konto ist nicht verfügbar.");
+            c.OrgUnit = orgUnit;
+            c.Group = group;
+            return OperationResult.Success();
+        });
+    }
+
     public (string OrgUnit, string Group, string Role)? Profile(string number) => _store.Read(d =>
     {
         var c = FindRaw(d, number);
@@ -272,6 +289,30 @@ public sealed partial class AccountService
         if (c is not { Enabled: true }) return OperationResult.Fail("Die Abteilungsleitung braucht eine freigegebene Kostenstelle.");
         d.Settings.DepartmentHeadNumber = number;
         return OperationResult.Success();
+    });
+
+    // ---- Testdaten ----
+
+    public int TestDataCount() => _store.Read(d => d.CostCenters.Count(c => c.IsTestData));
+
+    /// <summary>Löscht alle Kostenstellen und legt die Testdaten neu an. Admin-Passwort und Titel bleiben.</summary>
+    public int ImportTestData() => _store.Write(d =>
+    {
+        d.CostCenters.Clear();
+        d.Settings.DepartmentHeadNumber = null;
+        var items = TestData.Create(_passwords.Hash(TestData.Password));
+        d.CostCenters.AddRange(items);
+        d.Settings.DepartmentHeadNumber = TestData.DepartmentHeadNumber;
+        return items.Count;
+    });
+
+    /// <summary>Entfernt nur die Kostenstellen aus dem Testdaten-Import.</summary>
+    public int DeleteTestData() => _store.Write(d =>
+    {
+        var removed = d.CostCenters.RemoveAll(c => c.IsTestData);
+        if (d.Settings.DepartmentHeadNumber != null && d.CostCenters.All(c => c.Number != d.Settings.DepartmentHeadNumber))
+            d.Settings.DepartmentHeadNumber = null;
+        return removed;
     });
 
     public string GetTitle() => _store.Title;

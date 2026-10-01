@@ -47,4 +47,50 @@
             </form>
         </div>
     </div>
+    <div class="card card--soft" id="testdaten">
+        <h2 class="headline-s">Testdaten</h2>
+        <p class="copy">Mit Testdaten kannst Du alle typischen Fälle der App ausprobieren. Aktuell sind <strong>@Model.TestCount</strong> Testkostenstellen vorhanden.</p>
+
+        @if (Model.Confirm == "import")
+        {
+            <div class="alert alert--error" role="alertdialog" aria-labelledby="confirm-title">
+                <p id="confirm-title"><strong>Bitte bestätigen:</strong> Beim Import werden <strong>alle vorhandenen Kostenstellen gelöscht</strong>, auch die Festlegung der Abteilungsleitung. Das lässt sich nicht rückgängig machen. Admin-Passwort und Titel bleiben erhalten.</p>
+                <div class="actions">
+                    <form method="post" asp-page-handler="Import"><input type="hidden" name="confirmed" value="true" /><button type="submit" class="btn btn--primary">Ja, Testdaten importieren</button></form>
+                    <a class="btn btn--ghost" asp-page="/Admin/Einstellungen" asp-fragment="testdaten">Abbrechen</a>
+                </div>
+            </div>
+        }
+        else if (Model.Confirm == "delete")
+        {
+            <div class="alert alert--error" role="alertdialog" aria-labelledby="confirm-title">
+                <p id="confirm-title"><strong>Bitte bestätigen:</strong> Alle <strong>@Model.TestCount Testkostenstellen</strong> werden gelöscht. Selbst angelegte Kostenstellen bleiben erhalten.</p>
+                <div class="actions">
+                    <form method="post" asp-page-handler="DeleteTest"><input type="hidden" name="confirmed" value="true" /><button type="submit" class="btn btn--primary">Ja, Testdaten löschen</button></form>
+                    <a class="btn btn--ghost" asp-page="/Admin/Einstellungen" asp-fragment="testdaten">Abbrechen</a>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="actions">
+                <form method="post" asp-page-handler="AskImport"><button type="submit" class="btn btn--primary">Testdaten importieren</button></form>
+                <form method="post" asp-page-handler="AskDelete"><button type="submit" class="btn btn--ghost" disabled="@(Model.TestCount == 0)">Testdaten löschen</button></form>
+            </div>
+        }
+
+        <h3 class="headline-s">Enthaltene Fälle</h3>
+        <div class="table-wrap">
+            <table class="table">
+                <thead><tr><th scope="col">Kostenstelle</th><th scope="col">Fall</th></tr></thead>
+                <tbody>
+                    @foreach (var c in TestData.Cases)
+                    {
+                        <tr><th scope="row">@c.Number</th><td>@c.Case</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <p class="hint">Passwort aller Testkostenstellen mit gesetztem Passwort: <code>@TestData.Password</code></p>
+    </div>
 </section>

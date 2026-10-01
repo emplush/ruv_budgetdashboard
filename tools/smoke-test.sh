@@ -65,13 +65,34 @@ for item in Dashboard Budgetplan Jahresbudget Budgetfreigaben Upload Profil Abme
 r=$(get head /Admin/Kostenstellen); [[ $r == *"AccessDenied"* ]] && ok "kein Zugriff auf Admin" || fail "$r"
 for p in Budgetplan Jahresbudget Budgetfreigaben Upload Profil; do r=$(get head /$p); [[ $r == 200* ]] && ok "Seite $p erreichbar" || fail "$p: $r"; done
 get head /Profil >/dev/null
-post head /Profil --data-urlencode "Aktuell=falsch" --data-urlencode "Neu=Neues#Kennwort2026" --data-urlencode "Wiederholung=Neues#Kennwort2026" >/dev/null
+check "Kostenstelle im Profil nur lesbar" 'id="kostenstelle" value="12345678" readonly'
+post head "/Profil?handler=Details" --data-urlencode "Org=ZU-LANGE-ORG-EINHEIT" --data-urlencode "Group=Neue Gruppe" >/dev/null
+check "Profil: Org-Einheit max. 11 Zeichen" "chstens 11 Zeichen"
+post head "/Profil?handler=Details" --data-urlencode "Org=NEU-ORG" --data-urlencode "Group=Neue Gruppe" --data-urlencode "Kostenstelle=99999999" >/dev/null
+check "Profil: Angaben gespeichert" "Angaben sind aktualisiert"
+check "Profil zeigt neue Org-Einheit" 'value="NEU-ORG"'
+check "Profil: Kostenstelle unverändert" 'value="12345678" readonly'
+get head /Dashboard >/dev/null
+check "Dashboard zeigt neue Gruppe" "Neue Gruppe"
+post head "/Profil?handler=Password" --data-urlencode "Aktuell=falsch" --data-urlencode "Neu=Neues#Kennwort2026" --data-urlencode "Wiederholung=Neues#Kennwort2026" >/dev/null
 check "falsches aktuelles Passwort" "stimmt nicht"
-post head /Profil --data-urlencode "Aktuell=Gruppe-Leitung#2026" --data-urlencode "Neu=Neues#Kennwort2026" --data-urlencode "Wiederholung=Neues#Kennwort2026" >/dev/null
+post head "/Profil?handler=Password" --data-urlencode "Aktuell=Gruppe-Leitung#2026" --data-urlencode "Neu=Neues#Kennwort2026" --data-urlencode "Wiederholung=Neues#Kennwort2026" >/dev/null
 check "Passwort im Profil geändert" "Passwort ist ge"
 post head /Logout >/dev/null
 r=$(login head 12345678 'Gruppe-Leitung#2026'); [[ $r == *"/Login"* ]] && check "altes Passwort ungültig" "stimmt nicht" || fail "$r"
 r=$(login head 12345678 'Neues#Kennwort2026'); [[ $r == *"/Dashboard" ]] && ok "Anmeldung mit neuem Passwort" || fail "$r"
+
+echo "Handbücher"
+r=$(get head /Handbuch); [[ $r == 200* ]] && ok "Handbuch erreichbar" || fail "$r"
+check "Abteilungsleitung sieht ihr Handbuch" "die Abteilungsleitung</h1>"
+check "PDF-Download im HTML-Handbuch" "PDF herunterladen"
+r=$(get head "/Handbuch?typ=nutzer"); check "Nutzer-Handbuch für Abteilungsleitung" "Erste Anmeldung und Passwort setzen"
+r=$(get head "/Handbuch?typ=admin"); [[ $r == *"AccessDenied"* ]] && ok "Admin-Handbuch gesperrt für Abteilungsleitung" || fail "$r"
+curl -s -b "$TMP/head" -D "$TMP/h.txt" -o "$TMP/m.pdf" "$BASE/Handbuch?handler=Pdf&typ=abteilungsleitung"
+grep -qi "application/pdf" "$TMP/h.txt" && head -c 4 "$TMP/m.pdf" | grep -q "%PDF" && ok "PDF-Download Abteilungsleitung" || fail "PDF-Download"
+curl -s -b "$TMP/head" -o /dev/null -w "%{http_code}" "$BASE/Handbuch?handler=Pdf&typ=admin" | grep -q 200 && fail "Admin-PDF offen" || ok "Admin-PDF gesperrt"
+get admin "/Handbuch" >/dev/null; check "Administration sieht ihr Handbuch" "die Administration</h1>"
+curl -s -o /dev/null -w "%{http_code}" "$BASE/Handbuch" | grep -q 302 && ok "Handbuch ohne Anmeldung gesperrt" || fail "Handbuch offen"
 
 echo "Gruppenleitung (87654321)"
 login grp 87654321 "" >/dev/null
@@ -93,6 +114,32 @@ post admin "/Admin/Kostenstellen?handler=ResetPassword" --data-urlencode "number
 check "Passwort gelöscht" "ist gel"
 r=$(get grp /Dashboard); [[ $r == *"/Login"* ]] && ok "laufende Sitzung beendet" || fail "$r"
 r=$(login y 87654321 ""); [[ $r == *"/SetPassword" ]] && ok "neue Passwortvergabe nach Löschen" || fail "$r"
+
+echo "Testdaten"
+post admin "/Admin/Einstellungen?handler=AskImport" >/dev/null
+check "Import verlangt Bestätigung" "alle vorhandenen Kostenstellen"
+post admin "/Admin/Einstellungen?handler=Import" >/dev/null
+nocheck "Import ohne Bestätigung wirkungslos" "Testdaten sind importiert"
+get admin /Admin/Kostenstellen >/dev/null; check "vor dem Import: eigene Kostenstellen vorhanden" "12345678"
+post admin "/Admin/Einstellungen?handler=Import" --data-urlencode "confirmed=true" >/dev/null
+check "Testdaten importiert" "Testdaten sind importiert"
+get admin /Admin/Kostenstellen >/dev/null
+check "Import ersetzt alle Daten (8 Kostenstellen)" "Alle Kostenstellen (8)"
+nocheck "alte Kostenstellen gelöscht" "12345678"
+r=$(login t1 10000001 'Test-Zugang#2026'); [[ $r == *"/Dashboard" ]] && ok "Testdaten: Abteilungsleitung meldet sich an" || fail "$r"
+check "Testdaten: Abteilungsleitung hat Budgetfreigaben" ">Budgetfreigaben</"
+r=$(login t4 10000004 ""); [[ $r == *"/SetPassword" ]] && ok "Testdaten: Erstanmeldung" || fail "$r"
+login t6 10000006 'Test-Zugang#2026' >/dev/null; check "Testdaten: gesperrte Kostenstelle" "gesperrt"
+login t7 10000007 'Test-Zugang#2026' >/dev/null; check "Testdaten: nicht freigegebene Kostenstelle" "stimmt nicht"
+get admin /Admin/Dashboard >/dev/null; check "Dashboard nach Import" "warten auf ein Passwort"
+post admin "/Admin/Kostenstellen?handler=Add" --data-urlencode "NewNumber=22222222" --data-urlencode "NewEnabled=true" >/dev/null
+post admin "/Admin/Einstellungen?handler=AskDelete" >/dev/null
+check "Löschen verlangt Bestätigung" "Alle <strong>8 Testkostenstellen"
+post admin "/Admin/Einstellungen?handler=DeleteTest" --data-urlencode "confirmed=true" >/dev/null
+check "Testdaten gelöscht" "8 Testkostenstellen sind gel"
+get admin /Admin/Kostenstellen >/dev/null
+check "eigene Kostenstelle bleibt" "22222222"
+check "nur eigene Kostenstelle übrig" "Alle Kostenstellen (1)"
 
 echo "Sicherheit"
 curl -s -o /dev/null -w "%{http_code}" -X POST --data "Kostenstelle=00000000&Passwort=x" "$BASE/Login" | grep -q 400 && ok "POST ohne Anti-Forgery-Token abgelehnt" || fail "CSRF"

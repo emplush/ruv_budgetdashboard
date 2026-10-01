@@ -231,31 +231,60 @@ td .hint { display: block; }
 :root:not([data-theme="dark"]) .app-header { border-bottom: 0; }
 .app-header__brand { cursor: default; }
 button.app-nav__link { font-family: var(--font-sans); }
-.demo-bar { background: var(--sand); color: var(--primary); display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; padding: 8px 24px; font: 400 14px/21px var(--font-sans); }
 .notice-bar { background: var(--surface-soft); border-bottom: 1px solid var(--border); padding: 12px var(--space-4); font: 400 14px/21px var(--font-sans); }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-3); }
 .stat { border: 1px solid var(--border); border-radius: var(--radius-base); padding: var(--space-4); background: var(--surface-soft); }
 .stat__value { font: 700 36px/1.15 var(--font-sans); font-variant-numeric: tabular-nums; }
 .stat__label { font: 400 14px/21px var(--font-sans); color: var(--ink-muted); }
-.demo-bar a { color: var(--primary); font-weight: 700; margin-right: 8px; }
-.demo-bar button { background: none; border: 2px solid var(--primary); color: var(--primary); border-radius: 4px; padding: 4px 12px; font: 700 14px/1.2 var(--font-sans); cursor: pointer; }
-.demo-bar button:hover { background: var(--primary); color: var(--sand); }
 .auth { flex-wrap: wrap; gap: 24px; align-items: flex-start; }
-.auth__demo { width: 100%; max-width: 360px; }
-.auth__demo code, td code { background: var(--hover); padding: 1px 6px; border-radius: 4px; }
 .modal { position: fixed; inset: 0; background: rgba(0,25,87,.6); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 20; }
 .modal__box { max-width: 460px; width: 100%; }
 .modal__box > * + * { margin-top: 16px; }
 .rules { margin: 0; }
 
 #app{flex:1;display:flex;flex-direction:column}
+#testdaten { display: flex; flex-direction: column; gap: var(--space-3); }
+#testdaten .headline-s { margin: 0; }
+.alert .actions { margin-top: var(--space-3); }
+.alert .actions form { margin: 0; }
+.btn[disabled] { background: var(--grey-2); color: var(--grey-5); border-color: transparent; cursor: not-allowed; }
+code { background: var(--grey-1); padding: 1px 6px; border-radius: var(--radius-base); color: var(--primary); }
+.app-header__side { display: flex; align-items: center; gap: var(--space-4); }
+.app-header__help { color: var(--ink); font: 700 14px/1 var(--font-sans); border: 2px solid var(--ink); border-radius: var(--radius-base); padding: 8px 12px; text-decoration: none; }
+.app-header__help:hover { background: var(--ink); color: var(--surface); }
+
+/* Handbücher */
+.manual-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.manual-tabs { display: flex; flex-wrap: wrap; gap: var(--space-2); list-style: none; margin: 0; padding: 0; }
+.manual-tab { display: inline-block; padding: 8px 16px; border: 2px solid var(--ink); border-radius: var(--radius-base); color: var(--ink); font: 700 14px/1 var(--font-sans); text-decoration: none; }
+.manual-tab:hover { background: var(--hover); }
+.manual-tab.is-active { background: var(--interactive); border-color: var(--interactive); color: var(--on-interactive); }
+.manual { max-width: 860px; }
+.manual > * + * { margin-top: var(--space-3); }
+.manual h2 { font: 700 28px/1.2 var(--font-sans); margin-top: var(--space-6); padding-top: var(--space-3); border-top: 1px solid var(--border); }
+.manual h3 { font: 700 20px/1.2 var(--font-sans); margin-top: var(--space-5); }
+.manual ul, .manual ol { padding-left: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
+.manual .meta { color: var(--ink-muted); font-size: 14px; }
+.manual .toc { background: var(--surface-soft); border: 1px solid var(--border); border-radius: var(--radius-base); padding: var(--space-3) var(--space-4); }
+.manual .toc p { font-weight: 700; }
+.manual .toc ol { margin: var(--space-2) 0 0; }
+.manual .callout { border: 2px solid var(--mint-dark); border-radius: var(--radius-base); padding: var(--space-3); }
+.manual .callout--warn { border-color: var(--orange-dark); }
+.manual table { width: 100%; border-collapse: collapse; font-size: 14px; line-height: 21px; }
+.manual th { background: var(--primary); color: var(--white); text-align: left; padding: 10px 14px; }
+.manual td { padding: 10px 14px; vertical-align: top; }
+.manual tbody tr:nth-child(even) { background: var(--zebra, var(--sand)); }
+.manual kbd { border: 1px solid var(--border); border-bottom-width: 2px; border-radius: var(--radius-base); padding: 0 6px; font: 700 13px/1.6 var(--font-sans); }
+
+button.app-header__help, button.manual-tab { font-family: var(--font-sans); cursor: pointer; background: none; }
+button.manual-tab.is-active { background: var(--interactive); }
+.manual-page .manual-bar:empty { display: none; }
 </style>
-<div class="demo-bar"><span><strong>Demo im Browser.</strong> Die Daten bleiben nur in diesem Browser. Die echte Anwendung läuft als ASP.NET-App auf dem IIS.</span><span><a href="doku.html">Dokumentation</a> <button type="button" id="reset-demo">Demo zurücksetzen</button></span></div>
 <div id="app"></div>
 <script>
 (function () {
   "use strict";
-  var KEY = "bd2-demo-v1";
+  var KEY = "bd2-prototype-v2";
   var ADMIN = "00000000";
   var MAX_FAILED = 5, LOCK_MIN = 15;
   var BLOCK = ["passwort", "password", "12test34", "qwertz", "qwerty", "123456", "abcdef", "ruv", "budget"];
@@ -286,13 +315,9 @@ button.app-nav__link { font-family: var(--font-sans); }
   function save() { mem = data; try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {} }
   async function seed() {
     return {
-      title: "Budget-Dashboard 2.0", head: "12345678",
+      title: "Budget-Dashboard 2.0", head: null,
       admin: { number: ADMIN, hash: await hashPw("12test34"), failed: 0, lock: 0, must: true },
-      ccs: [
-        { number: "12345678", enabled: true, org: "ORG-1", group: "Gruppe A", hash: null, failed: 0, lock: 0, last: 0 },
-        { number: "87654321", enabled: true, org: "ORG-1", group: "Gruppe B", hash: null, failed: 0, lock: 0, last: 0 },
-        { number: "11111111", enabled: false, org: "", group: "", hash: null, failed: 0, lock: 0, last: 0 }
-      ]
+      ccs: []
     };
   }
   var data = null, session = null, route = "login", pending = null, flash = null, errors = [], draft = {}, loginNum = "";
@@ -314,8 +339,11 @@ button.app-nav__link { font-family: var(--font-sans); }
     return e;
   }
 
+  var MANUALS = {"nutzer": {"title": "Handbuch für Nutzende", "short": "Nutzende", "html": "<p class=\"meta\">Version 1.2 · Stand Oktober 2026<\/p>\n<p>Dieses Handbuch erklärt Dir, wie Du Dich im Budget-Dashboard 2.0 anmeldest, Deine Angaben pflegst und Dein Passwort änderst. Es richtet sich an alle Nutzenden mit einer Kostenstelle.<\/p>\n\n<nav class=\"toc\" aria-label=\"Inhalt\">\n  <p>Inhalt<\/p>\n  <ol>\n    <li><a href=\"#anmelden\">Anmelden<\/a><\/li>\n    <li><a href=\"#erste-anmeldung\">Erste Anmeldung und Passwort setzen<\/a><\/li>\n    <li><a href=\"#navigation\">Die Navigation<\/a><\/li>\n    <li><a href=\"#profil\">Profil: Angaben und Passwort<\/a><\/li>\n    <li><a href=\"#abmelden\">Abmelden und Sitzung<\/a><\/li>\n    <li><a href=\"#probleme\">Wenn etwas nicht klappt<\/a><\/li>\n  <\/ol>\n<\/nav>\n\n<h2 id=\"anmelden\">1. Anmelden<\/h2>\n<p>Öffne die Adresse der Anwendung in Deinem Browser. Auf der Anmeldeseite gibst Du zwei Dinge ein:<\/p>\n<ul>\n  <li><strong>Kostenstelle:<\/strong> eine Zahl mit genau 8 Ziffern.<\/li>\n  <li><strong>Passwort:<\/strong> Dein persönliches Passwort.<\/li>\n<\/ul>\n<p>Klicke dann auf <strong>Jetzt anmelden<\/strong>. Du landest auf Deinem Dashboard.<\/p>\n<div class=\"callout\">\n  <p>Du kannst Dich nur anmelden, wenn Deine Kostenstelle freigegeben ist. Die Freigabe übernimmt die Administration.<\/p>\n<\/div>\n\n<h2 id=\"erste-anmeldung\">2. Erste Anmeldung und Passwort setzen<\/h2>\n<p>Meldest Du Dich zum ersten Mal an, hast Du noch kein Passwort. Gehe so vor:<\/p>\n<ol>\n  <li>Gib Deine Kostenstelle ein und lass das Feld <strong>Passwort<\/strong> leer.<\/li>\n  <li>Klicke auf <strong>Jetzt anmelden<\/strong>. Es erscheint der Dialog <strong>Bitte setze ein Passwort<\/strong>.<\/li>\n  <li>Gib Dein neues Passwort zweimal ein und klicke auf <strong>Passwort speichern<\/strong>.<\/li>\n<\/ol>\n<p>Danach bist Du angemeldet. Bei jeder weiteren Anmeldung brauchst Du dieses Passwort.<\/p>\n<h3>Regeln für das Passwort<\/h3>\n<ul>\n  <li>mindestens 12 Zeichen<\/li>\n  <li>Groß- und Kleinbuchstaben<\/li>\n  <li>mindestens eine Ziffer<\/li>\n  <li>mindestens ein Sonderzeichen, zum Beispiel <kbd>#<\/kbd>, <kbd>-<\/kbd> oder <kbd>!<\/kbd><\/li>\n  <li>ohne Deine Kostenstelle und ohne bekannte Muster wie „Passwort“<\/li>\n<\/ul>\n<div class=\"callout callout--warn\">\n  <p>Gib Dein Passwort an niemanden weiter. Wenn Du es vergessen hast, bittest Du die Administration, es zu löschen. Danach setzt Du ein neues.<\/p>\n<\/div>\n\n<h2 id=\"navigation\">3. Die Navigation<\/h2>\n<p>Unter dem Kopfbereich verläuft die Navigation waagerecht. Der Inhalt nutzt die ganze Breite.<\/p>\n<table>\n  <thead><tr><th>Menüpunkt<\/th><th>Wofür er da ist<\/th><\/tr><\/thead>\n  <tbody>\n    <tr><td>Dashboard<\/td><td>Startseite mit Deinen Angaben: Kostenstelle, Org-Einheit, Gruppe und Rolle.<\/td><\/tr>\n    <tr><td>Budgetplan<\/td><td>Dieser Bereich wird demnächst gefüllt.<\/td><\/tr>\n    <tr><td>Jahresbudget<\/td><td>Dieser Bereich wird demnächst gefüllt.<\/td><\/tr>\n    <tr><td>Profil<\/td><td>Deine Angaben und Dein Passwort ändern.<\/td><\/tr>\n    <tr><td>Abmelden<\/td><td>Sitzung beenden.<\/td><\/tr>\n  <\/tbody>\n<\/table>\n<p>Oben rechts im Kopfbereich findest Du die Schaltfläche <strong>Handbuch<\/strong>. Dort kannst Du dieses Handbuch auch als PDF herunterladen.<\/p>\n\n<h2 id=\"profil\">4. Profil: Angaben und Passwort<\/h2>\n<h3>Org-Einheit und Gruppe ändern<\/h3>\n<ol>\n  <li>Öffne <strong>Profil<\/strong>.<\/li>\n  <li>Im Abschnitt <strong>Meine Angaben<\/strong> trägst Du Deine <strong>Org-Einheit<\/strong> (höchstens 11 Zeichen) und Deine <strong>Gruppe<\/strong> (höchstens 30 Zeichen) ein.<\/li>\n  <li>Klicke auf <strong>Angaben speichern<\/strong>. Du siehst die Meldung „Gespeichert“.<\/li>\n<\/ol>\n<p>Deine <strong>Kostenstelle<\/strong> steht dort ebenfalls, lässt sich aber nicht ändern.<\/p>\n<h3>Passwort ändern<\/h3>\n<ol>\n  <li>Gib im Abschnitt <strong>Passwort ändern<\/strong> zuerst Dein aktuelles Passwort ein.<\/li>\n  <li>Gib das neue Passwort zweimal ein. Es muss die Regeln aus Abschnitt 2 erfüllen und sich vom aktuellen unterscheiden.<\/li>\n  <li>Klicke auf <strong>Passwort speichern<\/strong>.<\/li>\n<\/ol>\n<p>Andere Sitzungen mit Deiner Kostenstelle werden dabei beendet. Du selbst bleibst angemeldet.<\/p>\n\n<h2 id=\"abmelden\">5. Abmelden und Sitzung<\/h2>\n<p>Klicke in der Navigation auf <strong>Abmelden<\/strong>, wenn Du fertig bist. Das ist besonders wichtig an gemeinsam genutzten Rechnern.<\/p>\n<p>Nach 30 Minuten ohne Aktivität meldet Dich die Anwendung automatisch ab. Du meldest Dich dann einfach neu an.<\/p>\n\n<h2 id=\"probleme\">6. Wenn etwas nicht klappt<\/h2>\n<table>\n  <thead><tr><th>Meldung oder Situation<\/th><th>Was Du tun kannst<\/th><\/tr><\/thead>\n  <tbody>\n    <tr><td>„Kostenstelle oder Passwort stimmt nicht“<\/td><td>Prüfe die 8 Ziffern und das Passwort. Achte auf Groß- und Kleinschreibung. Ist Deine Kostenstelle noch nicht freigegeben, wende Dich an die Administration.<\/td><\/tr>\n    <tr><td>„Die Anmeldung ist gesperrt“<\/td><td>Nach 5 Fehlversuchen ist Deine Kostenstelle 15 Minuten gesperrt. Warte kurz und versuche es dann erneut.<\/td><\/tr>\n    <tr><td>Passwort vergessen<\/td><td>Bitte die Administration, Dein Passwort zu löschen. Danach meldest Du Dich wie bei der ersten Anmeldung an und setzt ein neues.<\/td><\/tr>\n    <tr><td>„Dieser Bereich ist für Dich nicht freigegeben“<\/td><td>Der Bereich gehört zu einer anderen Rolle, zum Beispiel zur Abteilungsleitung.<\/td><\/tr>\n    <tr><td>Org-Einheit oder Gruppe zu lang<\/td><td>Kürze den Text auf 11 beziehungsweise 30 Zeichen.<\/td><\/tr>\n  <\/tbody>\n<\/table>\n"}, "abteilungsleitung": {"title": "Handbuch für die Abteilungsleitung", "short": "Abteilungsleitung", "html": "<p class=\"meta\">Version 1.2 · Stand Oktober 2026<\/p>\n<p>Dieses Handbuch richtet sich an die Abteilungsleitung. Alles, was für alle Nutzenden gilt, steht im Handbuch für Nutzende. Hier findest Du, was für die Abteilungsleitung zusätzlich gilt.<\/p>\n\n<nav class=\"toc\" aria-label=\"Inhalt\">\n  <p>Inhalt<\/p>\n  <ol>\n    <li><a href=\"#rolle\">Deine Rolle<\/a><\/li>\n    <li><a href=\"#navigation\">Die Navigation der Abteilungsleitung<\/a><\/li>\n    <li><a href=\"#budgetfreigaben\">Budgetfreigaben<\/a><\/li>\n    <li><a href=\"#upload\">Upload<\/a><\/li>\n    <li><a href=\"#rechte\">Rechte erhalten und verlieren<\/a><\/li>\n    <li><a href=\"#gemeinsam\">Was Du wie alle Nutzenden tust<\/a><\/li>\n  <\/ol>\n<\/nav>\n\n<h2 id=\"rolle\">1. Deine Rolle<\/h2>\n<p>Die Administration legt fest, welche Kostenstelle die Rechte der Abteilungsleitung hat. Es gibt genau eine solche Kostenstelle. Die Anmeldung läuft wie bei allen anderen: mit Kostenstelle und Passwort. Oben rechts im Kopfbereich steht Deine Rolle als <strong>Abteilungsleitung<\/strong>.<\/p>\n\n<h2 id=\"navigation\">2. Die Navigation der Abteilungsleitung<\/h2>\n<p>Du siehst alle Menüpunkte der Nutzenden. Hinter <strong>Jahresbudget<\/strong> stehen zusätzlich zwei Punkte:<\/p>\n<table>\n  <thead><tr><th>Menüpunkt<\/th><th>Wer ihn sieht<\/th><\/tr><\/thead>\n  <tbody>\n    <tr><td>Dashboard, Budgetplan, Jahresbudget<\/td><td>alle Nutzenden<\/td><\/tr>\n    <tr><td><strong>Budgetfreigaben<\/strong><\/td><td>nur die Abteilungsleitung<\/td><\/tr>\n    <tr><td><strong>Upload<\/strong><\/td><td>nur die Abteilungsleitung<\/td><\/tr>\n    <tr><td>Profil, Abmelden<\/td><td>alle Nutzenden<\/td><\/tr>\n  <\/tbody>\n<\/table>\n\n<h2 id=\"budgetfreigaben\">3. Budgetfreigaben<\/h2>\n<p>Hier gibst Du später Budgets frei. Dieser Bereich ist in der aktuellen Version noch leer und wird demnächst gefüllt. Sobald er verfügbar ist, ergänzen wir dieses Kapitel.<\/p>\n\n<h2 id=\"upload\">4. Upload<\/h2>\n<p>Hier lädst Du später Daten hoch. Auch dieser Bereich wird demnächst gefüllt.<\/p>\n\n<h2 id=\"rechte\">5. Rechte erhalten und verlieren<\/h2>\n<ul>\n  <li>Die Administration kann die Abteilungsleitung auf eine andere Kostenstelle übertragen oder die Rechte entziehen.<\/li>\n  <li>Werden Dir die Rechte entzogen, endet Deine Sitzung. Du meldest Dich neu an und siehst dann die Navigation der Nutzenden.<\/li>\n  <li>Wurde Deine Kostenstelle gesperrt oder entfernt, kannst Du Dich nicht mehr anmelden.<\/li>\n<\/ul>\n<div class=\"callout\">\n  <p>Wenn Du die Rolle abgeben möchtest, wende Dich an die Administration. Du kannst die Rechte nicht selbst übertragen.<\/p>\n<\/div>\n\n<h2 id=\"gemeinsam\">6. Was Du wie alle Nutzenden tust<\/h2>\n<p>Diese Aufgaben sind im Handbuch für Nutzende beschrieben. Du findest es über die Schaltfläche <strong>Handbuch<\/strong> im Kopfbereich.<\/p>\n<ul>\n  <li>Erste Anmeldung und Passwort setzen<\/li>\n  <li>Org-Einheit und Gruppe im Profil ändern<\/li>\n  <li>Passwort ändern<\/li>\n  <li>Abmelden und automatische Abmeldung nach 30 Minuten<\/li>\n  <li>Hilfe bei Sperre oder vergessenem Passwort<\/li>\n<\/ul>\n"}, "admin": {"title": "Handbuch für die Administration", "short": "Administration", "html": "<p class=\"meta\">Version 1.2 · Stand Oktober 2026<\/p>\n<p>Dieses Handbuch richtet sich an die Administration. Du verwaltest die Kostenstellen, bestimmst die Abteilungsleitung, pflegst die Einstellungen und kannst Testdaten importieren.<\/p>\n\n<nav class=\"toc\" aria-label=\"Inhalt\">\n  <p>Inhalt<\/p>\n  <ol>\n    <li><a href=\"#anmelden\">Anmelden und erstes Passwort<\/a><\/li>\n    <li><a href=\"#navigation\">Die Navigation<\/a><\/li>\n    <li><a href=\"#dashboard\">Dashboard<\/a><\/li>\n    <li><a href=\"#kostenstellen\">Kostenstellen verwalten<\/a><\/li>\n    <li><a href=\"#einstellungen\">Einstellungen<\/a><\/li>\n    <li><a href=\"#testdaten\">Testdaten<\/a><\/li>\n    <li><a href=\"#betrieb\">Sicherheit und Betrieb<\/a><\/li>\n    <li><a href=\"#probleme\">Wenn etwas nicht klappt<\/a><\/li>\n  <\/ol>\n<\/nav>\n\n<h2 id=\"anmelden\">1. Anmelden und erstes Passwort<\/h2>\n<p>Die Administration hat die feste Kostenstelle <strong>00000000<\/strong>. Das Standardpasswort ist <code>12test34<\/code>.<\/p>\n<div class=\"callout callout--warn\">\n  <p>Solange das Standardpasswort aktiv ist, zeigt jede Admin-Seite den Hinweis „Es ist noch das Standardpasswort aktiv“. Ändere das Passwort sofort unter <strong>Einstellungen<\/strong>.<\/p>\n<\/div>\n\n<h2 id=\"navigation\">2. Die Navigation<\/h2>\n<p>Die Administration hat eine eigene Navigation:<\/p>\n<table>\n  <thead><tr><th>Menüpunkt<\/th><th>Wofür er da ist<\/th><\/tr><\/thead>\n  <tbody>\n    <tr><td>Dashboard<\/td><td>Kennzahlen zu den Kostenstellen und die aktuelle Abteilungsleitung.<\/td><\/tr>\n    <tr><td>Kostenstellen<\/td><td>Kostenstellen anlegen, bearbeiten, freigeben und entfernen.<\/td><\/tr>\n    <tr><td>Einstellungen<\/td><td>Titel der Anwendung, Admin-Passwort und Testdaten.<\/td><\/tr>\n    <tr><td>Abmelden<\/td><td>Sitzung beenden.<\/td><\/tr>\n  <\/tbody>\n<\/table>\n\n<h2 id=\"dashboard\">3. Dashboard<\/h2>\n<p>Das Dashboard zeigt vier Kennzahlen:<\/p>\n<ul>\n  <li><strong>Kostenstellen insgesamt:<\/strong> alle angelegten Kostenstellen.<\/li>\n  <li><strong>Dürfen sich anmelden:<\/strong> die freigegebenen Kostenstellen.<\/li>\n  <li><strong>Warten auf ein Passwort:<\/strong> freigegebene Kostenstellen ohne Passwort. Sie melden sich zum ersten Mal an.<\/li>\n  <li><strong>Gerade gesperrt:<\/strong> Kostenstellen mit aktiver Sperre nach Fehlversuchen.<\/li>\n<\/ul>\n<p>Darunter steht die Kostenstelle mit den Rechten der Abteilungsleitung.<\/p>\n\n<h2 id=\"kostenstellen\">4. Kostenstellen verwalten<\/h2>\n<h3>Kostenstelle anlegen<\/h3>\n<ol>\n  <li>Öffne <strong>Kostenstellen<\/strong>.<\/li>\n  <li>Trage im Abschnitt <strong>Neue Kostenstelle anlegen<\/strong> die <strong>Kostenstelle<\/strong> ein: genau 8 Ziffern. Die Nummer 00000000 ist für Dich reserviert.<\/li>\n  <li>Ergänze optional die <strong>Org-Einheit<\/strong> (höchstens 11 Zeichen) und die <strong>Gruppe<\/strong> (höchstens 30 Zeichen).<\/li>\n  <li>Lass <strong>Darf sich anmelden<\/strong> angehakt, wenn die Kostenstelle sich sofort anmelden soll.<\/li>\n  <li>Hake <strong>Abteilungsleitung<\/strong> an, wenn die Kostenstelle diese Rechte erhalten soll.<\/li>\n  <li>Klicke auf <strong>Kostenstelle anlegen<\/strong>.<\/li>\n<\/ol>\n<p>Die neue Kostenstelle hat noch kein Passwort. Beim ersten Anmelden mit leerem Passwortfeld setzt die Person ihr Passwort selbst.<\/p>\n\n<h3>Kostenstelle bearbeiten<\/h3>\n<p>In der Tabelle <strong>Alle Kostenstellen<\/strong> änderst Du Org-Einheit, Gruppe und die Freigabe direkt in der Zeile. Klicke danach auf <strong>Speichern<\/strong>. Die Nutzenden können Org-Einheit und Gruppe auch selbst im Profil ändern.<\/p>\n<ul>\n  <li><strong>Anmeldung erlaubt:<\/strong> Nimmst Du den Haken heraus, kann sich die Kostenstelle nicht mehr anmelden. Laufende Sitzungen enden.<\/li>\n<\/ul>\n\n<h3>Abteilungsleitung festlegen oder entziehen<\/h3>\n<p>Es gibt genau eine Kostenstelle mit Abteilungsleiterrechten.<\/p>\n<ul>\n  <li>Klicke in der Spalte <strong>Abteilungsleitung<\/strong> auf <strong>Festlegen<\/strong>. Eine bisherige Abteilungsleitung verliert die Rechte.<\/li>\n  <li>Mit <strong>Entziehen<\/strong> hat danach keine Kostenstelle mehr diese Rechte.<\/li>\n  <li>Nur freigegebene Kostenstellen können die Abteilungsleitung sein.<\/li>\n<\/ul>\n\n<h3>Passwort löschen<\/h3>\n<p>Hat jemand sein Passwort vergessen, klickst Du auf <strong>Passwort löschen<\/strong> und bestätigst. Die Person meldet sich danach wie bei der ersten Anmeldung an und setzt ein neues Passwort. Laufende Sitzungen enden, und eine Sperre wird aufgehoben.<\/p>\n\n<h3>Kostenstelle entfernen<\/h3>\n<p>Mit <strong>Entfernen<\/strong> und Bestätigung löschst Du eine Kostenstelle. Das lässt sich nicht rückgängig machen.<\/p>\n\n<h2 id=\"einstellungen\">5. Einstellungen<\/h2>\n<h3>Titel der Anwendung<\/h3>\n<p>Der Titel erscheint im Kopfbereich, in der Fußzeile und im Browser-Tab. Er darf 1 bis 60 Zeichen haben.<\/p>\n<h3>Admin-Passwort ändern<\/h3>\n<p>Gib das aktuelle Passwort und zweimal das neue ein. Es gelten dieselben Regeln wie für alle: mindestens 12 Zeichen, Groß- und Kleinbuchstaben, Ziffer und Sonderzeichen.<\/p>\n\n<h2 id=\"testdaten\">6. Testdaten<\/h2>\n<p>Unter <strong>Einstellungen<\/strong> findest Du den Abschnitt <strong>Testdaten<\/strong>. Mit den Testdaten probierst Du alle typischen Fälle der App aus, ohne selbst Kostenstellen anzulegen.<\/p>\n<h3>Testdaten importieren<\/h3>\n<ol>\n  <li>Klicke auf <strong>Testdaten importieren<\/strong>.<\/li>\n  <li>Lies die Warnung. Der Import <strong>löscht alle vorhandenen Kostenstellen<\/strong> und die Festlegung der Abteilungsleitung, bevor er die Testdaten anlegt. Admin-Passwort und Titel bleiben erhalten.<\/li>\n  <li>Bestätige mit <strong>Ja, Testdaten importieren<\/strong>. Mit <strong>Abbrechen<\/strong> passiert nichts.<\/li>\n<\/ol>\n<h3>Testdaten löschen<\/h3>\n<p>Klicke auf <strong>Testdaten löschen<\/strong> und bestätige. Es werden nur die importierten Testkostenstellen entfernt. Selbst angelegte Kostenstellen bleiben erhalten.<\/p>\n<div class=\"callout callout--warn\">\n  <p>Importiere Testdaten nur in einer Testumgebung. Im Echtbetrieb würden sie die echten Kostenstellen löschen.<\/p>\n<\/div>\n<h3>Enthaltene Fälle<\/h3>\n<p>Alle Testkostenstellen mit gesetztem Passwort haben das Passwort <code>Test-Zugang#2026<\/code>.<\/p>\n<table>\n  <thead><tr><th>Kostenstelle<\/th><th>Fall<\/th><\/tr><\/thead>\n  <tbody>\n    <tr><td>10000001<\/td><td>Abteilungsleitung mit Passwort, Navigation mit Budgetfreigaben und Upload<\/td><\/tr>\n    <tr><td>10000002<\/td><td>Gruppenleitung mit Passwort<\/td><\/tr>\n    <tr><td>10000003<\/td><td>Zweite Gruppenleitung mit Passwort<\/td><\/tr>\n    <tr><td>10000004<\/td><td>Erste Anmeldung: noch kein Passwort, Dialog zum Setzen<\/td><\/tr>\n    <tr><td>10000005<\/td><td>Passwort gelöscht, Org-Einheit und Gruppe leer (im Profil ergänzen)<\/td><\/tr>\n    <tr><td>10000006<\/td><td>Gesperrt nach Fehlversuchen (15 Minuten ab Import)<\/td><\/tr>\n    <tr><td>10000007<\/td><td>Nicht freigegeben: Anmeldung nicht erlaubt<\/td><\/tr>\n    <tr><td>10000008<\/td><td>Org-Einheit und Gruppe in maximaler Länge (11 und 30 Zeichen)<\/td><\/tr>\n  <\/tbody>\n<\/table>\n\n<h2 id=\"betrieb\">7. Sicherheit und Betrieb<\/h2>\n<ul>\n  <li><strong>Sperre:<\/strong> Nach 5 Fehlversuchen ist eine Kostenstelle 15 Minuten gesperrt. Die Sperre siehst Du in der Tabelle der Kostenstellen.<\/li>\n  <li><strong>Sitzung:<\/strong> Nach 30 Minuten ohne Aktivität werden Nutzende abgemeldet.<\/li>\n  <li><strong>Datenhaltung:<\/strong> Alle Daten liegen in der Datei <code>App_Data/data.json<\/code> auf dem Server, zusammen mit der Sicherung <code>data.json.bak<\/code>. Nimm diesen Ordner in die Datensicherung auf.<\/li>\n  <li><strong>HTTPS:<\/strong> Die Anwendung läuft auch über HTTP. Über HTTP gehen Passwörter unverschlüsselt durchs Netz. Nutze HTTPS, wenn das Netz nicht vertrauenswürdig ist, und setze dann <code>Security:RequireHttps<\/code> auf <code>true<\/code>.<\/li>\n  <li><strong>Betrieb auf dem IIS:<\/strong> Die Schritte zur Bereitstellung stehen in der README des Projekts.<\/li>\n<\/ul>\n\n<h2 id=\"probleme\">8. Wenn etwas nicht klappt<\/h2>\n<table>\n  <thead><tr><th>Situation<\/th><th>Was Du tun kannst<\/th><\/tr><\/thead>\n  <tbody>\n    <tr><td>Jemand kann sich nicht anmelden<\/td><td>Prüfe unter Kostenstellen, ob <strong>Anmeldung erlaubt<\/strong> angehakt ist und ob eine Sperre besteht. Löse eine Sperre mit <strong>Passwort löschen<\/strong>.<\/td><\/tr>\n    <tr><td>Passwort vergessen<\/td><td>Klicke bei der Kostenstelle auf <strong>Passwort löschen<\/strong>.<\/td><\/tr>\n    <tr><td>Admin-Passwort vergessen<\/td><td>Stoppe die Anwendung, benenne <code>App_Data/data.json<\/code> um und starte sie neu. Die Anwendung legt dann einen neuen Datenbestand mit dem Standardpasswort an. Die alten Kostenstellen stehen danach nicht mehr zur Verfügung.<\/td><\/tr>\n    <tr><td>Anwendung speichert nicht<\/td><td>Prüfe, ob das Konto des Anwendungspools Schreibrechte auf <code>App_Data<\/code> hat.<\/td><\/tr>\n  <\/tbody>\n<\/table>\n"}};
+  var manualKey = null, errKind = null, flashKind = null;
+
   /* ---------- Rendering ---------- */
-  var LOGO = '<svg class="app-header__logo" xmlns="http://www.w3.org/2000/svg" viewBox="53 40 96 48" role="img" aria-label="R+V"><path fill="#ffffff" d="M147.4015961,42.5196075h-14.4109955l-14.2090073,21.2249985v-21.2249985h-13.6919937l-.0040054,16.6320038h-9.7279968v-11.2420044h-9.560997l-.0010071,11.2420044h-9.7939987c.7529984-1.5350037,1.1790009-3.2610016,1.1790009-5.0870056,0-6.3730011-5.6869965-11.5390015-12.048996-11.5449982h-22.6120071v42.5200005h13.6580048v-31.6499977h2.7210007c2.8679962,0,5.1920013,2.3279953,5.1920013,5.1989975,0,2.8679962-2.3250046,5.185997-5.1880035,5.1910019l8.6439972,21.2599983h14.526001l-6.8089981-16.4949989h10.5330048v11.2459984h9.560997v-11.2459984h9.7320023v16.4949989h13.6919937l28.6200027-42.5200005Z"/></svg>';
+  var LOGO = '<svg class="app-header__logo" xmlns="http://www.w3.org/2000/svg" viewBox="42.5 42.5 104.9 42.6" role="img" aria-label="R+V"><path fill="#ffffff" d="M147.4015961,42.5196075h-14.4109955l-14.2090073,21.2249985v-21.2249985h-13.6919937l-.0040054,16.6320038h-9.7279968v-11.2420044h-9.560997l-.0010071,11.2420044h-9.7939987c.7529984-1.5350037,1.1790009-3.2610016,1.1790009-5.0870056,0-6.3730011-5.6869965-11.5390015-12.048996-11.5449982h-22.6120071v42.5200005h13.6580048v-31.6499977h2.7210007c2.8679962,0,5.1920013,2.3279953,5.1920013,5.1989975,0,2.8679962-2.3250046,5.185997-5.1880035,5.1910019l8.6439972,21.2599983h14.526001l-6.8089981-16.4949989h10.5330048v11.2459984h9.560997v-11.2459984h9.7320023v16.4949989h13.6919937l28.6200027-42.5200005Z"/></svg>';
   var RULES = '<p class="copy-s">So wird Dein Passwort sicher:</p><ul class="rules copy-s"><li>mindestens 12 Zeichen</li><li>Groß- und Kleinbuchstaben</li><li>mindestens eine Ziffer</li><li>mindestens ein Sonderzeichen</li><li>ohne Deine Kostenstelle und ohne bekannte Muster wie „Passwort“</li></ul>';
   var errHtml = function (l) { return l.map(function (e) { return '<div class="alert alert--error" role="alert"><p><strong>Fehler:</strong> ' + esc(e) + "</p></div>"; }).join(""); };
   var okHtml = function (t) { return t ? '<div class="alert alert--ok" role="status"><p><strong>Gespeichert:</strong> ' + esc(t) + "</p></div>" : ""; };
@@ -345,6 +373,10 @@ button.app-nav__link { font-family: var(--font-sans); }
     }
     if (!session) return route === "setpw" && pending ? setpwView() : loginView();
     var r = route, body = "";
+    if (route === "Handbuch") {
+      var mv = manualView(); flash = null; errors = [];
+      return nav() + '<main id="main" class="content">' + mv + "</main>";
+    }
     if (session.role === "Admin") {
       var full = r === "Einstellungen" ? settingsView() : r === "Kostenstellen" ? adminView() : adminDash();
       flash = null; errors = [];
@@ -353,12 +385,18 @@ button.app-nav__link { font-family: var(--font-sans); }
       var c = find(session.number);
       body = page("Dashboard", "Willkommen", '<div class="card card--soft"><h2 class="headline-s">Deine Kostenstelle</h2><dl class="facts"><dt>Kostenstelle</dt><dd>' + session.number + "</dd><dt>Org-Einheit</dt><dd>" + (esc(c.org) || "–") + "</dd><dt>Gruppe</dt><dd>" + (esc(c.group) || "–") + "</dd><dt>Rolle</dt><dd>" + roleLabel(session.role) + '</dd></dl><p class="copy">Hier entsteht Dein Dashboard. Es wird demnächst gefüllt.</p></div>');
     } else if (r === "Profil") {
-      body = page("Profil", "Mein Bereich", '<div class="card card--soft card--form"><h2 class="headline-s">Passwort ändern</h2>' + okHtml(flash) + errHtml(errors) +
-        pwForm("profil", [["aktuell", "Aktuelles Passwort", "current-password", 1], ["neu", "Neues Passwort", "new-password"], ["wdh", "Neues Passwort wiederholen", "new-password"]]) + "</div>");
+      var me = find(session.number), fk = flashKind, ek = errKind;
+      body = page("Profil", "Mein Bereich", '<div class="grid-2"><div class="card card--soft card--form"><h2 class="headline-s">Meine Angaben</h2>' + (fk === "det" ? okHtml(flash) : "") + (ek === "det" ? errHtml(errors) : "") +
+        '<form class="form" data-form="details" autocomplete="off"><div class="field"><label for="kostenstelle">Kostenstelle</label><input id="kostenstelle" value="' + session.number + '" readonly aria-describedby="ks-hint" /><p id="ks-hint" class="hint">Die Kostenstelle lässt sich nicht ändern.</p></div>' +
+        '<div class="field"><label for="org">Org-Einheit</label><input id="org" name="org" value="' + esc(me.org) + '" maxlength="11" /><p class="hint">Höchstens 11 Zeichen.</p></div>' +
+        '<div class="field"><label for="gruppe">Gruppe</label><input id="gruppe" name="group" value="' + esc(me.group) + '" maxlength="30" /><p class="hint">Höchstens 30 Zeichen.</p></div>' +
+        '<button type="submit" class="btn btn--primary">Angaben speichern</button></form></div>' +
+        '<div class="card card--soft card--form"><h2 class="headline-s">Passwort ändern</h2>' + (fk === "pw" ? okHtml(flash) : "") + (ek === "pw" ? errHtml(errors) : "") +
+        pwForm("profil", [["aktuell", "Aktuelles Passwort", "current-password"], ["neu", "Neues Passwort", "new-password"], ["wdh", "Neues Passwort wiederholen", "new-password"]]) + "</div></div>");
     } else {
       body = page(r, "Bereich", empty());
     }
-    flash = null; errors = [];
+    flash = null; errors = []; flashKind = null; errKind = null;
     return nav() + '<main id="main" class="content">' + body + "</main>";
   }
 
@@ -367,8 +405,7 @@ button.app-nav__link { font-family: var(--font-sans); }
     return '<main id="main" class="content"><section class="auth"><div class="card auth__card"><p class="topline">Anmeldung</p><h1 class="headline">Willkommen</h1><p class="copy">Melde Dich mit Deiner Kostenstelle an.</p>' + info +
       '<form class="form" data-form="login" autocomplete="off"><div class="field"><label for="ks">Kostenstelle</label><input id="ks" name="ks" value="' + esc(loginNum) + '" inputmode="numeric" pattern="[0-9]{8}" maxlength="8" required autocomplete="username" data-focus /><p class="hint">8 Ziffern</p></div>' +
       '<div class="field"><label for="pw">Passwort</label><input id="pw" name="pw" type="password" maxlength="128" autocomplete="current-password" /><p class="hint">Meldest Du Dich zum ersten Mal an? Lass das Feld leer. Danach legst Du Dein Passwort fest.</p></div>' +
-      '<button type="submit" class="btn btn--primary">Jetzt anmelden</button></form></div>' +
-      '<aside class="card card--soft auth__demo"><h2 class="headline-s">Demo-Zugänge</h2><ul class="rules copy-s"><li>Administration: <code>00000000</code> mit <code>12test34</code></li><li>Abteilungsleitung: <code>12345678</code>, Passwort leer lassen</li><li>Gruppenleitung: <code>87654321</code>, Passwort leer lassen</li><li>Nicht freigegeben: <code>11111111</code></li></ul></aside></section></main>';
+      '<button type="submit" class="btn btn--primary">Jetzt anmelden</button></form></div></section></main>';
   }
 
   function setpwView() {
@@ -398,6 +435,16 @@ button.app-nav__link { font-family: var(--font-sans); }
       '<h2 class="headline-s">Alle Kostenstellen (' + rows.length + ")</h2>" + (rows.length ? '<div class="table-wrap"><table class="table"><thead><tr><th scope="col">Kostenstelle</th><th scope="col">Org-Einheit</th><th scope="col">Gruppe</th><th scope="col">Anmeldung erlaubt</th><th scope="col">Passwort</th><th scope="col">Abteilungsleitung</th><th scope="col">Aktionen</th></tr></thead><tbody>' + t + "</tbody></table></div>" : '<p class="copy">Es sind noch keine Kostenstellen angelegt.</p>')) + "</main>";
   }
 
+  function manualView() {
+    var keys = session.role === "Admin" ? ["admin", "abteilungsleiter", "nutzer"] : session.role === "Abteilungsleiter" ? ["nutzer", "abteilungsleiter"] : ["nutzer"];
+    keys = keys.map(function (k) { return k === "abteilungsleiter" ? "abteilungsleitung" : k; });
+    if (!manualKey || keys.indexOf(manualKey) < 0) manualKey = session.role === "Admin" ? "admin" : session.role === "Abteilungsleiter" ? "abteilungsleitung" : "nutzer";
+    var m = MANUALS[manualKey];
+    return '<section class="page manual-page"><p class="topline">Handbuch</p><h1 class="headline">' + esc(m.title) + '</h1><div class="manual-bar">' +
+      (keys.length > 1 ? '<ul class="manual-tabs" aria-label="Handbücher">' + keys.map(function (k) { return '<li><button class="manual-tab' + (k === manualKey ? " is-active" : "") + '" data-act="manual" data-n="' + k + '">' + esc(MANUALS[k].short) + "</button></li>"; }).join("") + "</ul>" : "") +
+      '</div><article class="manual">' + m.html + "</article></section>";
+  }
+
   function adminDash() {
     var on = data.ccs.filter(function (c) { return c.enabled; }), now = Date.now();
     var st = [[data.ccs.length, "Kostenstellen insgesamt"], [on.length, "dürfen sich anmelden"], [on.filter(function (c) { return !c.hash; }).length, "warten auf ein Passwort"], [data.ccs.filter(function (c) { return c.lock > now; }).length, "gerade gesperrt"]];
@@ -406,26 +453,44 @@ button.app-nav__link { font-family: var(--font-sans); }
       '<div class="card card--soft card--form"><h2 class="headline-s">Abteilungsleitung</h2>' + (h ? '<p class="copy">Kostenstelle <strong>' + h.number + "</strong>" + (h.org ? " · " + esc(h.org) : "") + (h.group ? " · " + esc(h.group) : "") + "</p>" : '<p class="copy">Es ist noch keine Kostenstelle mit Abteilungsleiterrechten festgelegt.</p>') + '<p class="copy"><a href="#" data-go="Kostenstellen">Zu den Kostenstellen</a></p></div>') + "</main>";
   }
 
+  var TEST_PW = "Test-Zugang#2026";
+  var TEST_CASES = [["10000001", "Abteilungsleitung mit Passwort, Navigation mit Budgetfreigaben und Upload"], ["10000002", "Gruppenleitung mit Passwort"], ["10000003", "Zweite Gruppenleitung mit Passwort"], ["10000004", "Erste Anmeldung: noch kein Passwort, Dialog zum Setzen"], ["10000005", "Passwort gelöscht, Org-Einheit und Gruppe leer (im Profil ergänzen)"], ["10000006", "Gesperrt nach Fehlversuchen (15 Minuten ab Import)"], ["10000007", "Nicht freigegeben: Anmeldung nicht erlaubt"], ["10000008", "Org-Einheit und Gruppe in maximaler Länge (11 und 30 Zeichen)"]];
+  async function importTestData() {
+    var h = await hashPw(TEST_PW), now = Date.now(), day = 86400000;
+    function mk(n, org, grp, en, pw) { return { number: n, enabled: en !== false, org: org, group: grp, hash: pw === false ? null : h, failed: 0, lock: 0, last: pw === false ? 0 : now - day, test: true }; }
+    var locked = mk("10000006", "ORG-4", "Gruppe Ost"); locked.lock = now + LOCK_MIN * 60000;
+    data.ccs = [mk("10000001", "ORG-1", "Abteilungsleitung"), mk("10000002", "ORG-1", "Gruppe Nord"), mk("10000003", "ORG-2", "Gruppe Süd"), mk("10000004", "ORG-3", "Gruppe West", true, false), mk("10000005", "", "", true, false), locked, mk("10000007", "ORG-5", "Gruppe Archiv", false), mk("10000008", "ORG-1234567", "Gruppe mit maximaler Länge 300")];
+    data.head = "10000001";
+    return data.ccs.length;
+  }
+  function testCard() {
+    var n = data.ccs.filter(function (c) { return c.test; }).length;
+    return '<div class="card card--soft" id="testdaten"><h2 class="headline-s">Testdaten</h2><p class="copy">Mit Testdaten kannst Du alle typischen Fälle der App ausprobieren. Aktuell sind <strong>' + n + '</strong> Testkostenstellen vorhanden.</p>' +
+      '<div class="actions"><button type="button" class="btn btn--primary" data-act="askimport">Testdaten importieren</button><button type="button" class="btn btn--ghost"' + (n ? "" : " disabled") + ' data-act="askdelete">Testdaten löschen</button></div>' +
+      '<h3 class="headline-s">Enthaltene Fälle</h3><div class="table-wrap"><table class="table"><thead><tr><th scope="col">Kostenstelle</th><th scope="col">Fall</th></tr></thead><tbody>' +
+      TEST_CASES.map(function (c) { return '<tr><th scope="row">' + c[0] + "</th><td>" + c[1] + "</td></tr>"; }).join("") + '</tbody></table></div><p class="hint">Passwort aller Testkostenstellen mit gesetztem Passwort: <code>' + TEST_PW + "</code></p></div>";
+  }
+
   function settingsView() {
     return nav() + '<main id="main" class="content">' + page("Einstellungen", "Administration",
       okHtml(flash) + errHtml(errors) +
       '<div class="grid-2"><div class="card card--soft card--form"><h2 class="headline-s">Titel der Anwendung</h2><form class="form" data-form="title" autocomplete="off"><div class="field"><label for="title">Titel</label><input id="title" name="title" value="' + esc(data.title) + '" maxlength="60" required /><p class="hint">Erscheint im Kopfbereich und im Browser-Tab.</p></div><button type="submit" class="btn btn--primary">Titel speichern</button></form></div>' +
-      '<div class="card card--soft card--form"><h2 class="headline-s">Admin-Passwort ändern</h2>' + pwForm("adminpw", [["aktuell", "Aktuelles Passwort", "current-password"], ["neu", "Neues Passwort", "new-password"], ["wdh", "Neues Passwort wiederholen", "new-password"]]) + "</div></div>") + "</main>";
+      '<div class="card card--soft card--form"><h2 class="headline-s">Admin-Passwort ändern</h2>' + pwForm("adminpw", [["aktuell", "Aktuelles Passwort", "current-password"], ["neu", "Neues Passwort", "new-password"], ["wdh", "Neues Passwort wiederholen", "new-password"]]) + "</div></div>" + testCard()) + "</main>";
   }
 
   function render() {
     var app = $("#app");
     app.innerHTML = '<header class="app-header" data-theme="dunkel"><div class="app-header__inner"><div class="app-header__brand">' + LOGO + '<span class="app-header__title">' + esc(data.title) + "</span></div>" +
-      (session ? '<p class="app-header__user"><span>Kostenstelle ' + session.number + '</span><span class="app-header__role">' + roleLabel(session.role) + "</span></p>" : "") + "</div></header>" + view() +
+      (session ? '<div class="app-header__side"><button class="app-header__help" data-go="Handbuch">Handbuch</button><p class="app-header__user"><span>Kostenstelle ' + session.number + '</span><span class="app-header__role">' + roleLabel(session.role) + "</span></p></div>" : "") + "</div></header>" + view() +
       '<footer class="app-footer"><p>' + esc(data.title) + "</p></footer>";
     var f = $("[data-focus]"); if (f) f.focus();
   }
 
   /* ---------- Aktionen ---------- */
-  function go(r) { route = r; flash = null; errors = []; render(); }
-  function done(msg) { flash = msg; errors = []; save(); render(); }
-  function fail(l) { errors = l; render(); }
-  function signIn(n) { var c = find(n); c.failed = 0; c.lock = 0; c.last = Date.now(); session = { number: n, role: roleOf(n) }; pending = null; save(); route = "Dashboard"; }
+  function go(r) { route = r; flash = null; errors = []; flashKind = null; errKind = null; render(); }
+  function done(msg, kind) { flash = msg; flashKind = kind || null; errors = []; errKind = null; save(); render(); }
+  function fail(l, kind) { errors = l; errKind = kind || null; flash = null; render(); }
+  function signIn(n) { var c = find(n); c.failed = 0; c.lock = 0; c.last = Date.now(); session = { number: n, role: roleOf(n) }; manualKey = null; pending = null; save(); route = "Dashboard"; }
   function failCount(c) { c.failed++; if (c.failed >= MAX_FAILED) { c.failed = 0; c.lock = Date.now() + LOCK_MIN * 60000; } save(); }
   var checkText = function (o, g) { var e = []; if (o.length > 11) e.push("Die Org-Einheit darf höchstens 11 Zeichen haben."); if (g.length > 30) e.push("Die Gruppe darf höchstens 30 Zeichen haben."); return e; };
 
@@ -447,7 +512,12 @@ button.app-nav__link { font-family: var(--font-sans); }
       if (!c || c.hash) return fail(["Für diese Kostenstelle ist bereits ein Passwort gesetzt. Bitte melde Dich normal an."]);
       c.hash = await hashPw(a); signIn(pending); render();
     },
-    async profil(fd) { await changePw(fd, session.number, "Dein Passwort ist geändert."); },
+    details(fd) {
+      var o = String(fd.get("org") || "").trim(), g = String(fd.get("group") || "").trim(), e = checkText(o, g);
+      if (e.length) return fail(e, "det");
+      var c = find(session.number); c.org = o; c.group = g; done("Deine Angaben sind aktualisiert.", "det");
+    },
+    async profil(fd) { await changePw(fd, session.number, "Dein Passwort ist geändert.", "pw"); },
     async adminpw(fd) { await changePw(fd, ADMIN, "Das Admin-Passwort ist geändert."); },
     title(fd) {
       var t = String(fd.get("title") || "").trim();
@@ -467,21 +537,21 @@ button.app-nav__link { font-family: var(--font-sans); }
       draft = {}; done("Kostenstelle " + n + " ist angelegt.");
     }
   };
-  async function changePw(fd, n, okMsg) {
+  async function changePw(fd, n, okMsg, kind) {
     var cur = String(fd.get("aktuell") || ""), a = String(fd.get("neu") || ""), b = String(fd.get("wdh") || ""), c = find(n);
-    if (c.lock > Date.now()) return fail(["Das Konto ist vorübergehend gesperrt. Bitte versuche es später erneut."]);
-    if (!(await verifyPw(cur, c.hash))) { failCount(c); return fail(["Das aktuelle Passwort stimmt nicht."]); }
+    if (c.lock > Date.now()) return fail(["Das Konto ist vorübergehend gesperrt. Bitte versuche es später erneut."], kind);
+    if (!(await verifyPw(cur, c.hash))) { failCount(c); return fail(["Das aktuelle Passwort stimmt nicht."], kind); }
     var e = policy(a, n);
     if (a !== b) e.push("Die beiden neuen Passwörter stimmen nicht überein.");
     if (a === cur) e.push("Das neue Passwort muss sich vom aktuellen unterscheiden.");
-    if (e.length) return fail(e);
+    if (e.length) return fail(e, kind);
     c.hash = await hashPw(a); c.failed = 0; if (n === ADMIN) c.must = false;
-    done(okMsg);
+    done(okMsg, kind);
   }
 
   function ask(text, yes) {
     var d = document.createElement("div"); d.className = "modal";
-    d.innerHTML = '<div class="modal__box card" role="alertdialog" aria-modal="true" aria-labelledby="mt"><p id="mt" class="copy">' + esc(text) + '</p><div class="actions"><button class="btn btn--primary" data-m="y">Ja, ausführen</button><button class="btn btn--ghost" data-m="n">Abbrechen</button></div></div>';
+    d.innerHTML = '<div class="modal__box card" role="alertdialog" aria-modal="true" aria-labelledby="mt"><p id="mt" class="copy">' + esc(text) + '</p><div class="actions"><button class="btn btn--primary" data-m="y">Ja, bestätigen</button><button class="btn btn--ghost" data-m="n">Abbrechen</button></div></div>';
     document.body.appendChild(d);
     d.querySelector('[data-m="n"]').focus();
     d.addEventListener("click", function (e) { var m = e.target.getAttribute && e.target.getAttribute("data-m"); if (m || e.target === d) { d.remove(); if (m === "y") yes(); } });
@@ -490,10 +560,13 @@ button.app-nav__link { font-family: var(--font-sans); }
 
   document.addEventListener("submit", function (e) { var f = e.target.getAttribute("data-form"); if (f && forms[f]) { e.preventDefault(); forms[f](new FormData(e.target)); } });
   document.addEventListener("click", function (e) {
-    var t = e.target.closest ? e.target.closest("[data-go],[data-act],#reset-demo") : null; if (!t) return;
+    var t = e.target.closest ? e.target.closest("[data-go],[data-act]") : null; if (!t) return;
     if (t.id === "reset-demo") { return ask("Alle Demo-Daten zurücksetzen? Kostenstellen, Passwörter und Einstellungen gehen verloren.", async function () { data = await seed(); session = null; pending = null; route = "login"; draft = {}; save(); render(); }); }
     if (t.hasAttribute("data-go")) { e.preventDefault(); return go(t.getAttribute("data-go")); }
     var act = t.getAttribute("data-act"), n = t.getAttribute("data-n");
+    if (act === "askimport") return ask("Beim Import werden alle vorhandenen Kostenstellen gelöscht, auch die Festlegung der Abteilungsleitung. Das lässt sich nicht rückgängig machen. Admin-Passwort und Titel bleiben erhalten. Testdaten jetzt importieren?", async function () { var k = await importTestData(); done("Die Testdaten sind importiert (" + k + " Kostenstellen). Alle vorherigen Kostenstellen sind gelöscht."); });
+    if (act === "askdelete") return ask("Alle Testkostenstellen werden gelöscht. Selbst angelegte Kostenstellen bleiben erhalten. Testdaten jetzt löschen?", function () { var k = data.ccs.filter(function (c) { return c.test; }).length; data.ccs = data.ccs.filter(function (c) { return !c.test; }); if (data.head && !find(data.head)) data.head = null; done(k + " Testkostenstellen sind gelöscht."); });
+    if (act === "manual") { manualKey = n; return render(); }
     if (act === "logout") { session = null; route = "login"; return go("login"); }
     if (act === "cancelset") { pending = null; return go("login"); }
     if (act === "save") {

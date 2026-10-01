@@ -19,7 +19,30 @@ public class EinstellungenModel : PageModel
     public List<string> Errors { get; private set; } = new();
     public string? Notice => TempData["Notice"] as string;
 
+    public string? Confirm { get; private set; }
+    public int TestCount => _accounts.TestDataCount();
+
     public void OnGet() => Title = _accounts.GetTitle();
+
+    public IActionResult OnPostAskImport() { Title = _accounts.GetTitle(); Confirm = "import"; return Page(); }
+
+    public IActionResult OnPostAskDelete() { Title = _accounts.GetTitle(); Confirm = "delete"; return Page(); }
+
+    public IActionResult OnPostImport(bool confirmed)
+    {
+        if (!confirmed) return RedirectToPage();
+        var n = _accounts.ImportTestData();
+        TempData["Notice"] = $"Die Testdaten sind importiert ({n} Kostenstellen). Alle vorherigen Kostenstellen sind gelöscht.";
+        return RedirectToPage();
+    }
+
+    public IActionResult OnPostDeleteTest(bool confirmed)
+    {
+        if (!confirmed) return RedirectToPage();
+        var n = _accounts.DeleteTestData();
+        TempData["Notice"] = $"{n} Testkostenstellen sind gelöscht.";
+        return RedirectToPage();
+    }
 
     public IActionResult OnPostTitle()
     {

@@ -12,6 +12,9 @@ public class CostCenter
     public int FailedAttempts { get; set; }
     public DateTime? LockoutEndUtc { get; set; }
     public DateTime? LastLoginUtc { get; set; }
+
+    /// <summary>Kennzeichnet Kostenstellen aus dem Testdaten-Import.</summary>
+    public bool IsTestData { get; set; }
 }
 
 public class SiteSettings

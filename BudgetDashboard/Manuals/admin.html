@@ -1,0 +1,131 @@
+<p class="meta">Version 1.2 · Stand Oktober 2026</p>
+<p>Dieses Handbuch richtet sich an die Administration. Du verwaltest die Kostenstellen, bestimmst die Abteilungsleitung, pflegst die Einstellungen und kannst Testdaten importieren.</p>
+
+<nav class="toc" aria-label="Inhalt">
+  <p>Inhalt</p>
+  <ol>
+    <li><a href="#anmelden">Anmelden und erstes Passwort</a></li>
+    <li><a href="#navigation">Die Navigation</a></li>
+    <li><a href="#dashboard">Dashboard</a></li>
+    <li><a href="#kostenstellen">Kostenstellen verwalten</a></li>
+    <li><a href="#einstellungen">Einstellungen</a></li>
+    <li><a href="#testdaten">Testdaten</a></li>
+    <li><a href="#betrieb">Sicherheit und Betrieb</a></li>
+    <li><a href="#probleme">Wenn etwas nicht klappt</a></li>
+  </ol>
+</nav>
+
+<h2 id="anmelden">1. Anmelden und erstes Passwort</h2>
+<p>Die Administration hat die feste Kostenstelle <strong>00000000</strong>. Das Standardpasswort ist <code>12test34</code>.</p>
+<div class="callout callout--warn">
+  <p>Solange das Standardpasswort aktiv ist, zeigt jede Admin-Seite den Hinweis „Es ist noch das Standardpasswort aktiv“. Ändere das Passwort sofort unter <strong>Einstellungen</strong>.</p>
+</div>
+
+<h2 id="navigation">2. Die Navigation</h2>
+<p>Die Administration hat eine eigene Navigation:</p>
+<table>
+  <thead><tr><th>Menüpunkt</th><th>Wofür er da ist</th></tr></thead>
+  <tbody>
+    <tr><td>Dashboard</td><td>Kennzahlen zu den Kostenstellen und die aktuelle Abteilungsleitung.</td></tr>
+    <tr><td>Kostenstellen</td><td>Kostenstellen anlegen, bearbeiten, freigeben und entfernen.</td></tr>
+    <tr><td>Einstellungen</td><td>Titel der Anwendung, Admin-Passwort und Testdaten.</td></tr>
+    <tr><td>Abmelden</td><td>Sitzung beenden.</td></tr>
+  </tbody>
+</table>
+
+<h2 id="dashboard">3. Dashboard</h2>
+<p>Das Dashboard zeigt vier Kennzahlen:</p>
+<ul>
+  <li><strong>Kostenstellen insgesamt:</strong> alle angelegten Kostenstellen.</li>
+  <li><strong>Dürfen sich anmelden:</strong> die freigegebenen Kostenstellen.</li>
+  <li><strong>Warten auf ein Passwort:</strong> freigegebene Kostenstellen ohne Passwort. Sie melden sich zum ersten Mal an.</li>
+  <li><strong>Gerade gesperrt:</strong> Kostenstellen mit aktiver Sperre nach Fehlversuchen.</li>
+</ul>
+<p>Darunter steht die Kostenstelle mit den Rechten der Abteilungsleitung.</p>
+
+<h2 id="kostenstellen">4. Kostenstellen verwalten</h2>
+<h3>Kostenstelle anlegen</h3>
+<ol>
+  <li>Öffne <strong>Kostenstellen</strong>.</li>
+  <li>Trage im Abschnitt <strong>Neue Kostenstelle anlegen</strong> die <strong>Kostenstelle</strong> ein: genau 8 Ziffern. Die Nummer 00000000 ist für Dich reserviert.</li>
+  <li>Ergänze optional die <strong>Org-Einheit</strong> (höchstens 11 Zeichen) und die <strong>Gruppe</strong> (höchstens 30 Zeichen).</li>
+  <li>Lass <strong>Darf sich anmelden</strong> angehakt, wenn die Kostenstelle sich sofort anmelden soll.</li>
+  <li>Hake <strong>Abteilungsleitung</strong> an, wenn die Kostenstelle diese Rechte erhalten soll.</li>
+  <li>Klicke auf <strong>Kostenstelle anlegen</strong>.</li>
+</ol>
+<p>Die neue Kostenstelle hat noch kein Passwort. Beim ersten Anmelden mit leerem Passwortfeld setzt die Person ihr Passwort selbst.</p>
+
+<h3>Kostenstelle bearbeiten</h3>
+<p>In der Tabelle <strong>Alle Kostenstellen</strong> änderst Du Org-Einheit, Gruppe und die Freigabe direkt in der Zeile. Klicke danach auf <strong>Speichern</strong>. Die Nutzenden können Org-Einheit und Gruppe auch selbst im Profil ändern.</p>
+<ul>
+  <li><strong>Anmeldung erlaubt:</strong> Nimmst Du den Haken heraus, kann sich die Kostenstelle nicht mehr anmelden. Laufende Sitzungen enden.</li>
+</ul>
+
+<h3>Abteilungsleitung festlegen oder entziehen</h3>
+<p>Es gibt genau eine Kostenstelle mit Abteilungsleiterrechten.</p>
+<ul>
+  <li>Klicke in der Spalte <strong>Abteilungsleitung</strong> auf <strong>Festlegen</strong>. Eine bisherige Abteilungsleitung verliert die Rechte.</li>
+  <li>Mit <strong>Entziehen</strong> hat danach keine Kostenstelle mehr diese Rechte.</li>
+  <li>Nur freigegebene Kostenstellen können die Abteilungsleitung sein.</li>
+</ul>
+
+<h3>Passwort löschen</h3>
+<p>Hat jemand sein Passwort vergessen, klickst Du auf <strong>Passwort löschen</strong> und bestätigst. Die Person meldet sich danach wie bei der ersten Anmeldung an und setzt ein neues Passwort. Laufende Sitzungen enden, und eine Sperre wird aufgehoben.</p>
+
+<h3>Kostenstelle entfernen</h3>
+<p>Mit <strong>Entfernen</strong> und Bestätigung löschst Du eine Kostenstelle. Das lässt sich nicht rückgängig machen.</p>
+
+<h2 id="einstellungen">5. Einstellungen</h2>
+<h3>Titel der Anwendung</h3>
+<p>Der Titel erscheint im Kopfbereich, in der Fußzeile und im Browser-Tab. Er darf 1 bis 60 Zeichen haben.</p>
+<h3>Admin-Passwort ändern</h3>
+<p>Gib das aktuelle Passwort und zweimal das neue ein. Es gelten dieselben Regeln wie für alle: mindestens 12 Zeichen, Groß- und Kleinbuchstaben, Ziffer und Sonderzeichen.</p>
+
+<h2 id="testdaten">6. Testdaten</h2>
+<p>Unter <strong>Einstellungen</strong> findest Du den Abschnitt <strong>Testdaten</strong>. Mit den Testdaten probierst Du alle typischen Fälle der App aus, ohne selbst Kostenstellen anzulegen.</p>
+<h3>Testdaten importieren</h3>
+<ol>
+  <li>Klicke auf <strong>Testdaten importieren</strong>.</li>
+  <li>Lies die Warnung. Der Import <strong>löscht alle vorhandenen Kostenstellen</strong> und die Festlegung der Abteilungsleitung, bevor er die Testdaten anlegt. Admin-Passwort und Titel bleiben erhalten.</li>
+  <li>Bestätige mit <strong>Ja, Testdaten importieren</strong>. Mit <strong>Abbrechen</strong> passiert nichts.</li>
+</ol>
+<h3>Testdaten löschen</h3>
+<p>Klicke auf <strong>Testdaten löschen</strong> und bestätige. Es werden nur die importierten Testkostenstellen entfernt. Selbst angelegte Kostenstellen bleiben erhalten.</p>
+<div class="callout callout--warn">
+  <p>Importiere Testdaten nur in einer Testumgebung. Im Echtbetrieb würden sie die echten Kostenstellen löschen.</p>
+</div>
+<h3>Enthaltene Fälle</h3>
+<p>Alle Testkostenstellen mit gesetztem Passwort haben das Passwort <code>Test-Zugang#2026</code>.</p>
+<table>
+  <thead><tr><th>Kostenstelle</th><th>Fall</th></tr></thead>
+  <tbody>
+    <tr><td>10000001</td><td>Abteilungsleitung mit Passwort, Navigation mit Budgetfreigaben und Upload</td></tr>
+    <tr><td>10000002</td><td>Gruppenleitung mit Passwort</td></tr>
+    <tr><td>10000003</td><td>Zweite Gruppenleitung mit Passwort</td></tr>
+    <tr><td>10000004</td><td>Erste Anmeldung: noch kein Passwort, Dialog zum Setzen</td></tr>
+    <tr><td>10000005</td><td>Passwort gelöscht, Org-Einheit und Gruppe leer (im Profil ergänzen)</td></tr>
+    <tr><td>10000006</td><td>Gesperrt nach Fehlversuchen (15 Minuten ab Import)</td></tr>
+    <tr><td>10000007</td><td>Nicht freigegeben: Anmeldung nicht erlaubt</td></tr>
+    <tr><td>10000008</td><td>Org-Einheit und Gruppe in maximaler Länge (11 und 30 Zeichen)</td></tr>
+  </tbody>
+</table>
+
+<h2 id="betrieb">7. Sicherheit und Betrieb</h2>
+<ul>
+  <li><strong>Sperre:</strong> Nach 5 Fehlversuchen ist eine Kostenstelle 15 Minuten gesperrt. Die Sperre siehst Du in der Tabelle der Kostenstellen.</li>
+  <li><strong>Sitzung:</strong> Nach 30 Minuten ohne Aktivität werden Nutzende abgemeldet.</li>
+  <li><strong>Datenhaltung:</strong> Alle Daten liegen in der Datei <code>App_Data/data.json</code> auf dem Server, zusammen mit der Sicherung <code>data.json.bak</code>. Nimm diesen Ordner in die Datensicherung auf.</li>
+  <li><strong>HTTPS:</strong> Die Anwendung läuft auch über HTTP. Über HTTP gehen Passwörter unverschlüsselt durchs Netz. Nutze HTTPS, wenn das Netz nicht vertrauenswürdig ist, und setze dann <code>Security:RequireHttps</code> auf <code>true</code>.</li>
+  <li><strong>Betrieb auf dem IIS:</strong> Die Schritte zur Bereitstellung stehen in der README des Projekts.</li>
+</ul>
+
+<h2 id="probleme">8. Wenn etwas nicht klappt</h2>
+<table>
+  <thead><tr><th>Situation</th><th>Was Du tun kannst</th></tr></thead>
+  <tbody>
+    <tr><td>Jemand kann sich nicht anmelden</td><td>Prüfe unter Kostenstellen, ob <strong>Anmeldung erlaubt</strong> angehakt ist und ob eine Sperre besteht. Löse eine Sperre mit <strong>Passwort löschen</strong>.</td></tr>
+    <tr><td>Passwort vergessen</td><td>Klicke bei der Kostenstelle auf <strong>Passwort löschen</strong>.</td></tr>
+    <tr><td>Admin-Passwort vergessen</td><td>Stoppe die Anwendung, benenne <code>App_Data/data.json</code> um und starte sie neu. Die Anwendung legt dann einen neuen Datenbestand mit dem Standardpasswort an. Die alten Kostenstellen stehen danach nicht mehr zur Verfügung.</td></tr>
+    <tr><td>Anwendung speichert nicht</td><td>Prüfe, ob das Konto des Anwendungspools Schreibrechte auf <code>App_Data</code> hat.</td></tr>
+  </tbody>
+</table>
