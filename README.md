@@ -21,7 +21,9 @@ alle Daten liegen in einer JSON-Datei (`App_Data/data.json`).
   - Ansicht einer Kostenstelle in einem neuen Tab (schreibgeschützt, Navigation und Funktionen der jeweiligen Rolle)
   - Titel der Anwendung ändern, Admin-Passwort ändern
   - Testdaten importieren (löscht vorher alle Kostenstellen) und löschen, jeweils mit Bestätigung
-- Budgetplan: Gruppenleitungen reichen Budgetpositionen für die freigeschalteten Kalenderjahre zur Freigabe ein (Aktueller Stand, Gesamtbudgetplan, Eingabe Budgetposition). Die Abteilungsleitung hat unter „Budgetfreigaben“ ein Dashboard (Überblick über alle Gruppen), die offenen Freigaben mit Anzahl und die Freischaltung der Kalenderjahre 2026 bis 2028. Im Budgetplan sieht sie ihre eigene Kostenstelle und wechselt per Auswahl zu anderen.
+- Budgetplan mit Dashboard (zunächst leer), Gesamtbudgetplan (freigegebene Positionen je Kalenderjahr) und Eingabe Budgetposition. Gruppenleitungen fragen Positionen bei der Abteilungsleitung an, die Positionen der Abteilungsleitung für die eigene Kostenstelle sind sofort freigegeben. Die Abteilungsleitung wechselt im Gesamtbudgetplan per Auswahl zwischen den Kostenstellen.
+- Jahresbudget (später Ausgaben als Zahlen und Diagramme) mit Umschalter für die freigeschalteten Kalenderjahre.
+- Budgetfreigaben (nur Abteilungsleitung): Dashboard, offene Freigaben mit Anzahl, Freischaltung der Kalenderjahre 2026 bis 2028.
 - Handbücher für Nutzende, Abteilungsleitung und Administration als HTML in der App (Schaltfläche „Handbuch“ im Header), jeweils mit PDF-Download
 
 ## Sicherheit

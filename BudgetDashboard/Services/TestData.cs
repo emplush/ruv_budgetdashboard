@@ -16,7 +16,7 @@ public static class TestData
 
     public static readonly (string Number, string Case)[] Cases =
     {
-        ("10000001", "Abteilungsleitung mit Passwort, Navigation mit Budgetfreigaben und Upload"),
+        ("10000001", "Abteilungsleitung mit Passwort, Navigation mit Budgetfreigaben und Upload, eigene direkt freigegebene Budgetpositionen"),
         ("10000002", "Gruppenleitung mit Passwort und Budgetpositionen: freigegeben (2026, 2027), wartend, abgelehnt mit und ohne Begründung"),
         ("10000003", "Zweite Gruppenleitung mit Passwort: eine freigegebene und zwei wartende Positionen für die Freigaben der Abteilungsleitung"),
         ("10000004", "Erste Anmeldung: noch kein Passwort, Dialog zum Setzen"),
@@ -64,6 +64,8 @@ public static class TestData
         };
         return new List<BudgetItem>
         {
+            Make("10000001", "Abteilungsveranstaltung", 650_000, 2026, "Jahresauftakt der Abteilung", BudgetStatus.Approved, daysAgo: 12),
+            Make("10000001", "Fachkonferenz", 280_000, 2027, "Teilnahme der Abteilungsleitung", BudgetStatus.Approved, daysAgo: 6),
             Make("10000002", "Schulungen und Weiterbildung", 1_250_000, 2026, "Fachschulungen für das Team", BudgetStatus.Approved, daysAgo: 10),
             Make("10000002", "Software-Lizenzen", 489_050, 2026, "Verlängerung der Lizenzen", BudgetStatus.Approved, daysAgo: 9),
             Make("10000002", "Reisekosten", 320_000, 2027, "Kundentermine im Norden", BudgetStatus.Approved, daysAgo: 8),

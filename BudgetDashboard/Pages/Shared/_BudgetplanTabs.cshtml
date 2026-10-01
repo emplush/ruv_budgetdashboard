@@ -2,13 +2,17 @@
     var current = ViewContext.RouteData.Values["page"] as string ?? "";
     var ks = Context.Request.Query["ks"].ToString();
     if (ks.Length == 0 || !User.IsInRole(Roles.DepartmentHead)) ks = null!;
-    var tabs = new List<(string Label, string Page)> { ("Aktueller Stand", "/Budgetplan/Index"), ("Gesamtbudgetplan", "/Budgetplan/Gesamt") };
-    if (User.IsInRole(Roles.GroupLead)) tabs.Add(("Eingabe Budgetposition", "/Budgetplan/Eingabe"));
+    var tabs = new List<(string Label, string Page)>
+    {
+        ("Dashboard", "/Budgetplan/Index"),
+        ("Gesamtbudgetplan", "/Budgetplan/Gesamt"),
+        ("Eingabe Budgetposition", "/Budgetplan/Eingabe")
+    };
 }
 <ul class="pill-tabs" aria-label="Budgetplan">
     @foreach (var t in tabs)
     {
         var active = string.Equals(current, t.Page, StringComparison.OrdinalIgnoreCase);
-        <li><a class="pill@(active ? " is-active" : "")" asp-page="@t.Page" asp-route-ks="@(t.Page == "/Budgetplan/Eingabe" ? null : ks)" aria-current="@(active ? "page" : null)">@t.Label</a></li>
+        <li><a class="pill@(active ? " is-active" : "")" asp-page="@t.Page" asp-route-ks="@(t.Page == "/Budgetplan/Gesamt" ? ks : null)" aria-current="@(active ? "page" : null)">@t.Label</a></li>
     }
 </ul>

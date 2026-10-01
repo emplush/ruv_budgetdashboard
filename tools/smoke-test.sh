@@ -137,16 +137,18 @@ login al 10000001 'Test-Zugang#2026' >/dev/null
 login gl 10000002 'Test-Zugang#2026' >/dev/null
 login gl2 10000003 'Test-Zugang#2026' >/dev/null
 lastid() { grep -o 'name="id" value="[a-f0-9]\{32\}"' "$TMP/out.html" | "$1" -1 | sed 's/.*value="//;s/"$//'; }
-r=$(get gl /Budgetplan); [[ $r == 200* ]] && ok "Budgetplan erreichbar" || fail "$r"
-check "Unterpunkt Aktueller Stand" "Aktueller Stand"
+r=$(get gl /Budgetplan/Gesamt); [[ $r == 200* ]] && ok "Gesamtbudgetplan erreichbar" || fail "$r"
+check "Unterpunkt Gesamtbudgetplan" "Gesamtbudgetplan</h1>"; check "Hinweis zum Unterpunkt Dashboard" ">Dashboard</a>"
+get gl /Budgetplan >/dev/null; check "Budgetplan-Dashboard ist leer" "Dieser Bereich wird dem"
+get gl /Budgetplan/Gesamt >/dev/null
 check "Unterpunkt Gesamtbudgetplan" ">Gesamtbudgetplan</a>"
 check "Unterpunkt Eingabe Budgetposition" ">Eingabe Budgetposition</a>"
 check "freigegebene Position 2026 sichtbar" "Schulungen und Weiterbildung"
 nocheck "Position 2027 nicht im Jahr 2026" "Reisekosten"
 nocheck "wartende Position nicht im Budgetplan" "Büroausstattung"
 nocheck "gesperrtes Jahr 2028 nicht wählbar" "jahr=2028"
-get gl "/Budgetplan?jahr=2027" >/dev/null; check "Jahr 2027 umschalten" "Reisekosten"
-get gl /Budgetplan/Gesamt >/dev/null; check "Gesamtbudgetplan: Jahr freigeschaltet" "Freigeschaltet"; check "Gesamtbudgetplan: Jahr gesperrt" "Gesperrt"
+get gl "/Budgetplan/Gesamt?jahr=2027" >/dev/null; check "Jahr 2027 umschalten" "Reisekosten"
+# (Jahresübersicht des Gesamtbudgetplans entfällt: Dashboard der Abteilungsleitung zeigt sie)
 get gl /Budgetplan/Eingabe >/dev/null
 check "Status Warten" "Warten"; check "Status Abgelehnt" "Abgelehnt"
 check "Grund der Ablehnung im Pop-up" "neu einreichen"
@@ -173,7 +175,7 @@ IDA=$(grep -o 'ablehnung-titel-[a-f0-9]\{32\}">Ablehnung begr[^<]*</h2>[^"]*<p c
 [[ -n "$IDA" ]] && ok "ID der Position gefunden" || fail "ID Position A"
 post al "/Budgetfreigaben/Offen?handler=Approve" --data-urlencode "id=$IDA" >/dev/null; check "Freigabe erteilt" "ist freigegeben"
 nocheck "freigegebene Position nicht mehr unter Freigaben" "Smoke-Position-A"
-get gl "/Budgetplan?jahr=2026" >/dev/null; check "Position im Budgetplan 2026" "Smoke-Position-A"
+get gl "/Budgetplan/Gesamt?jahr=2026" >/dev/null; check "Position im Budgetplan 2026" "Smoke-Position-A"
 get gl /Budgetplan/Eingabe >/dev/null; nocheck "Position nicht mehr in der Statustabelle" "Smoke-Position-A"
 submit "Smoke-Position-B" "100,00"; submit "Smoke-Position-C" "200,00"
 get al /Budgetfreigaben/Offen >/dev/null
@@ -185,7 +187,7 @@ post al "/Budgetfreigaben/Offen?handler=Reject" --data-urlencode "id=$IDC" --dat
 get gl /Budgetplan/Eingabe >/dev/null
 check "Gruppenleitung sieht Ablehnungsgrund" "Zu teuer fuer 2026"
 nocheck "abgelehnte Position nicht im Budgetplan" "zzz-nie-vorhanden"
-get gl "/Budgetplan?jahr=2026" >/dev/null; nocheck "abgelehnte Position nicht im Budgetplan 2026" "Smoke-Position-B"
+get gl "/Budgetplan/Gesamt?jahr=2026" >/dev/null; nocheck "abgelehnte Position nicht im Budgetplan 2026" "Smoke-Position-B"
 get gl /Budgetplan/Eingabe >/dev/null
 IDGB=$(tr '\n' ' ' < "$TMP/out.html" | grep -o 'name="id" value="[a-f0-9]\{32\}" />[^<]*<button[^>]*aria-label="Eintrag „Smoke-Position-B' | grep -o '[a-f0-9]\{32\}' | head -1)
 [[ -n "$IDGB" ]] && ok "ID der abgelehnten Position gefunden" || fail "ID B"
@@ -213,22 +215,38 @@ post al "/Budgetfreigaben/Freischaltung?handler=Toggle" --data-urlencode "year=2
 echo "Rechte im Budgetplan"
 r=$(get gl /Budgetfreigaben); [[ $r == *"AccessDenied"* ]] && ok "Gruppenleitung: Freigaben gesperrt" || fail "$r"
 r=$(get gl /Budgetfreigaben/Freischaltung); [[ $r == *"AccessDenied"* ]] && ok "Gruppenleitung: Freischaltung gesperrt" || fail "$r"
-r=$(get al /Budgetplan/Eingabe); [[ $r == *"AccessDenied"* ]] && ok "Abteilungsleitung: Eingabe gesperrt" || fail "$r"
-get al /Budgetplan >/dev/null
+r=$(get al /Budgetplan/Eingabe); [[ $r == 200* ]] && ok "Abteilungsleitung: Eingabe Budgetposition erreichbar" || fail "$r"
+get al /Budgetplan/Gesamt >/dev/null
 check "AL: Budgetplan startet mit eigener Kostenstelle" "Kostenstelle 10000001"
 check "AL: Auswahl aller Kostenstellen" 'name="ks"'; check "AL: eigene Kostenstelle in der Auswahl" "eigene Kostenstelle"; check "AL: Gruppe Süd wählbar" "10000003"
 nocheck "AL: eigener Budgetplan ohne fremde Positionen" "Beratungsleistungen"
-get al "/Budgetplan?ks=10000003" >/dev/null; check "AL wechselt auf Kostenstelle 10000003" "Beratungsleistungen"; check "AL: Titel nennt die Kostenstelle" "der Kostenstelle 10000003"
-get al "/Budgetplan?ks=99999999" >/dev/null; check "AL: unbekannte Kostenstelle fällt auf eigene zurück" "Kostenstelle 10000001"
+get al "/Budgetplan/Gesamt?ks=10000003" >/dev/null; check "AL wechselt auf Kostenstelle 10000003" "Beratungsleistungen"; check "AL: Titel nennt die Kostenstelle" "der Kostenstelle 10000003"
+get al "/Budgetplan/Gesamt?ks=99999999" >/dev/null; check "AL: unbekannte Kostenstelle fällt auf eigene zurück" "Kostenstelle 10000001"
 get al "/Budgetplan/Gesamt?ks=10000003" >/dev/null; check "AL: Gesamtbudgetplan je Kostenstelle" "der Kostenstelle 10000003"
 nocheck "AL: Gesamtbudgetplan ohne Gruppentabelle" "je Gruppe"
-get gl /Budgetplan >/dev/null; nocheck "Gruppenleitung: keine Kostenstellen-Auswahl" 'name="ks"'
-get gl "/Budgetplan?ks=10000003" >/dev/null; nocheck "Gruppenleitung kann keine fremde Kostenstelle ansehen" "Beratungsleistungen"
+get gl /Budgetplan/Gesamt >/dev/null; nocheck "Gruppenleitung: keine Kostenstellen-Auswahl" 'name="ks"'
+get gl "/Budgetplan/Gesamt?ks=10000003" >/dev/null; nocheck "Gruppenleitung kann keine fremde Kostenstelle ansehen" "Beratungsleistungen"
 r=$(get al /Budgetfreigaben); [[ $r == 200*"/Budgetfreigaben" ]] && ok "Budgetfreigaben öffnet das Dashboard" || fail "$r"
 check "Dashboard ist der erste Unterpunkt" ">Dashboard</a>"; check "offene Freigaben mit Anzahl" "offene Freigaben ("; check "Dashboard: Übersicht je Gruppe" "je Gruppe"; check "Dashboard: Jahresübersicht" "im Überblick"
 tr '\n' ' ' < "$TMP/out.html" | grep -o 'aria-label="Budgetfreigaben">.*' | grep -q 'Dashboard</a></li>.*offene Freigaben (.*Freischaltung' && ok "Reihenfolge: Dashboard, offene Freigaben, Freischaltung" || fail "Reihenfolge der Unterpunkte"
 nocheck "Unterpunkt heißt nicht mehr Freigaben" ">Freigaben</a>"
 get al /Budgetfreigaben/Offen >/dev/null; check "Offene Freigaben zeigen Anzahl im Reiter" "offene Freigaben ("
+echo "Abteilungsleitung legt eigene Budgetposition an"
+get al /Budgetplan/Eingabe >/dev/null; check "AL: Hinweis auf direkte Freigabe" "direkt an"; check "AL: Button Anlegen" ">Anlegen</button>"
+post al "/Budgetplan/Eingabe?handler=Submit" --data-urlencode "Bezeichnung=Smoke-AL-Position" --data-urlencode "Betrag=1.000,00" --data-urlencode "Jahr=2026" --data-urlencode "Hinweis=Direkt" >/dev/null
+check "AL: Position direkt freigegeben" "direkt freigegeben"
+get al /Budgetplan/Gesamt >/dev/null; check "AL: Position sofort im Gesamtbudgetplan" "Smoke-AL-Position"; check "AL: Testposition im Gesamtbudgetplan" "Abteilungsveranstaltung"
+get al /Budgetfreigaben/Offen >/dev/null; nocheck "AL: Position nicht unter offenen Freigaben" "Smoke-AL-Position"
+get al /Budgetplan/Eingabe >/dev/null; nocheck "AL: keine Status-Tabelle für direkt freigegebene Positionen" "Smoke-AL-Position"
+get gl /Budgetplan/Gesamt >/dev/null; nocheck "Gruppenleitung sieht die Position der Abteilungsleitung nicht" "Smoke-AL-Position"
+post al "/Budgetplan/Eingabe?handler=Submit" --data-urlencode "Bezeichnung=X" --data-urlencode "Betrag=1,00" --data-urlencode "Jahr=2028" --data-urlencode "Hinweis=x" >/dev/null; check "AL: gesperrtes Jahr nicht möglich" "nicht freigeschaltet"
+
+echo "Jahresbudget"
+r=$(get gl /Jahresbudget); [[ $r == 200* ]] && ok "Jahresbudget erreichbar" || fail "$r"
+check "Jahresbudget zeigt freigeschaltetes Jahr" "Jahresbudget 2026"; check "Jahr 2027 zum Umschalten" "jahr=2027"; nocheck "gesperrtes Jahr nicht umschaltbar" "jahr=2028"
+get gl "/Jahresbudget?jahr=2027" >/dev/null; check "Jahresbudget 2027" "Jahresbudget 2027"
+get al "/Jahresbudget?jahr=2027" >/dev/null; check "Jahresbudget auch für die Abteilungsleitung" "Jahresbudget 2027"
+
 r=$(get admin /Budgetplan); [[ $r == *"AccessDenied"* ]] && ok "Administration: kein Budgetplan" || fail "$r"
 
 echo "Ansicht einer Kostenstelle durch die Administration"

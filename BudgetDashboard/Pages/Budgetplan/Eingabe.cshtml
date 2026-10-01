@@ -16,9 +16,17 @@
 
     <div class="card card--soft card--form">
         <h2 class="headline-s">Neue Budgetposition</h2>
+        @if (Model.IsDepartmentHead)
+        {
+            <p class="copy">Als Abteilungsleitung legst Du Budgetpositionen für Deine Kostenstelle direkt an. Sie sind sofort freigegeben und erscheinen im Gesamtbudgetplan.</p>
+        }
+        else
+        {
+            <p class="copy">Die Position geht zur Freigabe an die Abteilungsleitung.</p>
+        }
         @if (Model.Years.Count == 0)
         {
-            <p class="copy">Aktuell ist noch kein Kalenderjahr für Budgetpläne freigeschaltet. Sobald die Abteilungsleitung ein Jahr freischaltet, kannst Du hier Budgetpositionen eintragen.</p>
+            <p class="copy">Aktuell ist noch kein Kalenderjahr für Budgetpläne freigeschaltet. Sobald ein Jahr freigeschaltet ist, kannst Du hier Budgetpositionen eintragen.</p>
         }
         else
         {
@@ -48,15 +56,21 @@
                     <textarea id="hinweis" name="Hinweis" rows="3" maxlength="@BudgetService.NoteMax" required>@Model.Hinweis</textarea>
                     <p class="hint">Begründe kurz, wofür das Budget gebraucht wird. Höchstens @BudgetService.NoteMax Zeichen.</p>
                 </div>
-                <div class="actions"><button type="submit" class="btn btn--primary">Freigabe</button></div>
+                <div class="actions"><button type="submit" class="btn btn--primary">@(Model.IsDepartmentHead ? "Anlegen" : "Freigabe")</button></div>
             </form>
         }
     </div>
 
-    <h2 class="headline-s">Status der Freigaben</h2>
+    @if (!Model.IsDepartmentHead || Model.Items.Count > 0)
+    {
+        <h2 class="headline-s">Status der Freigaben</h2>
+    }
     @if (Model.Items.Count == 0)
     {
-        <p class="copy">Es gibt keine offenen Anfragen. Freigegebene Positionen findest Du unter „Aktueller Stand“.</p>
+        @if (!Model.IsDepartmentHead)
+        {
+            <p class="copy">Es gibt keine offenen Anfragen. Freigegebene Positionen findest Du im Gesamtbudgetplan.</p>
+        }
     }
     else
     {

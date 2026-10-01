@@ -1,64 +1,13 @@
 @page
-@model AktuellerStandModel
+@attribute [Authorize(Policy = "User")]
 @{
     ViewData["Title"] = "Budgetplan";
 }
 <section class="page">
     <p class="topline">Budgetplan</p>
-    <h1 class="headline">Aktueller Stand</h1>
+    <h1 class="headline">Dashboard</h1>
     <partial name="_BudgetplanTabs" />
-    <partial name="_ScopeSelect" model="Model.Scope" />
-
-    @if (Model.Years.Count == 0)
-    {
-        <div class="card card--soft"><p class="copy">Aktuell ist noch kein Kalenderjahr für Budgetpläne freigeschaltet. Die Abteilungsleitung schaltet die Jahre frei.</p></div>
-    }
-    else
-    {
-        <ul class="pill-tabs" aria-label="Kalenderjahr">
-            @foreach (var y in Model.Years)
-            {
-                <li><a class="pill@(y == Model.Year ? " is-active" : "")" asp-page="/Budgetplan/Index" asp-route-jahr="@y" asp-route-ks="@Model.KsRoute" aria-current="@(y == Model.Year ? "page" : null)">@y</a></li>
-            }
-        </ul>
-
-        <h2 class="headline-s">Freigegebene Budgetpositionen @Model.Year@Model.ScopeTitle</h2>
-        @if (Model.Rows.Count == 0)
-        {
-            <p class="copy">Für @Model.Year gibt es noch keine freigegebenen Budgetpositionen@(Model.ScopeTitle.Length > 0 ? " für diese Kostenstelle" : "").</p>
-        }
-        else
-        {
-            <div class="table-wrap">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Bezeichnung</th>
-                            <th scope="col" class="num">Betrag (Brutto)</th>
-                            <th scope="col">Hinweis</th>
-                            <th scope="col">Freigegeben am</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var r in Model.Rows)
-                        {
-                            <tr>
-                                <th scope="row">@r.Name</th>
-                                <td class="num">@Money.Format(r.AmountCents) EUR</td>
-                                <td class="note">@r.Note</td>
-                                <td>@(r.DecidedUtc is { } t ? TimeZoneInfo.ConvertTimeFromUtc(t, TimeZoneInfo.Local).ToString("dd.MM.yyyy") : "")</td>
-                            </tr>
-                        }
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <th scope="row">Summe @Model.Year</th>
-                            <td class="num"><strong>@Money.Format(Model.Rows.Sum(r => r.AmountCents)) EUR</strong> (Brutto)</td>
-                            <td colspan="2"></td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-        }
-    }
+    <div class="card card--soft">
+        <p class="copy">Dieser Bereich wird demnächst gefüllt.</p>
+    </div>
 </section>

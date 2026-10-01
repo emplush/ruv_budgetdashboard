@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace BudgetDashboard.Pages.Budgetplan;
 
-[Authorize(Policy = "GroupLead")]
+[Authorize(Policy = "User")]
 public class EingabeModel : PageModel
 {
     private readonly BudgetService _budget;
@@ -17,6 +17,7 @@ public class EingabeModel : PageModel
     [BindProperty] public int Jahr { get; set; }
     [BindProperty] public string? Hinweis { get; set; }
 
+    public bool IsDepartmentHead => User.IsInRole(Roles.DepartmentHead);
     public List<int> Years { get; private set; } = new();
     public List<BudgetRow> Items { get; private set; } = new();
     public List<string> Errors { get; private set; } = new();
@@ -26,14 +27,16 @@ public class EingabeModel : PageModel
 
     public IActionResult OnPostSubmit()
     {
-        var result = _budget.Submit(User.Identity!.Name!, Bezeichnung, Betrag, Jahr, Hinweis);
+        var result = _budget.Submit(User.Identity!.Name!, Bezeichnung, Betrag, Jahr, Hinweis, autoApprove: IsDepartmentHead);
         if (!result.Ok)
         {
             Errors = result.Errors;
             Load();
             return Page();
         }
-        TempData["Notice"] = "Die Budgetposition ist zur Freigabe an die Abteilungsleitung gesendet.";
+        TempData["Notice"] = IsDepartmentHead
+            ? "Die Budgetposition ist angelegt und direkt freigegeben."
+            : "Die Budgetposition ist zur Freigabe an die Abteilungsleitung gesendet.";
         return RedirectToPage();
     }
 

@@ -1,12 +1,26 @@
 @page
-@attribute [Authorize(Policy = "User")]
+@model JahresbudgetModel
 @{
     ViewData["Title"] = "Jahresbudget";
 }
 <section class="page">
     <p class="topline">Bereich</p>
-    <h1 class="headline">Jahresbudget</h1>
-    <div class="card card--soft">
-        <p class="copy">Dieser Bereich wird demnächst gefüllt.</p>
-    </div>
+    <h1 class="headline">Jahresbudget@(Model.Year > 0 ? " " + Model.Year : "")</h1>
+
+    @if (Model.Years.Count == 0)
+    {
+        <div class="card card--soft"><p class="copy">Aktuell ist noch kein Kalenderjahr freigeschaltet. Die Abteilungsleitung schaltet die Jahre frei.</p></div>
+    }
+    else
+    {
+        <ul class="pill-tabs" aria-label="Kalenderjahr">
+            @foreach (var y in Model.Years)
+            {
+                <li><a class="pill@(y == Model.Year ? " is-active" : "")" asp-page="/Jahresbudget" asp-route-jahr="@y" aria-current="@(y == Model.Year ? "page" : null)">@y</a></li>
+            }
+        </ul>
+        <div class="card card--soft">
+            <p class="copy">Dieser Bereich wird demnächst gefüllt.</p>
+        </div>
+    }
 </section>

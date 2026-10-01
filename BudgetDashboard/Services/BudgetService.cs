@@ -89,7 +89,7 @@ public sealed partial class BudgetService
         });
     }
 
-    public OperationResult Submit(string costCenter, string? name, string? amountText, int year, string? note)
+    public OperationResult Submit(string costCenter, string? name, string? amountText, int year, string? note, bool autoApprove = false)
     {
         name = (name ?? "").Trim();
         note = (note ?? "").Trim();
@@ -108,7 +108,12 @@ public sealed partial class BudgetService
         {
             if (!d.Settings.EnabledYears.Contains(year))
                 return OperationResult.Fail("Für dieses Kalenderjahr sind Budgetpläne nicht freigeschaltet.");
-            d.BudgetItems.Add(new BudgetItem { CostCenter = costCenter, Name = name, AmountCents = cents!.Value, Year = year, Note = note });
+            d.BudgetItems.Add(new BudgetItem
+            {
+                CostCenter = costCenter, Name = name, AmountCents = cents!.Value, Year = year, Note = note,
+                Status = autoApprove ? BudgetStatus.Approved : BudgetStatus.Pending,
+                DecidedUtc = autoApprove ? DateTime.UtcNow : null
+            });
             return OperationResult.Success();
         });
     }
