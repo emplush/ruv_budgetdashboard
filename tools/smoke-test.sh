@@ -148,6 +148,7 @@ nocheck "Position 2027 nicht im Jahr 2026" "Reisekosten"
 nocheck "wartende Position nicht im Budgetplan" "Büroausstattung"
 nocheck "gesperrtes Jahr 2028 nicht wählbar" "jahr=2028"
 get gl "/Budgetplan/Gesamt?jahr=2027" >/dev/null; check "Jahr 2027 umschalten" "Reisekosten"
+check "Gesamtbudgetplan: Nettospalte" "Betrag (Netto)"; nocheck "Gesamtbudgetplan: kein Freigabedatum" "Freigegeben am"; nocheck "Gesamtbudgetplan: kein Jahr in der Überschrift" "Budgetpositionen 2027"; nocheck "Gesamtbudgetplan: keine Jahressumme" "Summe 2027"; check "Gesamtbudgetplan: Summe" "Summe</th>"
 # (Jahresübersicht des Gesamtbudgetplans entfällt: Dashboard der Abteilungsleitung zeigt sie)
 get gl /Budgetplan/Eingabe >/dev/null
 check "Status Warten" "Warten"; check "Status Abgelehnt" "Abgelehnt"
@@ -160,8 +161,11 @@ post gl "/Budgetplan/Eingabe?handler=Submit" --data-urlencode "Bezeichnung=X" --
 check "höchstens 2 Nachkommastellen" "Nachkommastellen"
 post gl "/Budgetplan/Eingabe?handler=Submit" --data-urlencode "Bezeichnung=X" --data-urlencode "Betrag=10,00" --data-urlencode "Jahr=2028" --data-urlencode "Hinweis=x" >/dev/null
 check "gesperrtes Jahr abgelehnt" "nicht freigeschaltet"
-post gl "/Budgetplan/Eingabe?handler=Submit" --data-urlencode "Bezeichnung=X" --data-urlencode "Betrag=10,00" --data-urlencode "Jahr=2026" --data-urlencode "Hinweis=" >/dev/null
-check "Hinweistext ist Pflicht" "Hinweistext"
+post gl "/Budgetplan/Eingabe?handler=Submit" --data-urlencode "Bezeichnung=Smoke-Ohne-Hinweis" --data-urlencode "Betrag=10,00" --data-urlencode "Jahr=2026" --data-urlencode "Hinweis=" >/dev/null
+check "Hinweistext ist optional" "zur Freigabe"
+check "Leerer Hinweis: Popup-Text" "Es wurde kein Hinweis eingegeben"
+check "Status-Tabelle: Nettospalte" "Betrag (Netto)"; check "Status-Tabelle: Bruttospalte" "Betrag (Brutto)"; check "Status-Tabelle: Hinweis-Button" ">Hinweis</button>"; check "Netto zu 10,00 Brutto" "8,40 EUR"
+check "Popup mit Hinweis zur Freigabe" "Hinweis zur Freigabe</h2>"
 submit() { post gl "/Budgetplan/Eingabe?handler=Submit" --data-urlencode "Bezeichnung=$1" --data-urlencode "Betrag=$2" --data-urlencode "Jahr=${3:-2026}" --data-urlencode "Hinweis=Smoke-Hinweis $1" >/dev/null; }
 submit "Smoke-Position-A" "1.234,56"
 check "Einreichen bestätigt" "zur Freigabe"
@@ -176,7 +180,7 @@ check "Netto und Brutto passen nicht zusammen" "passen nicht zusammen"
 get gl /Budgetplan/Eingabe >/dev/null; check "Formular hat Nettofeld" 'id="netto"'; check "Formular hat Bruttofeld" 'id="betrag"'
 
 get al /Budgetfreigaben/Offen >/dev/null
-check "AL sieht Position unter Freigaben" "Smoke-Position-A"; check "AL sieht Betrag" "1.234,56 EUR"; check "AL sieht Hinweis" "Smoke-Hinweis Smoke-Position-A"
+check "AL sieht Position unter Freigaben" "Smoke-Position-A"; check "AL sieht Betrag" "1.234,56 EUR"; check "AL sieht Netto" "1.037,45 EUR"; check "AL: Hinweis per Popup-Button" ">Hinweis</button>"; check "AL sieht Hinweis" "Smoke-Hinweis Smoke-Position-A"
 check "Button Freigabe" ">Freigabe</button>"; check "Button Ablehnung" ">Ablehnung</button>"
 check "Unterpunkt Freischaltung Budgetpläne" "Freischaltung Budgetpl"
 IDA=$(grep -o 'ablehnung-titel-[a-f0-9]\{32\}">Ablehnung begr[^<]*</h2>[^"]*<p class="copy"><strong>Smoke-Position-A' <(tr '\n' ' ' < "$TMP/out.html") | grep -o '[a-f0-9]\{32\}' | head -1)

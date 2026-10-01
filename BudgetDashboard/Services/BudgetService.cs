@@ -5,7 +5,7 @@ namespace BudgetDashboard.Services;
 
 public record BudgetRow(
     string Id, string CostCenter, string Group, string OrgUnit, string Name, long AmountCents,
-    int Year, string Note, BudgetStatus Status, string? RejectReason, DateTime CreatedUtc, DateTime? DecidedUtc);
+    int Year, string Note, BudgetStatus Status, string? RejectReason, DateTime CreatedUtc, DateTime? DecidedUtc, long NetCents);
 
 public record YearSummary(int Year, bool Enabled, int ApprovedCount, long ApprovedCents, int PendingCount, long PendingCents);
 
@@ -109,8 +109,7 @@ public sealed partial class BudgetService
             errors.Add("Bitte gib einen Netto- oder Bruttobetrag größer als 0 an, zum Beispiel 1.234,56. Es sind höchstens 2 Nachkommastellen möglich.");
         else if (net is not null && Math.Abs(GrossToNet(cents.Value) - net.Value) > 1)
             errors.Add("Netto und Brutto passen nicht zusammen. Brutto ist Netto × 1,19. Gib nur einen der beiden Beträge an oder gleiche sie ab.");
-        if (note.Length == 0) errors.Add("Bitte gib einen Hinweistext zur Freigabe ein.");
-        else if (note.Length > NoteMax) errors.Add($"Der Hinweistext darf höchstens {NoteMax} Zeichen haben.");
+        if (note.Length > NoteMax) errors.Add($"Der Hinweistext darf höchstens {NoteMax} Zeichen haben.");
         if (name.Any(char.IsControl) || note.Any(c => char.IsControl(c) && c != '\n' && c != '\r'))
             errors.Add("Bezeichnung und Hinweistext enthalten ungültige Zeichen.");
         if (errors.Count > 0) return OperationResult.Fail(errors);
@@ -121,7 +120,7 @@ public sealed partial class BudgetService
                 return OperationResult.Fail("Für dieses Kalenderjahr sind Budgetpläne nicht freigeschaltet.");
             d.BudgetItems.Add(new BudgetItem
             {
-                CostCenter = costCenter, Name = name, AmountCents = cents!.Value, Year = year, Note = note,
+                CostCenter = costCenter, Name = name, AmountCents = cents!.Value, NetCents = net ?? GrossToNet(cents!.Value), Year = year, Note = note,
                 Status = autoApprove ? BudgetStatus.Approved : BudgetStatus.Pending,
                 DecidedUtc = autoApprove ? DateTime.UtcNow : null
             });
@@ -133,7 +132,7 @@ public sealed partial class BudgetService
     {
         var c = d.CostCenters.FirstOrDefault(x => x.Number == i.CostCenter);
         return new BudgetRow(i.Id, i.CostCenter, c?.Group ?? "", c?.OrgUnit ?? "", i.Name, i.AmountCents, i.Year, i.Note,
-            i.Status, i.RejectReason, i.CreatedUtc, i.DecidedUtc);
+            i.Status, i.RejectReason, i.CreatedUtc, i.DecidedUtc, i.NetCents > 0 ? i.NetCents : GrossToNet(i.AmountCents));
     }
 
     /// <summary>Offene und abgelehnte Positionen einer Gruppenleitung (genehmigte erscheinen im Budgetplan).</summary>

@@ -28,10 +28,10 @@
             }
         </ul>
 
-        <h2 class="headline-s">Freigegebene Budgetpositionen @Model.Year@Model.ScopeTitle</h2>
+        <h2 class="headline-s">Freigegebene Budgetpositionen@(Model.ScopeTitle)</h2>
         @if (Model.Rows.Count == 0)
         {
-            <p class="copy">Für @Model.Year gibt es noch keine freigegebenen Budgetpositionen@(Model.ScopeTitle.Length > 0 ? " für diese Kostenstelle" : "").</p>
+            <p class="copy">Es gibt noch keine freigegebenen Budgetpositionen@(Model.ScopeTitle.Length > 0 ? " für diese Kostenstelle" : "").</p>
         }
         else
         {
@@ -40,9 +40,9 @@
                     <thead>
                         <tr>
                             <th scope="col">Bezeichnung</th>
+                            <th scope="col" class="num">Betrag (Netto)</th>
                             <th scope="col" class="num">Betrag (Brutto)</th>
                             <th scope="col">Hinweis</th>
-                            <th scope="col">Freigegeben am</th>
                             @if (Model.IsDepartmentHead) { <th scope="col"><span class="visually-hidden">Entfernen</span></th> }
                         </tr>
                     </thead>
@@ -51,9 +51,9 @@
                         {
                             <tr>
                                 <th scope="row">@r.Name</th>
+                                <td class="num">@Money.Format(r.NetCents) EUR</td>
                                 <td class="num">@Money.Format(r.AmountCents) EUR</td>
                                 <td class="note">@r.Note</td>
-                                <td>@(r.DecidedUtc is { } t ? TimeZoneInfo.ConvertTimeFromUtc(t, TimeZoneInfo.Local).ToString("dd.MM.yyyy") : "")</td>
                                 @if (Model.IsDepartmentHead)
                                 {
                                     <td>
@@ -67,9 +67,10 @@
                     </tbody>
                     <tfoot>
                         <tr>
-                            <th scope="row">Summe @Model.Year</th>
-                            <td class="num"><strong>@Money.Format(Model.Rows.Sum(r => r.AmountCents)) EUR</strong> (Brutto)</td>
-                            <td colspan="@(Model.IsDepartmentHead ? 3 : 2)"></td>
+                            <th scope="row">Summe</th>
+                            <td class="num"><strong>@Money.Format(Model.Rows.Sum(r => r.NetCents)) EUR</strong></td>
+                            <td class="num"><strong>@Money.Format(Model.Rows.Sum(r => r.AmountCents)) EUR</strong></td>
+                            <td colspan="@(Model.IsDepartmentHead ? 2 : 1)"></td>
                         </tr>
                     </tfoot>
                 </table>

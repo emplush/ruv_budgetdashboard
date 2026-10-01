@@ -30,6 +30,8 @@ public class BudgetItem
     public string Name { get; set; } = "";
     /// <summary>Betrag in Cent, brutto.</summary>
     public long AmountCents { get; set; }
+    /// <summary>Betrag in Cent, netto (0 bei älteren Einträgen: dann wird er aus dem Brutto berechnet).</summary>
+    public long NetCents { get; set; }
     public int Year { get; set; }
     public string Note { get; set; } = "";
     public BudgetStatus Status { get; set; } = BudgetStatus.Pending;

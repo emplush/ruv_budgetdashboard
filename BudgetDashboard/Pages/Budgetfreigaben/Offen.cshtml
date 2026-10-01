@@ -28,9 +28,10 @@
                         <th scope="col">Kostenstelle</th>
                         <th scope="col">Gruppe</th>
                         <th scope="col">Bezeichnung</th>
+                        <th scope="col" class="num">Betrag (Netto)</th>
                         <th scope="col" class="num">Betrag (Brutto)</th>
                         <th scope="col">Kalenderjahr</th>
-                        <th scope="col">Hinweis zur Freigabe</th>
+                        <th scope="col">Hinweis</th>
                         <th scope="col">Eingereicht am</th>
                         <th scope="col">Entscheidung</th>
                     </tr>
@@ -42,9 +43,10 @@
                             <td>@r.CostCenter</td>
                             <td>@r.Group</td>
                             <th scope="row">@r.Name</th>
+                            <td class="num">@Money.Format(r.NetCents) EUR</td>
                             <td class="num">@Money.Format(r.AmountCents) EUR</td>
                             <td>@r.Year</td>
-                            <td class="note">@r.Note</td>
+                            <td><button type="button" class="btn btn--ghost btn--small" data-open="hinweis-@r.Id" aria-haspopup="dialog">Hinweis</button></td>
                             <td>@TimeZoneInfo.ConvertTimeFromUtc(r.CreatedUtc, TimeZoneInfo.Local).ToString("dd.MM.yyyy")</td>
                             <td>
                                 <div class="inline-form">
@@ -60,6 +62,11 @@
                 </tbody>
             </table>
         </div>
+
+        @foreach (var r in Model.Items)
+        {
+            <partial name="_NoteDialog" model="r" />
+        }
 
         @foreach (var r in Model.Items)
         {

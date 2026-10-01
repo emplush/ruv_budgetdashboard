@@ -1,0 +1,7 @@
+@model BudgetRow
+<dialog class="popup" id="hinweis-@Model.Id" aria-labelledby="hinweis-titel-@Model.Id">
+    <h2 class="headline-s" id="hinweis-titel-@Model.Id">Hinweis zur Freigabe</h2>
+    <p class="copy"><strong>@Model.Name</strong>, @Money.Format(Model.AmountCents) EUR (Brutto)</p>
+    <p class="copy popup__reason">@(string.IsNullOrWhiteSpace(Model.Note) ? "Es wurde kein Hinweis eingegeben." : Model.Note)</p>
+    <div class="actions"><button type="button" class="btn btn--primary" data-close>Schließen</button></div>
+</dialog>

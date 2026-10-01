@@ -224,6 +224,12 @@ textarea {
 input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--mint-dark); margin: 0; flex: none; }
 input.cell-input { height: var(--control-h-s); min-width: 110px; padding: 0 8px; font-size: 14px; }
 .cell-input--wide { min-width: 220px; }
+.form-line { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3); }
+.form-line > .field--grow { flex: 1 1 280px; }
+.form-line .field--amount { flex: 0 0 200px; }
+.form-line .field--narrow { flex: 0 0 140px; }
+.form-line .amount-link__op { white-space: nowrap; }
+.form-line textarea { min-height: 72px; }
 .amount-link { display: flex; align-items: flex-end; gap: var(--space-3); flex-wrap: wrap; }
 .amount-link .field { width: 200px; }
 .amount-link .field--narrow { width: 140px; }

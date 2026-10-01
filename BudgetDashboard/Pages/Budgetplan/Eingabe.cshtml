@@ -14,7 +14,7 @@
     }
     <partial name="_Errors" model="Model.Errors" />
 
-    <div class="card card--soft card--form">
+    <div class="card card--soft">
         <h2 class="headline-s">Neue Budgetposition</h2>
         @if (Model.IsDepartmentHead)
         {
@@ -31,19 +31,19 @@
         else
         {
             <form method="post" asp-page-handler="Submit" class="form" autocomplete="off">
-                <div class="field">
-                    <label for="bez">Bezeichnung</label>
-                    <input id="bez" name="Bezeichnung" value="@Model.Bezeichnung" maxlength="@BudgetService.NameMax" required />
-                </div>
-                <div class="amount-link">
-                    <div class="field">
+                <div class="form-line">
+                    <div class="field field--grow">
+                        <label for="bez">Bezeichnung</label>
+                        <input id="bez" name="Bezeichnung" value="@Model.Bezeichnung" maxlength="@BudgetService.NameMax" required />
+                    </div>
+                    <div class="field field--amount">
                         <label for="netto">Betrag in EUR (Netto)</label>
                         <input id="netto" name="Netto" value="@Model.Netto" inputmode="decimal" placeholder="1.037,45" autocomplete="off" />
                     </div>
                     <div class="amount-link__op" aria-hidden="true">× 1,19 =</div>
-                    <div class="field">
+                    <div class="field field--amount">
                         <label for="betrag">Betrag in EUR (Brutto)</label>
-                        <input id="betrag" name="Betrag" value="@Model.Betrag" inputmode="decimal" placeholder="1.234,56" autocomplete="off" aria-describedby="betrag-hint" />
+                        <input id="betrag" name="Betrag" value="@Model.Betrag" inputmode="decimal" placeholder="1.234,56" autocomplete="off" />
                     </div>
                     <div class="field field--narrow">
                         <label for="jahr">Kalenderjahr</label>
@@ -55,13 +55,13 @@
                         </select>
                     </div>
                 </div>
-                <p id="betrag-hint" class="hint">Gib den Netto- oder den Bruttobetrag ein, der andere Betrag erscheint sofort (Brutto = Netto × 1,19). Beträge mit 2 Stellen hinter dem Komma, zum Beispiel 1.234,56. Gespeichert wird der Bruttobetrag.</p>
-                <div class="field">
-                    <label for="hinweis">Hinweistext zur Freigabe</label>
-                    <textarea id="hinweis" name="Hinweis" rows="3" maxlength="@BudgetService.NoteMax" required>@Model.Hinweis</textarea>
-                    <p class="hint">Begründe kurz, wofür das Budget gebraucht wird. Höchstens @BudgetService.NoteMax Zeichen.</p>
+                <div class="form-line">
+                    <div class="field field--grow">
+                        <label for="hinweis">Hinweistext zur Freigabe (optional)</label>
+                        <textarea id="hinweis" name="Hinweis" rows="2" maxlength="@BudgetService.NoteMax">@Model.Hinweis</textarea>
+                    </div>
+                    <button type="submit" class="btn btn--primary">@(Model.IsDepartmentHead ? "Anlegen" : "Freigabe")</button>
                 </div>
-                <div class="actions"><button type="submit" class="btn btn--primary">@(Model.IsDepartmentHead ? "Anlegen" : "Freigabe")</button></div>
             </form>
         }
     </div>
@@ -84,9 +84,11 @@
                 <thead>
                     <tr>
                         <th scope="col">Bezeichnung</th>
+                        <th scope="col" class="num">Betrag (Netto)</th>
                         <th scope="col" class="num">Betrag (Brutto)</th>
                         <th scope="col">Kalenderjahr</th>
                         <th scope="col">Eingereicht am</th>
+                        <th scope="col">Hinweis</th>
                         <th scope="col">Status</th>
                         <th scope="col"><span class="visually-hidden">Löschen</span></th>
                     </tr>
@@ -96,9 +98,11 @@
                     {
                         <tr>
                             <th scope="row">@r.Name</th>
+                            <td class="num">@Money.Format(r.NetCents) EUR</td>
                             <td class="num">@Money.Format(r.AmountCents) EUR</td>
                             <td>@r.Year</td>
                             <td>@TimeZoneInfo.ConvertTimeFromUtc(r.CreatedUtc, TimeZoneInfo.Local).ToString("dd.MM.yyyy")</td>
+                            <td><button type="button" class="btn btn--ghost btn--small" data-open="hinweis-@r.Id" aria-haspopup="dialog">Hinweis</button></td>
                             <td>
                                 @if (r.Status == BudgetStatus.Rejected)
                                 {
@@ -122,6 +126,11 @@
                 </tbody>
             </table>
         </div>
+
+        @foreach (var r in Model.Items)
+        {
+            <partial name="_NoteDialog" model="r" />
+        }
 
         @foreach (var r in Model.Items.Where(i => i.Status == BudgetStatus.Rejected))
         {
