@@ -1,4 +1,4 @@
-<p class="meta">Version 1.7 · Stand Oktober 2026</p>
+<p class="meta">Version 1.9 · Stand Oktober 2026</p>
 <p>Dieses Handbuch richtet sich an die Administration. Du verwaltest die Kostenstellen, bestimmst die Abteilungsleitung, pflegst die Einstellungen und kannst Testdaten importieren.</p>
 
 <nav class="toc" aria-label="Inhalt">
@@ -60,13 +60,13 @@
 <h3>Kostenstelle bearbeiten</h3>
 <p>In der Tabelle <strong>Alle Kostenstellen</strong> änderst Du Org-Einheit, Gruppe und die Freigabe direkt in der Zeile. Klicke danach auf <strong>Speichern</strong>. Die Nutzenden können Org-Einheit und Gruppe auch selbst im Profil ändern.</p>
 <ul>
-  <li><strong>Anmeldung erlaubt:</strong> Nimmst Du den Haken heraus, kann sich die Kostenstelle nicht mehr anmelden. Laufende Sitzungen enden.</li>
+  <li><strong>Anmeldung:</strong> Die Spalte zeigt, ob sich die Kostenstelle anmelden darf. Nimmst Du den Haken heraus, kann sich die Kostenstelle nicht mehr anmelden. Laufende Sitzungen enden.</li>
 </ul>
 
 <h3>Abteilungsleitung festlegen oder entziehen</h3>
 <p>Es gibt genau eine Kostenstelle mit Abteilungsleiterrechten.</p>
 <ul>
-  <li>Klicke in der Spalte <strong>Abteilungsleitung</strong> auf <strong>Festlegen</strong>. Eine bisherige Abteilungsleitung verliert die Rechte.</li>
+  <li>Die Spalte <strong>Abteilungsleitung</strong> zeigt „Ja“ oder „Nein“. Klicke in der Spalte <strong>Rolle ändern</strong> auf <strong>Festlegen</strong>. Eine bisherige Abteilungsleitung verliert die Rechte.</li>
   <li>Mit <strong>Entziehen</strong> hat danach keine Kostenstelle mehr diese Rechte.</li>
   <li>Nur freigegebene Kostenstellen können die Abteilungsleitung sein.</li>
 </ul>
@@ -144,10 +144,10 @@
 <table>
   <thead><tr><th>Situation</th><th>Was Du tun kannst</th></tr></thead>
   <tbody>
-    <tr><td>Jemand kann sich nicht anmelden</td><td>Prüfe unter Kostenstellen, ob <strong>Anmeldung erlaubt</strong> angehakt ist und ob eine Sperre besteht. Löse eine Sperre mit <strong>Passwort löschen</strong>.</td></tr>
+    <tr><td>Jemand kann sich nicht anmelden</td><td>Prüfe unter Kostenstellen, ob in der Spalte <strong>Anmeldung</strong> angehakt ist und ob eine Sperre besteht. Löse eine Sperre mit <strong>Passwort löschen</strong>.</td></tr>
     <tr><td>Passwort vergessen</td><td>Klicke bei der Kostenstelle auf <strong>Passwort löschen</strong>.</td></tr>
     <tr><td>Admin-Passwort vergessen</td><td>Stoppe die Anwendung, benenne <code>App_Data/data.json</code> um und starte sie neu. Die Anwendung legt dann einen neuen Datenbestand mit dem Standardpasswort an. Die alten Kostenstellen stehen danach nicht mehr zur Verfügung.</td></tr>
-    <tr><td>Der Button „Ansicht“ fehlt</td><td>Die Kostenstelle ist nicht freigegeben. Hake „Anmeldung erlaubt“ an und speichere.</td></tr>
+    <tr><td>Der Button „Ansicht“ fehlt</td><td>Die Kostenstelle ist nicht freigegeben. Hake in der Spalte „Anmeldung“ den Haken an und speichere.</td></tr>
     <tr><td>Die Ansicht endet plötzlich</td><td>Du wurdest als Administration abgemeldet oder die Sitzung ist nach 30 Minuten ohne Aktivität abgelaufen. Melde Dich an und öffne die Ansicht neu.</td></tr>
     <tr><td>Anwendung speichert nicht</td><td>Prüfe, ob das Konto des Anwendungspools Schreibrechte auf <code>App_Data</code> hat.</td></tr>
   </tbody>

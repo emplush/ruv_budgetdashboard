@@ -235,10 +235,11 @@ input.cell-input { height: var(--control-h-s); min-width: 110px; padding: 0 8px;
 .btn--ghost { background: transparent; color: var(--ink); border-color: var(--ink); }
 .btn--ghost:hover { background: var(--ink); color: var(--surface); }
 .btn--small { height: var(--control-h-s); padding: 0 var(--space-3); font-size: 14px; }
+.btn--fixed { width: 112px; }
 .btn[disabled] { background: var(--grey-2); color: var(--grey-5); border-color: transparent; cursor: not-allowed; }
 .actions { display: flex; gap: var(--space-3); flex-wrap: wrap; align-items: center; }
 .inline-form { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; margin: 0; }
-.row-actions { display: grid; grid-template-columns: repeat(2, minmax(136px, 1fr)); gap: var(--space-2); }
+.row-actions { display: grid; grid-template-columns: max-content max-content; justify-content: start; gap: var(--space-2); }
 .row-actions .btn { width: 100%; }
 .icon-btn { display: inline-flex; align-items: center; justify-content: center; width: var(--control-h-s); height: var(--control-h-s); border: 2px solid transparent; border-radius: var(--radius-base); background: none; color: var(--ink); cursor: pointer; }
 .icon-btn:hover { border-color: var(--ink); }
@@ -279,7 +280,10 @@ input.cell-input { height: var(--control-h-s); min-width: 110px; padding: 0 8px;
 .table tfoot th, .table tfoot td { background: var(--surface); border-top: 2px solid var(--ink); padding: 12px var(--space-3); text-align: left; }
 .table .note { max-width: 360px; }
 .num { text-align: right !important; white-space: nowrap; font-variant-numeric: tabular-nums; }
-td .hint { display: block; }
+td .hint { display: block; white-space: nowrap; }
+.table--dense thead th, .table--dense td, .table--dense tbody th { padding-left: 12px; padding-right: 12px; }
+.table--dense input.cell-input { min-width: 96px; }
+.table--dense input.cell-input--wide { min-width: 140px; }
 
 .status { display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border: 2px solid var(--border); border-radius: var(--radius-base); font: 700 14px/1 var(--font-sans); background: none; color: var(--ink); }
 .status--rejected { border-color: var(--error); cursor: pointer; }

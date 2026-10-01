@@ -45,15 +45,16 @@
     else
     {
         <div class="table-wrap">
-            <table class="table">
+            <table class="table table--dense">
                 <thead>
                     <tr>
                         <th scope="col">Kostenstelle</th>
                         <th scope="col">Org-Einheit</th>
                         <th scope="col">Gruppe</th>
-                        <th scope="col">Anmeldung erlaubt</th>
+                        <th scope="col">Anmeldung</th>
                         <th scope="col">Passwort</th>
                         <th scope="col">Abteilungsleitung</th>
+                        <th scope="col">Rolle ändern</th>
                         <th scope="col">Aktionen</th>
                     </tr>
                 </thead>
@@ -74,22 +75,22 @@
                                 }
                                 @if (r.LastLoginUtc is { } t)
                                 {
-                                    <span class="hint">zuletzt @TimeZoneInfo.ConvertTimeFromUtc(t, TimeZoneInfo.Local).ToString("dd.MM.yyyy HH:mm")</span>
+                                    <span class="hint">zuletzt @TimeZoneInfo.ConvertTimeFromUtc(t, TimeZoneInfo.Local).ToString("dd.MM.yyyy")</span>
                                 }
                             </td>
+                            <td>@(r.IsDepartmentHead ? "Ja" : "Nein")</td>
                             <td>
                                 @if (r.IsDepartmentHead)
                                 {
-                                    <strong>Ja</strong>
-                                    <button type="submit" form="@fid" asp-page-handler="Head" name="makeHead" value="false" class="btn btn--ghost btn--small">Entziehen</button>
+                                    <button type="submit" form="@fid" asp-page-handler="Head" name="makeHead" value="false" class="btn btn--ghost btn--small btn--fixed">Entziehen</button>
                                 }
                                 else if (r.Enabled)
                                 {
-                                    <button type="submit" form="@fid" asp-page-handler="Head" name="makeHead" value="true" class="btn btn--ghost btn--small">Festlegen</button>
+                                    <button type="submit" form="@fid" asp-page-handler="Head" name="makeHead" value="true" class="btn btn--ghost btn--small btn--fixed">Festlegen</button>
                                 }
                                 else
                                 {
-                                    <span>Nein</span>
+                                    <span class="hint">nicht freigegeben</span>
                                 }
                             </td>
                             <td class="actions">
