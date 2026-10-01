@@ -267,6 +267,7 @@ public sealed partial class AccountService
         if (d.CostCenters.RemoveAll(c => c.Number == number) == 0)
             return OperationResult.Fail("Die Kostenstelle gibt es nicht.");
         d.BudgetItems.RemoveAll(i => i.CostCenter == number);
+        d.Notifications.RemoveAll(n => n.CostCenter == number);
         if (d.Settings.DepartmentHeadNumber == number) d.Settings.DepartmentHeadNumber = null;
         return OperationResult.Success();
     });
@@ -301,10 +302,12 @@ public sealed partial class AccountService
     {
         d.CostCenters.Clear();
         d.BudgetItems.Clear();
+        d.Notifications.Clear();
         d.Settings.DepartmentHeadNumber = null;
         var items = TestData.Create(_passwords.Hash(TestData.Password));
         d.CostCenters.AddRange(items);
         d.BudgetItems.AddRange(TestData.CreateBudgetItems());
+        d.Notifications.AddRange(TestData.CreateNotifications());
         d.Settings.EnabledYears = TestData.EnabledYears.ToList();
         d.Settings.DepartmentHeadNumber = TestData.DepartmentHeadNumber;
         return items.Count;
@@ -315,6 +318,7 @@ public sealed partial class AccountService
     {
         var removed = d.CostCenters.RemoveAll(c => c.IsTestData);
         d.BudgetItems.RemoveAll(i => i.IsTestData || d.CostCenters.All(c => c.Number != i.CostCenter));
+        d.Notifications.RemoveAll(n => n.IsTestData || d.CostCenters.All(c => c.Number != n.CostCenter));
         if (d.Settings.DepartmentHeadNumber != null && d.CostCenters.All(c => c.Number != d.Settings.DepartmentHeadNumber))
             d.Settings.DepartmentHeadNumber = null;
         return removed;

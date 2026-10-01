@@ -17,13 +17,35 @@ public class GesamtModel : PageModel
     public List<int> Years { get; private set; } = new();
     public int Year { get; private set; }
     public List<BudgetRow> Rows { get; private set; } = new();
+    public bool IsDepartmentHead => User.IsInRole(Roles.DepartmentHead);
+    public List<string> Errors { get; private set; } = new();
+    public string? Notice => TempData["Notice"] as string;
     public ScopeInfo Scope { get; private set; } = new("", new(), "");
 
     /// <summary>Nur gesetzt, wenn die Abteilungsleitung eine fremde Kostenstelle ansieht.</summary>
     public string? KsRoute => Scope.Number == User.Identity!.Name ? null : Scope.Number;
     public string ScopeTitle => KsRoute is null ? "" : " der Kostenstelle " + Scope.Number + (Scope.Group.Length > 0 ? " (" + Scope.Group + ")" : "");
 
-    public void OnGet()
+    public void OnGet() => Load();
+
+    /// <summary>Entfernt eine freigegebene Position. Bei fremden Kostenstellen ist ein Grund Pflicht.</summary>
+    public IActionResult OnPostRemove(string id, string? reason)
+    {
+        if (!IsDepartmentHead) return Forbid();
+        var result = _budget.RemoveApproved(User.Identity!.Name!, id, reason, out var notified);
+        if (!result.Ok)
+        {
+            Errors = result.Errors;
+            Load();
+            return Page();
+        }
+        TempData["Notice"] = notified
+            ? "Die Budgetposition ist entfernt. Die Gruppenleitung erhält eine Mitteilung mit Deinem Grund."
+            : "Die Budgetposition ist entfernt.";
+        return RedirectToPage(new { ks = KsRoute, jahr = Jahr });
+    }
+
+    private void Load()
     {
         var own = User.Identity!.Name!;
         var (scope, choices) = _budget.ResolveScope(own, User.IsInRole(Roles.DepartmentHead), Ks);

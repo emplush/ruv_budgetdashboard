@@ -36,9 +36,9 @@
                     <tr>
                         <th scope="row">@y.Year</th>
                         <td>@(y.Enabled ? "Freigeschaltet" : "Gesperrt")</td>
-                        <td class="num">@y.ApprovedCount</td>
-                        <td class="num">@Money.Format(y.ApprovedCents) EUR</td>
-                        <td class="num">@y.PendingCount (@Money.Format(y.PendingCents) EUR)</td>
+                        <td class="num">@(y.Enabled ? y.ApprovedCount.ToString() : "–")</td>
+                        <td class="num">@(y.Enabled ? Money.Format(y.ApprovedCents) + " EUR" : "–")</td>
+                        <td class="num">@(y.Enabled ? y.PendingCount + " (" + Money.Format(y.PendingCents) + " EUR)" : "–")</td>
                     </tr>
                 }
             </tbody>
@@ -75,7 +75,7 @@
                         <tr>
                             <th scope="row">@g.CostCenter</th>
                             <td>@g.Group</td>
-                            @foreach (var y in BudgetService.Years) { <td class="num">@Money.Format(g.ApprovedByYear[y]) EUR</td> }
+                            @foreach (var y in BudgetService.Years) { <td class="num">@(Model.Overview.Single(o => o.Year == y).Enabled ? Money.Format(g.ApprovedByYear[y]) + " EUR" : "–")</td> }
                         </tr>
                     }
                 </tbody>

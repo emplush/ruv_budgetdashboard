@@ -14,9 +14,9 @@
     }
     <partial name="_Errors" model="Model.Errors" />
 
-    <div class="card card--soft card--form">
+    <div class="card card--soft">
         <h2 class="headline-s">Neue Kostenstelle anlegen</h2>
-        <form method="post" asp-page-handler="Add" class="form form--row" autocomplete="off">
+        <form method="post" asp-page-handler="Add" class="form form--row form--nowrap" autocomplete="off">
             <div class="field">
                 <label for="new-number">Kostenstelle</label>
                 <input id="new-number" name="NewNumber" value="@Model.NewNumber" inputmode="numeric" pattern="[0-9]{8}" maxlength="8" required />

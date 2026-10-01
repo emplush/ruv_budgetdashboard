@@ -1,20 +1,41 @@
 @page
-@attribute [Authorize(Policy = "User")]
-@inject AccountService Accounts
+@model DashboardModel
 @{
     ViewData["Title"] = "Dashboard";
-    var profile = Accounts.Profile(User.Identity!.Name!);
 }
 <section class="page">
     <p class="topline">Willkommen</p>
     <h1 class="headline">Dashboard</h1>
+
+    @if (Model.Notices.Count > 0)
+    {
+        <div class="card" id="mitteilungen">
+            <h2 class="headline-s">Mitteilungen (@Model.Notices.Count)</h2>
+            <ul class="notices">
+                @foreach (var n in Model.Notices)
+                {
+                    <li class="notice">
+                        <div>
+                            <p class="notice__title">@n.Title <span class="hint">@TimeZoneInfo.ConvertTimeFromUtc(n.CreatedUtc, TimeZoneInfo.Local).ToString("dd.MM.yyyy")</span></p>
+                            <p class="copy">@n.Message</p>
+                        </div>
+                        <form method="post" asp-page-handler="Dismiss" class="inline-form">
+                            <input type="hidden" name="id" value="@n.Id" />
+                            <button type="submit" class="btn btn--ghost btn--small">Gelesen</button>
+                        </form>
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+
     <div class="card card--soft">
         <h2 class="headline-s">Deine Kostenstelle</h2>
         <dl class="facts">
-            <dt>Kostenstelle</dt><dd>@User.Identity.Name</dd>
-            <dt>Org-Einheit</dt><dd>@(string.IsNullOrEmpty(profile?.OrgUnit) ? "–" : profile!.Value.OrgUnit)</dd>
-            <dt>Gruppe</dt><dd>@(string.IsNullOrEmpty(profile?.Group) ? "–" : profile!.Value.Group)</dd>
-            <dt>Rolle</dt><dd>@Roles.Label(profile?.Role ?? "")</dd>
+            <dt>Kostenstelle</dt><dd>@User.Identity!.Name</dd>
+            <dt>Org-Einheit</dt><dd>@(string.IsNullOrEmpty(Model.OrgUnit) ? "–" : Model.OrgUnit)</dd>
+            <dt>Gruppe</dt><dd>@(string.IsNullOrEmpty(Model.Group) ? "–" : Model.Group)</dd>
+            <dt>Rolle</dt><dd>@Roles.Label(Model.Role)</dd>
         </dl>
         <p class="copy">Hier entsteht Dein Dashboard. Es wird demnächst gefüllt.</p>
     </div>

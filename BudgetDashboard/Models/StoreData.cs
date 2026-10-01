@@ -39,6 +39,17 @@ public class BudgetItem
     public bool IsTestData { get; set; }
 }
 
+/// <summary>Mitteilung an eine Kostenstelle, zum Beispiel über eine entfernte Budgetposition.</summary>
+public class Notification
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+    public string CostCenter { get; set; } = "";
+    public string Title { get; set; } = "";
+    public string Message { get; set; } = "";
+    public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
+    public bool IsTestData { get; set; }
+}
+
 public class SiteSettings
 {
     /// <summary>Kalenderjahre, für die Gruppenleitungen Budgetpositionen einreichen können.</summary>
@@ -60,6 +71,7 @@ public class StoreData
     public CostCenter Admin { get; set; } = new() { Number = Roles.AdminNumber };
     public List<CostCenter> CostCenters { get; set; } = new();
     public List<BudgetItem> BudgetItems { get; set; } = new();
+    public List<Notification> Notifications { get; set; } = new();
 }
 
 public static class Roles

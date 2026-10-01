@@ -257,6 +257,40 @@ get al "/Jahresbudget?jahr=2027" >/dev/null; check "Jahresbudget auch für die A
 
 r=$(get admin /Budgetplan); [[ $r == *"AccessDenied"* ]] && ok "Administration: kein Budgetplan" || fail "$r"
 
+echo "Entfernen durch die Abteilungsleitung und Mitteilungen"
+get gl /Budgetplan/Gesamt >/dev/null; nocheck "Gruppenleitung sieht keine Entfernen-Funktion" "Position entfernen"
+get al /Budgetplan/Gesamt >/dev/null; check "AL: Entfernen-Dialog im Gesamtbudgetplan" "Position entfernen"
+rmid() { tr '\n' ' ' < "$TMP/out.html" | grep -o "entfernen-titel-[a-f0-9]\{32\}\">Position entfernen</h2> *<p class=\"copy\"><strong>$1" | grep -o '[a-f0-9]\{32\}' | head -1; }
+IDAL=$(rmid Smoke-AL-Position); [[ -n "$IDAL" ]] && ok "ID der eigenen Position gefunden" || fail "ID Smoke-AL-Position"
+check "Eigene Position: Entfernen ohne Begründung" "ohne Begr"
+post al "/Budgetplan/Gesamt?handler=Remove" --data-urlencode "id=$IDAL" >/dev/null; check "Eigene Position entfernt" "Budgetposition ist entfernt"
+get al /Budgetplan/Gesamt >/dev/null; nocheck "Eigene Position verschwunden" "Smoke-AL-Position"
+get al "/Budgetplan/Gesamt?ks=10000002" >/dev/null; check "AL sieht Position der Gruppenleitung" "Smoke-Position-A"; check "Fremde Position: Grund ist Pflicht" "Grund (Pflicht)"
+post al "/Budgetplan/Gesamt?handler=Remove" --data-urlencode "id=$IDA" --data-urlencode "Ks=10000002" --data-urlencode "Jahr=2026" --data-urlencode "reason=" >/dev/null; check "Fremde Position ohne Grund abgelehnt" "Bitte gib einen Grund an"
+get al "/Budgetplan/Gesamt?ks=10000002" >/dev/null; check "Position nach Fehler noch vorhanden" "Smoke-Position-A"
+post al "/Budgetplan/Gesamt?handler=Remove" --data-urlencode "id=$IDA" --data-urlencode "Ks=10000002" --data-urlencode "Jahr=2026" --data-urlencode "reason=Doppelt erfasst" >/dev/null; check "Fremde Position mit Grund entfernt" "Mitteilung mit Deinem Grund"
+get al "/Budgetplan/Gesamt?ks=10000002" >/dev/null; nocheck "Fremde Position verschwunden" "Smoke-Position-A"
+get gl /Budgetplan/Gesamt >/dev/null; check "Gruppenleitung: Hinweisband zu Mitteilungen" "neue Mitteilungen"
+get gl /Dashboard >/dev/null; check "Dashboard zeigt Mitteilungen" "Mitteilungen (2)"; check "Mitteilung nennt die Position" "Smoke-Position-A"; check "Mitteilung nennt den Grund" "Doppelt erfasst"; check "Testdaten-Mitteilung" "Sonderprojekt Nord"
+r=$(post gl "/Budgetplan/Gesamt?handler=Remove" --data-urlencode "id=$IDA" --data-urlencode "reason=x"); [[ $r == *AccessDenied* ]] && ok "Gruppenleitung darf nichts entfernen" || fail "$r"
+get gl /Dashboard >/dev/null; NID=$(lastid head)
+post gl "/Dashboard?handler=Dismiss" --data-urlencode "id=$NID" >/dev/null; check "Mitteilung gelesen" "Mitteilungen (1)"
+NID=$(lastid head); post gl "/Dashboard?handler=Dismiss" --data-urlencode "id=$NID" >/dev/null; nocheck "Keine Mitteilungen mehr" "Mitteilungen ("; nocheck "Hinweisband verschwindet" "neue Mitteilung"
+
+echo "Deaktivierte Kalenderjahre blenden Daten aus"
+get gl2 /Budgetplan/Eingabe >/dev/null; check "Vorher: wartende Position 2027 sichtbar" "Werbemittel"
+get al /Budgetfreigaben/Offen >/dev/null; check "Vorher: AL sieht Werbemittel" "Werbemittel"
+post al "/Budgetfreigaben/Freischaltung?handler=Toggle" --data-urlencode "year=2027" --data-urlencode "enable=false" >/dev/null; check "2027 deaktiviert" "Budgetpl&#xE4;ne f&#xFC;r 2027 sind deaktiviert"
+get gl2 /Budgetplan/Eingabe >/dev/null; nocheck "Wartende Position 2027 ausgeblendet" "Werbemittel"
+get al /Budgetfreigaben/Offen >/dev/null; nocheck "AL: Werbemittel ausgeblendet" "Werbemittel"
+get gl "/Budgetplan/Gesamt" >/dev/null; nocheck "Jahr 2027 nicht umschaltbar" "jahr=2027"
+get gl "/Budgetplan/Gesamt?jahr=2027" >/dev/null; nocheck "Freigegebene Position 2027 ausgeblendet" "Reisekosten"
+get al /Budgetfreigaben >/dev/null; check "Dashboard: gesperrtes Jahr ohne Zahlen" "Gesperrt"
+post al "/Budgetfreigaben/Freischaltung?handler=Toggle" --data-urlencode "year=2027" --data-urlencode "enable=true" >/dev/null; check "2027 wieder aktiviert" "f&#xFC;r 2027 sind aktiviert"
+get gl2 /Budgetplan/Eingabe >/dev/null; check "Wartende Position 2027 wieder sichtbar" "Werbemittel"
+get gl "/Budgetplan/Gesamt?jahr=2027" >/dev/null; check "Freigegebene Position 2027 wieder sichtbar" "Reisekosten"
+get al /Budgetfreigaben/Offen >/dev/null; check "AL sieht Werbemittel wieder" "Werbemittel"
+
 echo "Ansicht einer Kostenstelle durch die Administration"
 get admin /Admin/Kostenstellen >/dev/null
 check "Button Ansicht in der Kostenstellen-Tabelle" ">Ansicht</button>"

@@ -9,6 +9,12 @@
     <partial name="_BudgetplanTabs" />
     <partial name="_ScopeSelect" model="Model.Scope" />
 
+    @if (Model.Notice != null)
+    {
+        <div class="alert alert--ok" role="status"><p><strong>Gespeichert:</strong> @Model.Notice</p></div>
+    }
+    <partial name="_Errors" model="Model.Errors" />
+
     @if (Model.Years.Count == 0)
     {
         <div class="card card--soft"><p class="copy">Aktuell ist noch kein Kalenderjahr für Budgetpläne freigeschaltet. Die Abteilungsleitung schaltet die Jahre frei.</p></div>
@@ -37,6 +43,7 @@
                             <th scope="col" class="num">Betrag (Brutto)</th>
                             <th scope="col">Hinweis</th>
                             <th scope="col">Freigegeben am</th>
+                            @if (Model.IsDepartmentHead) { <th scope="col"><span class="visually-hidden">Entfernen</span></th> }
                         </tr>
                     </thead>
                     <tbody>
@@ -47,6 +54,14 @@
                                 <td class="num">@Money.Format(r.AmountCents) EUR</td>
                                 <td class="note">@r.Note</td>
                                 <td>@(r.DecidedUtc is { } t ? TimeZoneInfo.ConvertTimeFromUtc(t, TimeZoneInfo.Local).ToString("dd.MM.yyyy") : "")</td>
+                                @if (Model.IsDepartmentHead)
+                                {
+                                    <td>
+                                        <button type="button" class="icon-btn" data-open="entfernen-@r.Id" aria-haspopup="dialog" aria-label="Position „@r.Name“ entfernen" title="Position entfernen">
+                                            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M9 3h6l1 2h4v2H4V5h4l1-2zm-3 6h12l-1 12H7L6 9zm4 2v8h2v-8h-2zm4 0v8h2v-8h-2z"/></svg>
+                                        </button>
+                                    </td>
+                                }
                             </tr>
                         }
                     </tbody>
@@ -54,11 +69,44 @@
                         <tr>
                             <th scope="row">Summe @Model.Year</th>
                             <td class="num"><strong>@Money.Format(Model.Rows.Sum(r => r.AmountCents)) EUR</strong> (Brutto)</td>
-                            <td colspan="2"></td>
+                            <td colspan="@(Model.IsDepartmentHead ? 3 : 2)"></td>
                         </tr>
                     </tfoot>
                 </table>
             </div>
+        }
+
+        @if (Model.IsDepartmentHead)
+        {
+            @foreach (var r in Model.Rows)
+            {
+                var own = r.CostCenter == User.Identity!.Name;
+                <dialog class="popup" id="entfernen-@r.Id" aria-labelledby="entfernen-titel-@r.Id">
+                    <form method="post" asp-page-handler="Remove" class="form">
+                        <h2 class="headline-s" id="entfernen-titel-@r.Id">Position entfernen</h2>
+                        <p class="copy"><strong>@r.Name</strong>, @Money.Format(r.AmountCents) EUR (Brutto), @r.Year, Kostenstelle @r.CostCenter</p>
+                        <input type="hidden" name="id" value="@r.Id" />
+                        <input type="hidden" name="Ks" value="@Model.KsRoute" />
+                        <input type="hidden" name="Jahr" value="@Model.Year" />
+                        @if (own)
+                        {
+                            <p class="copy">Die Position gehört zu Deiner Kostenstelle und wird ohne Begründung entfernt.</p>
+                        }
+                        else
+                        {
+                            <div class="field">
+                                <label for="entf-grund-@r.Id">Grund (Pflicht)</label>
+                                <textarea id="entf-grund-@r.Id" name="reason" rows="3" maxlength="@BudgetService.ReasonMax" required></textarea>
+                                <p class="hint">Die Gruppenleitung erhält eine Mitteilung mit Deinem Grund.</p>
+                            </div>
+                        }
+                        <div class="actions">
+                            <button type="submit" class="btn btn--primary">Entfernen</button>
+                            <button type="button" class="btn btn--ghost" data-close>Abbrechen</button>
+                        </div>
+                    </form>
+                </dialog>
+            }
         }
     }
 </section>

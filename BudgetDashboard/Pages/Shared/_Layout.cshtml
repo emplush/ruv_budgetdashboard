@@ -1,5 +1,6 @@
 @inject DataStore Store
 @inject AccountService Accounts
+@inject BudgetService Budget
 @{
     var title = Store.Title;
     var authenticated = User.Identity?.IsAuthenticated == true;
@@ -54,6 +55,12 @@
                 <p><strong>Hinweis:</strong> Es ist noch das Standardpasswort aktiv. Bitte lege ein eigenes Admin-Passwort fest. <a asp-page="/Admin/Einstellungen">Jetzt ändern</a></p>
             </div>
         }
+    }
+    @if (authenticated && !User.IsInRole(Roles.Admin) && Budget.NotificationCount(User.Identity!.Name!) is var noticeCount and > 0)
+    {
+        <div class="notice-bar" role="status">
+            <p><strong>Hinweis:</strong> Du hast @noticeCount @(noticeCount == 1 ? "neue Mitteilung" : "neue Mitteilungen"). <a asp-page="/Dashboard">Zum Dashboard</a></p>
+        </div>
     }
     <main id="main" class="content">
         @RenderBody()

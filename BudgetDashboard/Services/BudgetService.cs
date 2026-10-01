@@ -63,7 +63,7 @@ public sealed partial class BudgetService
     /// <summary>Brutto in Cent durch 1,19, kaufmännisch gerundet.</summary>
     public static long GrossToNet(long grossCents) => (grossCents * 100 + 59) / 119;
 
-    public int PendingCount() => _store.Read(d => d.BudgetItems.Count(i => i.Status == BudgetStatus.Pending));
+    public int PendingCount() => _store.Read(d => d.BudgetItems.Count(i => i.Status == BudgetStatus.Pending && d.Settings.EnabledYears.Contains(i.Year)));
 
     /// <summary>
     /// Bestimmt, welche Kostenstelle ein Budgetplan zeigt. Die Abteilungsleitung startet bei der eigenen und kann
@@ -138,7 +138,7 @@ public sealed partial class BudgetService
 
     /// <summary>Offene und abgelehnte Positionen einer Gruppenleitung (genehmigte erscheinen im Budgetplan).</summary>
     public List<BudgetRow> OwnOpenItems(string costCenter) => _store.Read(d => d.BudgetItems
-        .Where(i => i.CostCenter == costCenter && i.Status != BudgetStatus.Approved)
+        .Where(i => i.CostCenter == costCenter && i.Status != BudgetStatus.Approved && d.Settings.EnabledYears.Contains(i.Year))
         .OrderByDescending(i => i.CreatedUtc).Select(i => ToRow(d, i)).ToList());
 
     /// <summary>Freigegebene Positionen eines Jahres; costCenter null = alle Gruppen (Abteilungsleitung).</summary>
@@ -146,8 +146,9 @@ public sealed partial class BudgetService
         .Where(i => i.Status == BudgetStatus.Approved && i.Year == year && (costCenter == null || i.CostCenter == costCenter))
         .OrderBy(i => i.CostCenter).ThenBy(i => i.DecidedUtc).Select(i => ToRow(d, i)).ToList());
 
+    /// <summary>Offene Freigaben. Positionen deaktivierter Jahre bleiben gespeichert, werden aber nicht angezeigt.</summary>
     public List<BudgetRow> Pending() => _store.Read(d => d.BudgetItems
-        .Where(i => i.Status == BudgetStatus.Pending)
+        .Where(i => i.Status == BudgetStatus.Pending && d.Settings.EnabledYears.Contains(i.Year))
         .OrderBy(i => i.CreatedUtc).Select(i => ToRow(d, i)).ToList());
 
     public List<YearSummary> Overview(string? costCenter) => _store.Read(d =>
@@ -155,9 +156,11 @@ public sealed partial class BudgetService
         var items = d.BudgetItems.Where(i => costCenter == null || i.CostCenter == costCenter).ToList();
         return Years.Select(y =>
         {
-            var ap = items.Where(i => i.Year == y && i.Status == BudgetStatus.Approved).ToList();
-            var pe = items.Where(i => i.Year == y && i.Status == BudgetStatus.Pending).ToList();
-            return new YearSummary(y, d.Settings.EnabledYears.Contains(y), ap.Count, ap.Sum(i => i.AmountCents), pe.Count, pe.Sum(i => i.AmountCents));
+            // Deaktivierte Jahre: Daten bleiben erhalten, werden aber nicht angezeigt.
+            var on = d.Settings.EnabledYears.Contains(y);
+            var ap = on ? items.Where(i => i.Year == y && i.Status == BudgetStatus.Approved).ToList() : new List<BudgetItem>();
+            var pe = on ? items.Where(i => i.Year == y && i.Status == BudgetStatus.Pending).ToList() : new List<BudgetItem>();
+            return new YearSummary(y, on, ap.Count, ap.Sum(i => i.AmountCents), pe.Count, pe.Sum(i => i.AmountCents));
         }).ToList();
     });
 
@@ -166,7 +169,9 @@ public sealed partial class BudgetService
         .Where(c => c.Number != d.Settings.DepartmentHeadNumber)
         .OrderBy(c => c.Number, StringComparer.Ordinal)
         .Select(c => new GroupYearRow(c.Number, c.Group, Years.ToDictionary(y => y,
-            y => d.BudgetItems.Where(i => i.CostCenter == c.Number && i.Year == y && i.Status == BudgetStatus.Approved).Sum(i => i.AmountCents))))
+            y => d.Settings.EnabledYears.Contains(y)
+                ? d.BudgetItems.Where(i => i.CostCenter == c.Number && i.Year == y && i.Status == BudgetStatus.Approved).Sum(i => i.AmountCents)
+                : 0)))
         .Where(r => r.ApprovedByYear.Values.Any(v => v > 0))
         .ToList());
 
@@ -179,6 +184,49 @@ public sealed partial class BudgetService
         d.BudgetItems.Remove(i);
         return OperationResult.Success();
     });
+
+    /// <summary>
+    /// Entfernt eine freigegebene Position (Abteilungsleitung). Gehört sie einer anderen Kostenstelle, ist ein Grund
+    /// Pflicht, und die Gruppenleitung erhält eine Mitteilung mit dem Grund.
+    /// </summary>
+    public OperationResult RemoveApproved(string actingNumber, string id, string? reason, out bool notified)
+    {
+        notified = false;
+        reason = (reason ?? "").Trim();
+        if (reason.Length > ReasonMax) return OperationResult.Fail($"Der Grund darf höchstens {ReasonMax} Zeichen haben.");
+        var notifiedLocal = false;
+        var result = _store.Write(d =>
+        {
+            var i = d.BudgetItems.FirstOrDefault(x => x.Id == id);
+            if (i is not { Status: BudgetStatus.Approved }) return OperationResult.Fail("Die Position gibt es nicht mehr.");
+            var foreign = i.CostCenter != actingNumber;
+            if (foreign && reason.Length == 0)
+                return OperationResult.Fail("Bitte gib einen Grund an. Die Gruppenleitung erhält ihn mit der Mitteilung über die Entfernung.");
+            d.BudgetItems.Remove(i);
+            if (foreign)
+            {
+                notifiedLocal = true;
+                d.Notifications.Add(new Notification
+                {
+                    CostCenter = i.CostCenter,
+                    Title = "Budgetposition entfernt",
+                    Message = $"Die Abteilungsleitung hat die freigegebene Budgetposition „{i.Name}“ ({Money.Brutto(i.AmountCents)}, {i.Year}) entfernt. Grund: {reason}"
+                });
+            }
+            return OperationResult.Success();
+        });
+        notified = notifiedLocal;
+        return result;
+    }
+
+    public List<Notification> Notifications(string costCenter) => _store.Read(d => d.Notifications
+        .Where(n => n.CostCenter == costCenter).OrderByDescending(n => n.CreatedUtc)
+        .Select(n => new Notification { Id = n.Id, CostCenter = n.CostCenter, Title = n.Title, Message = n.Message, CreatedUtc = n.CreatedUtc }).ToList());
+
+    public int NotificationCount(string costCenter) => _store.Read(d => d.Notifications.Count(n => n.CostCenter == costCenter));
+
+    public OperationResult DismissNotification(string costCenter, string id) => _store.Write(d =>
+        d.Notifications.RemoveAll(n => n.Id == id && n.CostCenter == costCenter) > 0 ? OperationResult.Success() : OperationResult.Fail("Die Mitteilung gibt es nicht mehr."));
 
     public OperationResult Approve(string id) => _store.Write(d =>
     {

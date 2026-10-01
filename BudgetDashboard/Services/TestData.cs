@@ -17,7 +17,7 @@ public static class TestData
     public static readonly (string Number, string Case)[] Cases =
     {
         ("10000001", "Abteilungsleitung mit Passwort, Navigation mit Budgetfreigaben und Upload, eigene direkt freigegebene Budgetpositionen"),
-        ("10000002", "Gruppenleitung mit Passwort und Budgetpositionen: freigegeben (2026, 2027), wartend, abgelehnt mit und ohne Begründung"),
+        ("10000002", "Gruppenleitung mit Passwort und Budgetpositionen: freigegeben (2026, 2027), wartend, abgelehnt mit und ohne Begründung, dazu eine Mitteilung über eine entfernte Position"),
         ("10000003", "Zweite Gruppenleitung mit Passwort: eine freigegebene und zwei wartende Positionen für die Freigaben der Abteilungsleitung"),
         ("10000004", "Erste Anmeldung: noch kein Passwort, Dialog zum Setzen"),
         ("10000005", "Passwort gelöscht, Org-Einheit und Gruppe leer (im Profil ergänzen)"),
@@ -52,6 +52,16 @@ public static class TestData
             Make("10000008", "ORG-1234567", "Gruppe mit maximaler Länge 300", true)
         };
     }
+
+    /// <summary>Mitteilungen für die Testkostenstellen: Entfernung einer freigegebenen Position mit Grund.</summary>
+    public static List<Notification> CreateNotifications() => new()
+    {
+        new Notification
+        {
+            CostCenter = "10000002", Title = "Budgetposition entfernt", IsTestData = true, CreatedUtc = DateTime.UtcNow.AddDays(-2),
+            Message = "Die Abteilungsleitung hat die freigegebene Budgetposition „Sonderprojekt Nord“ (3.500,00 EUR (Brutto), 2026) entfernt. Grund: Das Projekt wurde in den Gesamtplan 2027 verschoben."
+        }
+    };
 
     /// <summary>Budgetpositionen für die Testkostenstellen: freigegeben, wartend und abgelehnt.</summary>
     public static List<BudgetItem> CreateBudgetItems()
