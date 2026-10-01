@@ -8,12 +8,6 @@
     <p class="topline">Administration</p>
     <h1 class="headline">Einstellungen</h1>
 
-    @if (Model.MustChange)
-    {
-        <div class="alert alert--info" role="status">
-            <p><strong>Hinweis:</strong> Es ist noch das Standardpasswort aktiv. Bitte lege zuerst ein eigenes Admin-Passwort fest.</p>
-        </div>
-    }
     @if (Model.Notice != null)
     {
         <div class="alert alert--ok" role="status"><p><strong>Gespeichert:</strong> @Model.Notice</p></div>

@@ -1,4 +1,5 @@
 @inject DataStore Store
+@inject AccountService Accounts
 @{
     var title = Store.Title;
     var authenticated = User.Identity?.IsAuthenticated == true;
@@ -38,6 +39,12 @@
     @if (authenticated)
     {
         <partial name="_Nav" />
+        @if (User.IsInRole(Roles.Admin) && Accounts.AdminMustChangePassword)
+        {
+            <div class="notice-bar" role="status">
+                <p><strong>Hinweis:</strong> Es ist noch das Standardpasswort aktiv. Bitte lege ein eigenes Admin-Passwort fest. <a asp-page="/Admin/Einstellungen">Jetzt ändern</a></p>
+            </div>
+        }
     }
     <main id="main" class="content">
         @RenderBody()

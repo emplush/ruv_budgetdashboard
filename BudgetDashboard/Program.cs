@@ -111,20 +111,6 @@ app.UseRouting();
 app.UseRateLimiter();
 app.UseAuthentication();
 
-// Mit Standardpasswort muss die Administration zuerst ein eigenes Passwort setzen.
-app.Use(async (ctx, next) =>
-{
-    if (ctx.User.IsInRole(Roles.Admin)
-        && ctx.RequestServices.GetRequiredService<AccountService>().AdminMustChangePassword
-        && !ctx.Request.Path.StartsWithSegments("/Admin/Einstellungen")
-        && !ctx.Request.Path.StartsWithSegments("/Logout"))
-    {
-        ctx.Response.Redirect("/Admin/Einstellungen");
-        return;
-    }
-    await next();
-});
-
 app.UseAuthorization();
 app.MapRazorPages();
 app.Run();

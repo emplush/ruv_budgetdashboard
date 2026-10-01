@@ -3,6 +3,7 @@
     var items = new List<(string Label, string Page)>();
     if (User.IsInRole(Roles.Admin))
     {
+        items.Add(("Dashboard", "/Admin/Dashboard"));
         items.Add(("Kostenstellen", "/Admin/Kostenstellen"));
         items.Add(("Einstellungen", "/Admin/Einstellungen"));
     }

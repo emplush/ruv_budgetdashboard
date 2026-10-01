@@ -11,7 +11,7 @@ alle Daten liegen in einer JSON-Datei (`App_Data/data.json`).
 - Horizontale Navigation unter dem Kopfbereich, Inhalt in voller Breite.
   - Alle Kostenstellen: Dashboard, Budgetplan, Jahresbudget, Profil, Abmelden
   - Abteilungsleitung zusätzlich nach „Jahresbudget“: Budgetfreigaben, Upload
-  - Administration: Kostenstellen, Einstellungen, Abmelden
+  - Administration: Dashboard, Kostenstellen, Einstellungen, Abmelden
 - Die Fachseiten sind zunächst leer und werden später gefüllt. Unter „Profil“ ändern Nutzende ihr Passwort.
 - Admin-Bereich
   - Kostenstellen anlegen, freigeben oder sperren, entfernen
@@ -28,7 +28,7 @@ alle Daten liegen in einer JSON-Datei (`App_Data/data.json`).
 - Gleiche Fehlermeldung für unbekannte, nicht freigegebene und falsch angemeldete Kostenstellen (keine Auskunft, welche Kostenstellen es gibt).
 - Cookie: HttpOnly, SameSite=Strict, 30 Minuten gleitend; Secure, sobald die Seite über HTTPS aufgerufen wird. Passwortänderung, Passwort löschen, Sperren oder Rollenwechsel beenden bestehende Sitzungen.
 - Anti-Forgery-Schutz auf allen Formularen, Content-Security-Policy, X-Frame-Options, und optional HSTS mit HTTPS-Umleitung (`Security:RequireHttps`).
-- Beim ersten Admin-Login mit dem Standardpasswort wird ein eigenes Passwort verlangt.
+- Solange das Standardpasswort aktiv ist, erscheint auf jeder Admin-Seite ein Hinweis, ein eigenes Passwort zu setzen.
 
 ## Klickbarer Prototyp
 
@@ -41,7 +41,7 @@ cd BudgetDashboard
 dotnet run
 ```
 
-Anmeldung als Administration: Kostenstelle `00000000`, Standardpasswort `12test34` (muss sofort geändert werden).
+Anmeldung als Administration: Kostenstelle `00000000`, Standardpasswort `12test34` (bitte sofort ändern).
 Rauchtest gegen eine frische Instanz: `tools/smoke-test.sh http://127.0.0.1:5000`.
 
 ## Auf IIS bereitstellen

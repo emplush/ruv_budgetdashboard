@@ -1,0 +1,32 @@
+@page
+@attribute [Authorize(Policy = "AdminOnly")]
+@inject AccountService Accounts
+@{
+    ViewData["Title"] = "Dashboard";
+    var rows = Accounts.List();
+    var head = rows.FirstOrDefault(r => r.IsDepartmentHead);
+}
+<section class="page">
+    <p class="topline">Administration</p>
+    <h1 class="headline">Dashboard</h1>
+
+    <div class="stats">
+        <div class="stat"><div class="stat__value">@rows.Count</div><div class="stat__label">Kostenstellen insgesamt</div></div>
+        <div class="stat"><div class="stat__value">@rows.Count(r => r.Enabled)</div><div class="stat__label">dürfen sich anmelden</div></div>
+        <div class="stat"><div class="stat__value">@rows.Count(r => r.Enabled && !r.HasPassword)</div><div class="stat__label">warten auf ein Passwort</div></div>
+        <div class="stat"><div class="stat__value">@rows.Count(r => r.Locked)</div><div class="stat__label">gerade gesperrt</div></div>
+    </div>
+
+    <div class="card card--soft card--form">
+        <h2 class="headline-s">Abteilungsleitung</h2>
+        @if (head is null)
+        {
+            <p class="copy">Es ist noch keine Kostenstelle mit Abteilungsleiterrechten festgelegt.</p>
+        }
+        else
+        {
+            <p class="copy">Kostenstelle <strong>@head.Number</strong>@(string.IsNullOrEmpty(head.OrgUnit) ? "" : " · " + head.OrgUnit)@(string.IsNullOrEmpty(head.Group) ? "" : " · " + head.Group)</p>
+        }
+        <p class="copy"><a asp-page="/Admin/Kostenstellen">Zu den Kostenstellen</a></p>
+    </div>
+</section>

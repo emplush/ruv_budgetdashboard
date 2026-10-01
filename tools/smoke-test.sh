@@ -22,19 +22,23 @@ login() { post "$1" "/Login" --data-urlencode "Kostenstelle=$2" --data-urlencode
 
 ADMIN_PW='Adm1n-Start#2026'
 echo "Admin"
-r=$(login admin 00000000 12test34); [[ $r == *"/Admin/Einstellungen" ]] && ok "Standardpasswort führt zu Einstellungen" || fail "Admin-Login: $r"
+r=$(login admin 00000000 12test34); [[ $r == *"/Admin/Dashboard" ]] && ok "Admin-Login führt zum Dashboard" || fail "Admin-Login: $r"
 check "Hinweis zum Standardpasswort" "Standardpasswort aktiv"
-r=$(get admin /Admin/Kostenstellen); [[ $r == *"/Admin/Einstellungen" ]] && ok "Weiterleitung bis Passwortwechsel" || fail "$r"
+check "Admin-Navigation: Dashboard" ">Dashboard</a>"
+r=$(get admin /Admin/Kostenstellen); [[ $r == 200*"/Admin/Kostenstellen" ]] && ok "Kostenstellen auch mit Standardpasswort erreichbar" || fail "$r"
+r=$(get admin /Admin/Einstellungen); [[ $r == 200*"/Admin/Einstellungen" ]] && ok "Einstellungen erreichbar" || fail "$r"
 post admin "/Admin/Einstellungen?handler=Password" --data-urlencode "Aktuell=12test34" --data-urlencode "Neu=schwach" --data-urlencode "Wiederholung=schwach" >/dev/null
 check "schwaches Passwort abgelehnt" "mindestens 12 Zeichen"
 post admin "/Admin/Einstellungen?handler=Password" --data-urlencode "Aktuell=12test34" --data-urlencode "Neu=$ADMIN_PW" --data-urlencode "Wiederholung=$ADMIN_PW" >/dev/null
 check "Admin-Passwort geändert" "Admin-Passwort ist ge"
 nocheck "Hinweis verschwindet" "Standardpasswort aktiv"
+get admin /Admin/Dashboard >/dev/null
+check "Dashboard zeigt Kennzahlen" "Kostenstellen insgesamt"
+nocheck "Hinweis ohne Standardpasswort" "Standardpasswort aktiv"
 get admin /Admin/Kostenstellen >/dev/null
 check "Admin-Navigation: Kostenstellen" ">Kostenstellen</a>"
 check "Admin-Navigation: Einstellungen" ">Einstellungen</a>"
 check "Admin-Navigation: Abmelden" ">Abmelden</button>"
-nocheck "Admin ohne Dashboard" ">Dashboard</a>"
 post admin "/Admin/Einstellungen?handler=Title" --data-urlencode "Title=Budget-Dashboard 2.0 Test" >/dev/null
 check "Titel geändert" "Budget-Dashboard 2.0 Test"
 post admin "/Admin/Kostenstellen?handler=Add" --data-urlencode "NewNumber=1234" >/dev/null

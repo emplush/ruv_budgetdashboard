@@ -20,5 +20,5 @@ public static class SignInHelper
     }
 
     public static string HomeFor(this ClaimsPrincipal user) =>
-        user.IsInRole(Models.Roles.Admin) ? "/Admin/Kostenstellen" : "/Dashboard";
+        user.IsInRole(Models.Roles.Admin) ? "/Admin/Dashboard" : "/Dashboard";
 }

@@ -37,7 +37,7 @@ public class LoginModel : PageModel
                 await HttpContext.SignInAsync(result.Account!);
                 if (result.Account!.Role != Roles.Admin && !string.IsNullOrEmpty(ReturnUrl) && Url.IsLocalUrl(ReturnUrl))
                     return LocalRedirect(ReturnUrl);
-                return LocalRedirect(result.Account.Role == Roles.Admin ? "/Admin/Kostenstellen" : "/Dashboard");
+                return LocalRedirect(result.Account.Role == Roles.Admin ? "/Admin/Dashboard" : "/Dashboard");
 
             case LoginStatus.NeedsPassword:
                 Response.Cookies.Append(SetupTokenService.CookieName, _tokens.Create(Kostenstelle!.Trim()), new CookieOptions

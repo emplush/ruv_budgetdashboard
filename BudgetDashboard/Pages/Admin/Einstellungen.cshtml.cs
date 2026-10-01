@@ -18,7 +18,6 @@ public class EinstellungenModel : PageModel
 
     public List<string> Errors { get; private set; } = new();
     public string? Notice => TempData["Notice"] as string;
-    public bool MustChange => _accounts.AdminMustChangePassword;
 
     public void OnGet() => Title = _accounts.GetTitle();
 

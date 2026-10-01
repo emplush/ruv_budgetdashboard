@@ -232,6 +232,11 @@ td .hint { display: block; }
 .app-header__brand { cursor: default; }
 button.app-nav__link { font-family: var(--font-sans); }
 .demo-bar { background: var(--sand); color: var(--primary); display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; padding: 8px 24px; font: 400 14px/21px var(--font-sans); }
+.notice-bar { background: var(--surface-soft); border-bottom: 1px solid var(--border); padding: 12px var(--space-4); font: 400 14px/21px var(--font-sans); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-3); }
+.stat { border: 1px solid var(--border); border-radius: var(--radius-base); padding: var(--space-4); background: var(--surface-soft); }
+.stat__value { font: 700 36px/1.15 var(--font-sans); font-variant-numeric: tabular-nums; }
+.stat__label { font: 400 14px/21px var(--font-sans); color: var(--ink-muted); }
 .demo-bar a { color: var(--primary); font-weight: 700; margin-right: 8px; }
 .demo-bar button { background: none; border: 2px solid var(--primary); color: var(--primary); border-radius: 4px; padding: 4px 12px; font: 700 14px/1.2 var(--font-sans); cursor: pointer; }
 .demo-bar button:hover { background: var(--primary); color: var(--sand); }
@@ -316,12 +321,13 @@ button.app-nav__link { font-family: var(--font-sans); }
   var okHtml = function (t) { return t ? '<div class="alert alert--ok" role="status"><p><strong>Gespeichert:</strong> ' + esc(t) + "</p></div>" : ""; };
 
   function nav() {
-    var items = session.role === "Admin" ? ["Kostenstellen", "Einstellungen"] :
+    var items = session.role === "Admin" ? ["Dashboard", "Kostenstellen", "Einstellungen"] :
       ["Dashboard", "Budgetplan", "Jahresbudget"].concat(session.role === "Abteilungsleiter" ? ["Budgetfreigaben", "Upload"] : [], ["Profil"]);
     return '<nav class="app-nav" aria-label="Hauptnavigation"><ul class="app-nav__list">' + items.map(function (i) {
       var a = route === i;
       return '<li><button class="app-nav__link' + (a ? " is-active" : "") + '" data-go="' + i + '"' + (a ? ' aria-current="page"' : "") + ">" + i + "</button></li>";
-    }).join("") + '<li class="app-nav__end"><button class="app-nav__link" data-act="logout">Abmelden</button></li></ul></nav>';
+    }).join("") + '<li class="app-nav__end"><button class="app-nav__link" data-act="logout">Abmelden</button></li></ul></nav>' +
+      (session.role === "Admin" && data.admin.must ? '<div class="notice-bar" role="status"><p><strong>Hinweis:</strong> Es ist noch das Standardpasswort aktiv. Bitte lege ein eigenes Admin-Passwort fest. <a href="#" data-go="Einstellungen">Jetzt ändern</a></p></div>' : "");
   }
 
   function page(title, topline, inner) { return '<section class="page"><p class="topline">' + topline + '</p><h1 class="headline">' + title + "</h1>" + inner + "</section>"; }
@@ -338,10 +344,9 @@ button.app-nav__link { font-family: var(--font-sans); }
       if (!acc || acc.enabled === false || roleOf(session.number) !== session.role) { session = null; route = "login"; }
     }
     if (!session) return route === "setpw" && pending ? setpwView() : loginView();
-    if (session.role === "Admin" && data.admin.must && route !== "Einstellungen") route = "Einstellungen";
     var r = route, body = "";
     if (session.role === "Admin") {
-      var full = r === "Einstellungen" ? settingsView() : adminView();
+      var full = r === "Einstellungen" ? settingsView() : r === "Kostenstellen" ? adminView() : adminDash();
       flash = null; errors = [];
       return full;
     } else if (r === "Dashboard") {
@@ -393,9 +398,17 @@ button.app-nav__link { font-family: var(--font-sans); }
       '<h2 class="headline-s">Alle Kostenstellen (' + rows.length + ")</h2>" + (rows.length ? '<div class="table-wrap"><table class="table"><thead><tr><th scope="col">Kostenstelle</th><th scope="col">Org-Einheit</th><th scope="col">Gruppe</th><th scope="col">Anmeldung erlaubt</th><th scope="col">Passwort</th><th scope="col">Abteilungsleitung</th><th scope="col">Aktionen</th></tr></thead><tbody>' + t + "</tbody></table></div>" : '<p class="copy">Es sind noch keine Kostenstellen angelegt.</p>')) + "</main>";
   }
 
+  function adminDash() {
+    var on = data.ccs.filter(function (c) { return c.enabled; }), now = Date.now();
+    var st = [[data.ccs.length, "Kostenstellen insgesamt"], [on.length, "dürfen sich anmelden"], [on.filter(function (c) { return !c.hash; }).length, "warten auf ein Passwort"], [data.ccs.filter(function (c) { return c.lock > now; }).length, "gerade gesperrt"]];
+    var h = data.head && find(data.head);
+    return nav() + '<main id="main" class="content">' + page("Dashboard", "Administration", '<div class="stats">' + st.map(function (x) { return '<div class="stat"><div class="stat__value">' + x[0] + '</div><div class="stat__label">' + x[1] + "</div></div>"; }).join("") + "</div>" +
+      '<div class="card card--soft card--form"><h2 class="headline-s">Abteilungsleitung</h2>' + (h ? '<p class="copy">Kostenstelle <strong>' + h.number + "</strong>" + (h.org ? " · " + esc(h.org) : "") + (h.group ? " · " + esc(h.group) : "") + "</p>" : '<p class="copy">Es ist noch keine Kostenstelle mit Abteilungsleiterrechten festgelegt.</p>') + '<p class="copy"><a href="#" data-go="Kostenstellen">Zu den Kostenstellen</a></p></div>') + "</main>";
+  }
+
   function settingsView() {
     return nav() + '<main id="main" class="content">' + page("Einstellungen", "Administration",
-      (data.admin.must ? '<div class="alert alert--info" role="status"><p><strong>Hinweis:</strong> Es ist noch das Standardpasswort aktiv. Bitte lege zuerst ein eigenes Admin-Passwort fest.</p></div>' : "") + okHtml(flash) + errHtml(errors) +
+      okHtml(flash) + errHtml(errors) +
       '<div class="grid-2"><div class="card card--soft card--form"><h2 class="headline-s">Titel der Anwendung</h2><form class="form" data-form="title" autocomplete="off"><div class="field"><label for="title">Titel</label><input id="title" name="title" value="' + esc(data.title) + '" maxlength="60" required /><p class="hint">Erscheint im Kopfbereich und im Browser-Tab.</p></div><button type="submit" class="btn btn--primary">Titel speichern</button></form></div>' +
       '<div class="card card--soft card--form"><h2 class="headline-s">Admin-Passwort ändern</h2>' + pwForm("adminpw", [["aktuell", "Aktuelles Passwort", "current-password"], ["neu", "Neues Passwort", "new-password"], ["wdh", "Neues Passwort wiederholen", "new-password"]]) + "</div></div>") + "</main>";
   }
@@ -412,7 +425,7 @@ button.app-nav__link { font-family: var(--font-sans); }
   function go(r) { route = r; flash = null; errors = []; render(); }
   function done(msg) { flash = msg; errors = []; save(); render(); }
   function fail(l) { errors = l; render(); }
-  function signIn(n) { var c = find(n); c.failed = 0; c.lock = 0; c.last = Date.now(); session = { number: n, role: roleOf(n) }; pending = null; save(); route = n === ADMIN ? "Kostenstellen" : "Dashboard"; }
+  function signIn(n) { var c = find(n); c.failed = 0; c.lock = 0; c.last = Date.now(); session = { number: n, role: roleOf(n) }; pending = null; save(); route = "Dashboard"; }
   function failCount(c) { c.failed++; if (c.failed >= MAX_FAILED) { c.failed = 0; c.lock = Date.now() + LOCK_MIN * 60000; } save(); }
   var checkText = function (o, g) { var e = []; if (o.length > 11) e.push("Die Org-Einheit darf höchstens 11 Zeichen haben."); if (g.length > 30) e.push("Die Gruppe darf höchstens 30 Zeichen haben."); return e; };
 
@@ -479,7 +492,7 @@ button.app-nav__link { font-family: var(--font-sans); }
   document.addEventListener("click", function (e) {
     var t = e.target.closest ? e.target.closest("[data-go],[data-act],#reset-demo") : null; if (!t) return;
     if (t.id === "reset-demo") { return ask("Alle Demo-Daten zurücksetzen? Kostenstellen, Passwörter und Einstellungen gehen verloren.", async function () { data = await seed(); session = null; pending = null; route = "login"; draft = {}; save(); render(); }); }
-    if (t.hasAttribute("data-go")) return go(t.getAttribute("data-go"));
+    if (t.hasAttribute("data-go")) { e.preventDefault(); return go(t.getAttribute("data-go")); }
     var act = t.getAttribute("data-act"), n = t.getAttribute("data-n");
     if (act === "logout") { session = null; route = "login"; return go("login"); }
     if (act === "cancelset") { pending = null; return go("login"); }

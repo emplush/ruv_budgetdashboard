@@ -213,3 +213,9 @@ td .hint { display: block; }
   .content { padding: var(--space-4) var(--space-3) var(--space-5); }
   .form--row .field { width: 100%; }
 }
+
+.notice-bar { background: var(--surface-soft); border-bottom: 1px solid var(--border); padding: 12px var(--space-4); font: 400 14px/21px var(--font-sans); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-3); }
+.stat { border: 1px solid var(--border); border-radius: var(--radius-base); padding: var(--space-4); background: var(--surface-soft); }
+.stat__value { font: 700 36px/1.15 var(--font-sans); font-variant-numeric: tabular-nums; }
+.stat__label { font: 400 14px/21px var(--font-sans); color: var(--ink-muted); }
