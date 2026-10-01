@@ -20,6 +20,7 @@ alle Daten liegen in einer JSON-Datei (`App_Data/data.json`).
   - Passwort einer Kostenstelle löschen (danach Erstanmeldung mit neuem Passwort)
   - Titel der Anwendung ändern, Admin-Passwort ändern
   - Testdaten importieren (löscht vorher alle Kostenstellen) und löschen, jeweils mit Bestätigung
+- Budgetplan: Gruppenleitungen reichen Budgetpositionen für die freigeschalteten Kalenderjahre zur Freigabe ein (Aktueller Stand, Gesamtbudgetplan, Eingabe Budgetposition). Die Abteilungsleitung schaltet 2026 bis 2028 frei und gibt Positionen unter „Budgetfreigaben“ frei oder lehnt sie ab.
 - Handbücher für Nutzende, Abteilungsleitung und Administration als HTML in der App (Schaltfläche „Handbuch“ im Header), jeweils mit PDF-Download
 
 ## Sicherheit
@@ -42,7 +43,7 @@ Die Quellen liegen als HTML in `BudgetDashboard/Manuals/` (`nutzer.html`, `abtei
 
 ## Testdaten
 
-Im Admin-Bereich unter „Einstellungen“ importiert der Abschnitt „Testdaten“ acht Kostenstellen (`10000001` bis `10000008`) mit den typischen Fällen. Der Import löscht vorher alle Kostenstellen und verlangt eine Bestätigung. Das Passwort der Testkostenstellen steht im Abschnitt und im Admin-Handbuch. Definition: `BudgetDashboard/Services/TestData.cs`.
+Im Admin-Bereich unter „Einstellungen“ importiert der Abschnitt „Testdaten“ acht Kostenstellen (`10000001` bis `10000008`) mit den typischen Fällen, dazu Budgetpositionen (freigegeben, wartend, abgelehnt) und die Freischaltung von 2026 und 2027. Der Import löscht vorher alle Kostenstellen und verlangt eine Bestätigung. Das Passwort der Testkostenstellen steht im Abschnitt und im Admin-Handbuch. Definition: `BudgetDashboard/Services/TestData.cs`.
 
 ## Lokal starten
 
