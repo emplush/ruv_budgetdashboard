@@ -26,15 +26,15 @@ alle Daten liegen in einer JSON-Datei (`App_Data/data.json`).
 - Passwortrichtlinie: 12 bis 128 Zeichen, Groß- und Kleinbuchstaben, Ziffer, Sonderzeichen, keine Kostenstelle, keine bekannten Muster.
 - Sperre nach 5 Fehlversuchen für 15 Minuten je Kostenstelle, zusätzlich Begrenzung der Anmeldeanfragen je IP-Adresse.
 - Gleiche Fehlermeldung für unbekannte, nicht freigegebene und falsch angemeldete Kostenstellen (keine Auskunft, welche Kostenstellen es gibt).
-- Cookie: HttpOnly, SameSite=Strict, Secure (bei `RequireHttps`), 30 Minuten gleitend. Passwortänderung, Passwort löschen, Sperren oder Rollenwechsel beenden bestehende Sitzungen.
-- Anti-Forgery-Schutz auf allen Formularen, Content-Security-Policy, X-Frame-Options, HSTS und HTTPS-Umleitung.
+- Cookie: HttpOnly, SameSite=Strict, 30 Minuten gleitend; Secure, sobald die Seite über HTTPS aufgerufen wird. Passwortänderung, Passwort löschen, Sperren oder Rollenwechsel beenden bestehende Sitzungen.
+- Anti-Forgery-Schutz auf allen Formularen, Content-Security-Policy, X-Frame-Options, und optional HSTS mit HTTPS-Umleitung (`Security:RequireHttps`).
 - Beim ersten Admin-Login mit dem Standardpasswort wird ein eigenes Passwort verlangt.
 
 ## Lokal starten
 
 ```bash
 cd BudgetDashboard
-ASPNETCORE_ENVIRONMENT=Development dotnet run
+dotnet run
 ```
 
 Anmeldung als Administration: Kostenstelle `00000000`, Standardpasswort `12test34` (muss sofort geändert werden).
@@ -47,7 +47,7 @@ Rauchtest gegen eine frische Instanz: `tools/smoke-test.sh http://127.0.0.1:5000
 3. Den Inhalt von `publish` in einen Ordner auf dem Server kopieren, z. B. `C:\inetpub\budgetdashboard2`.
 4. In IIS eine Website (oder Anwendung) auf diesen Ordner anlegen. Anwendungspool: **Kein verwalteter Code**.
 5. Dem Anwendungspool-Konto (`IIS AppPool\<Poolname>`) Schreibrechte auf den Ordner `App_Data` geben (wird beim ersten Start angelegt).
-6. HTTPS-Bindung mit Zertifikat einrichten. Ohne HTTPS in `appsettings.json` `Security:RequireHttps` auf `false` setzen (nicht empfohlen).
+6. Die Anwendung läuft ohne weitere Einstellung über HTTP. Wer HTTPS nutzt (empfohlen), richtet die Bindung mit Zertifikat ein und setzt `Security:RequireHttps` auf `true`. Dann leitet die Anwendung auf HTTPS um und setzt HSTS. Über HTTP werden Passwörter unverschlüsselt übertragen. Das ist nur in einem vertrauenswürdigen Netz vertretbar.
 7. Optional ein anderes Datenverzeichnis über `Storage:Path` setzen. Dieses Verzeichnis gehört in die Datensicherung.
 
 Der Ordner `App_Data` enthält `data.json` (Kostenstellen, Einstellungen, Passwort-Hashes), `data.json.bak` (letzter Stand) und `keys/` (Schlüssel für Cookies). Er ist über IIS nicht abrufbar (`hiddenSegments` in `web.config`).
@@ -57,7 +57,7 @@ Die Anwendung ist für **eine** Instanz ausgelegt (der Datenbestand liegt im Arb
 
 | Schlüssel | Standard | Bedeutung |
 | --- | --- | --- |
-| `Security:RequireHttps` | `true` | HTTPS-Umleitung, HSTS, Secure-Cookie |
+| `Security:RequireHttps` | `false` | `true` erzwingt HTTPS (Umleitung, HSTS, Secure-Cookie) |
 | `Security:HttpsPort` | `443` | Zielport der Umleitung |
 | `Security:MaxFailedLogins` | `5` | Fehlversuche bis zur Sperre |
 | `Security:LockoutMinutes` | `15` | Dauer der Sperre |

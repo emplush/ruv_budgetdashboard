@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
-var requireHttps = builder.Configuration.GetValue("Security:RequireHttps", true);
+var requireHttps = builder.Configuration.GetValue("Security:RequireHttps", false);
 
 builder.Services.AddSingleton<PasswordService>();
 builder.Services.AddSingleton<DataStore>();
