@@ -24,6 +24,7 @@ alle Daten liegen in einer JSON-Datei (`App_Data/data.json`).
 - Budgetplan mit Dashboard (zunächst leer), Gesamtbudgetplan (freigegebene Positionen je Kalenderjahr) und Eingabe Budgetposition. Gruppenleitungen fragen Positionen bei der Abteilungsleitung an, die Positionen der Abteilungsleitung für die eigene Kostenstelle sind sofort freigegeben. Die Abteilungsleitung wechselt im Gesamtbudgetplan per Auswahl zwischen den Kostenstellen.
 - Jahresbudget (später Ausgaben als Zahlen und Diagramme) mit Umschalter für die freigeschalteten Kalenderjahre.
 - Budgetfreigaben (nur Abteilungsleitung): Dashboard, offene Freigaben mit Anzahl, Freischaltung der Kalenderjahre 2026 bis 2028.
+- Budgetposition mit Netto- und Bruttofeld, die sich gegenseitig berechnen (Brutto = Netto × 1,19).
 - Handbücher für Nutzende, Abteilungsleitung und Administration als HTML in der App (Schaltfläche „Handbuch“ im Header), jeweils mit PDF-Download
 
 ## Sicherheit

@@ -35,13 +35,17 @@
                     <label for="bez">Bezeichnung</label>
                     <input id="bez" name="Bezeichnung" value="@Model.Bezeichnung" maxlength="@BudgetService.NameMax" required />
                 </div>
-                <div class="form form--row">
+                <div class="amount-link">
+                    <div class="field">
+                        <label for="netto">Betrag in EUR (Netto)</label>
+                        <input id="netto" name="Netto" value="@Model.Netto" inputmode="decimal" placeholder="1.037,45" autocomplete="off" />
+                    </div>
+                    <div class="amount-link__op" aria-hidden="true">× 1,19 =</div>
                     <div class="field">
                         <label for="betrag">Betrag in EUR (Brutto)</label>
-                        <input id="betrag" name="Betrag" value="@Model.Betrag" inputmode="decimal" placeholder="1.234,56" required aria-describedby="betrag-hint" />
-                        <p id="betrag-hint" class="hint">Mit 2 Stellen hinter dem Komma, zum Beispiel 1.234,56. Der Betrag gilt brutto.</p>
+                        <input id="betrag" name="Betrag" value="@Model.Betrag" inputmode="decimal" placeholder="1.234,56" autocomplete="off" aria-describedby="betrag-hint" />
                     </div>
-                    <div class="field">
+                    <div class="field field--narrow">
                         <label for="jahr">Kalenderjahr</label>
                         <select id="jahr" name="Jahr" required>
                             @foreach (var y in Model.Years)
@@ -51,6 +55,7 @@
                         </select>
                     </div>
                 </div>
+                <p id="betrag-hint" class="hint">Gib den Netto- oder den Bruttobetrag ein, der andere Betrag erscheint sofort (Brutto = Netto × 1,19). Beträge mit 2 Stellen hinter dem Komma, zum Beispiel 1.234,56. Gespeichert wird der Bruttobetrag.</p>
                 <div class="field">
                     <label for="hinweis">Hinweistext zur Freigabe</label>
                     <textarea id="hinweis" name="Hinweis" rows="3" maxlength="@BudgetService.NoteMax" required>@Model.Hinweis</textarea>

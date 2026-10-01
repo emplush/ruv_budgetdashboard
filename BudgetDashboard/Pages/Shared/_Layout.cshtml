@@ -17,7 +17,7 @@
     <link rel="apple-touch-icon" href="~/apple-touch-icon.png" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
-<body>
+<body class="@(ViewData["Auth"] is true ? "is-auth" : "")">
     <a class="skip-link" href="#main">Zum Inhalt springen</a>
     @if (authenticated && Context.Request.IsViewScope())
     {

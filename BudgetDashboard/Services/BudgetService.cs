@@ -57,6 +57,12 @@ public sealed partial class BudgetService
         return cents is > 0 and <= MaxCents ? cents : null;
     }
 
+    /// <summary>Netto in Cent mal 1,19 (19 % Umsatzsteuer), kaufmännisch gerundet.</summary>
+    public static long NetToGross(long netCents) => (netCents * 119 + 50) / 100;
+
+    /// <summary>Brutto in Cent durch 1,19, kaufmännisch gerundet.</summary>
+    public static long GrossToNet(long grossCents) => (grossCents * 100 + 59) / 119;
+
     public int PendingCount() => _store.Read(d => d.BudgetItems.Count(i => i.Status == BudgetStatus.Pending));
 
     /// <summary>
@@ -89,15 +95,20 @@ public sealed partial class BudgetService
         });
     }
 
-    public OperationResult Submit(string costCenter, string? name, string? amountText, int year, string? note, bool autoApprove = false)
+    public OperationResult Submit(string costCenter, string? name, string? grossText, string? netText, int year, string? note, bool autoApprove = false)
     {
         name = (name ?? "").Trim();
         note = (note ?? "").Trim();
         var errors = new List<string>();
         if (name.Length == 0) errors.Add("Bitte gib eine Bezeichnung ein.");
         else if (name.Length > NameMax) errors.Add($"Die Bezeichnung darf höchstens {NameMax} Zeichen haben.");
-        var cents = ParseAmount(amountText);
-        if (cents is null) errors.Add("Bitte gib einen Betrag größer als 0 an, zum Beispiel 1.234,56. Es sind höchstens 2 Nachkommastellen möglich.");
+        var cents = ParseAmount(grossText);
+        var net = ParseAmount(netText);
+        if (cents is null && net is not null) cents = NetToGross(net.Value);
+        if (cents is null)
+            errors.Add("Bitte gib einen Netto- oder Bruttobetrag größer als 0 an, zum Beispiel 1.234,56. Es sind höchstens 2 Nachkommastellen möglich.");
+        else if (net is not null && Math.Abs(GrossToNet(cents.Value) - net.Value) > 1)
+            errors.Add("Netto und Brutto passen nicht zusammen. Brutto ist Netto × 1,19. Gib nur einen der beiden Beträge an oder gleiche sie ab.");
         if (note.Length == 0) errors.Add("Bitte gib einen Hinweistext zur Freigabe ein.");
         else if (note.Length > NoteMax) errors.Add($"Der Hinweistext darf höchstens {NoteMax} Zeichen haben.");
         if (name.Any(char.IsControl) || note.Any(c => char.IsControl(c) && c != '\n' && c != '\r'))

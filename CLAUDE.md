@@ -11,6 +11,8 @@ Dauerhafte Vorgaben des Auftraggebers. Sie gelten bei jeder Änderung an der Anw
 
 ## Fachliche Vorgaben
 - Design: R+V-Design (Artefakt https://claude.ai/artifact/46SH9r4rTB8rSRjfDpnJkN), horizontale Navigation unter dem Header, Inhalt in voller Breite, Ansprache mit „Du“.
+- Design-Regeln (`BudgetDashboard/wwwroot/css/site.css`, im Prototyp identisch eingebettet): Bedienelemente einheitlich 48 px hoch (Buttons, Felder, Auswahl), kleine 36 px (Tabellen, Reiter, kleine Buttons); 4 px Radius, keine Schatten und Verläufe; Mint nur für Interaktion; Topline mindestens 19 px fett. Neue Seiten verwenden nur die vorhandenen Klassen und halten diese Höhen ein.
+- Budgetposition: Netto- und Bruttofeld rechnen sich gegenseitig (Brutto = Netto × 1,19, kaufmännisch gerundet); gespeichert wird der Bruttobetrag.
 - Läuft ohne klassische Datenbank auf einem IIS (JSON-Datei in `App_Data`), standardmäßig auch ohne HTTPS.
 - Rollen: Administration (Kostenstelle 00000000), Abteilungsleitung (eine Kostenstelle), Gruppenleitung (alle anderen freigegebenen).
 - Navigation Nutzende: Dashboard, Budgetplan, Jahresbudget, Profil, Abmelden. Abteilungsleitung zusätzlich Budgetfreigaben und Upload nach Jahresbudget. Administration: Dashboard, Kostenstellen, Einstellungen, Abmelden.

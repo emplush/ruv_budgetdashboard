@@ -14,6 +14,7 @@ public class EingabeModel : PageModel
 
     [BindProperty] public string? Bezeichnung { get; set; }
     [BindProperty] public string? Betrag { get; set; }
+    [BindProperty] public string? Netto { get; set; }
     [BindProperty] public int Jahr { get; set; }
     [BindProperty] public string? Hinweis { get; set; }
 
@@ -27,7 +28,7 @@ public class EingabeModel : PageModel
 
     public IActionResult OnPostSubmit()
     {
-        var result = _budget.Submit(User.Identity!.Name!, Bezeichnung, Betrag, Jahr, Hinweis, autoApprove: IsDepartmentHead);
+        var result = _budget.Submit(User.Identity!.Name!, Bezeichnung, Betrag, Netto, Jahr, Hinweis, autoApprove: IsDepartmentHead);
         if (!result.Ok)
         {
             Errors = result.Errors;

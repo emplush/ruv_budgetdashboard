@@ -167,6 +167,14 @@ submit "Smoke-Position-A" "1.234,56"
 check "Einreichen bestätigt" "zur Freigabe"
 check "Position wartet in der Tabelle" "Smoke-Position-A"
 submit "Smoke-Position-Zahl" "2500"; check "Betrag ohne Komma wird 2.500,00" "2.500,00 EUR"
+post gl "/Budgetplan/Eingabe?handler=Submit" --data-urlencode "Bezeichnung=Smoke-Netto" --data-urlencode "Betrag=" --data-urlencode "Netto=1.000,00" --data-urlencode "Jahr=2026" --data-urlencode "Hinweis=Netto" >/dev/null
+check "Nur Netto eingegeben: Brutto = Netto x 1,19" "1.190,00 EUR"
+post gl "/Budgetplan/Eingabe?handler=Submit" --data-urlencode "Bezeichnung=Smoke-Passt" --data-urlencode "Betrag=119,00" --data-urlencode "Netto=100,00" --data-urlencode "Jahr=2026" --data-urlencode "Hinweis=ok" >/dev/null
+check "Netto und Brutto passend" "119,00 EUR"
+post gl "/Budgetplan/Eingabe?handler=Submit" --data-urlencode "Bezeichnung=Smoke-Falsch" --data-urlencode "Betrag=200,00" --data-urlencode "Netto=100,00" --data-urlencode "Jahr=2026" --data-urlencode "Hinweis=x" >/dev/null
+check "Netto und Brutto passen nicht zusammen" "passen nicht zusammen"
+get gl /Budgetplan/Eingabe >/dev/null; check "Formular hat Nettofeld" 'id="netto"'; check "Formular hat Bruttofeld" 'id="betrag"'
+
 get al /Budgetfreigaben/Offen >/dev/null
 check "AL sieht Position unter Freigaben" "Smoke-Position-A"; check "AL sieht Betrag" "1.234,56 EUR"; check "AL sieht Hinweis" "Smoke-Hinweis Smoke-Position-A"
 check "Button Freigabe" ">Freigabe</button>"; check "Button Ablehnung" ">Ablehnung</button>"
