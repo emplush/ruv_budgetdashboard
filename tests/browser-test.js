@@ -256,6 +256,16 @@ function pruefe(bedingung, text) {
   pruefe(!(await page.isVisible(".als-admin")) && !(await page.isVisible(".kopf__nav >> text=Planbudgets")), "zurück zum Administrator");
   // BETA-ANMELDEN-ALS Ende
 
+  // Handbuch
+  await page.click("[data-menue]");
+  await page.click(".menue__liste >> text=Handbuch");
+  await page.waitForSelector(".hb-kapitel");
+  const bilderOk = await page.evaluate(() => Promise.all([].map.call(document.querySelectorAll(".hb-bild img"), (b) => { b.loading = "eager"; return b.complete ? b.naturalWidth > 0 : new Promise((ok) => { b.onload = () => ok(true); b.onerror = () => ok(false); }); })));
+  pruefe(await page.locator(".hb-kapitel").count() >= 15 && bilderOk.length > 10 && bilderOk.every(Boolean), "Handbuch mit allen Kapiteln und Bildern");
+  const pdf = await page.evaluate(() => fetch("handbuch/Handbuch.pdf").then((r) => r.ok && r.headers.get("content-type") !== "text/html"));
+  pruefe(pdf && await page.isVisible("[data-handbuch-pdf]"), "Handbuch als PDF herunterladbar");
+  await bild("16-handbuch");
+
   // Handy
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(url + "#/start");

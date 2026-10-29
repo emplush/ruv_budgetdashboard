@@ -360,3 +360,19 @@ test("Gleiche Konstanten in JavaScript und api.ashx", () => {
   assert.ok(app.includes('var VERSION = "' + version + '"'));
   assert.ok(cs.includes('Version = "' + version + '"'));
 });
+
+test("Handbuch: Bilder und PDF vorhanden, Kapitel vollständig", () => {
+  const fs = require("fs");
+  const path = require("path");
+  const wurzel = path.join(__dirname, "..", "app");
+  require(path.join(wurzel, "js", "handbuch.js"));
+  const kapitel = globalThis.BDHandbuch.kapitel;
+  assert.ok(kapitel.length >= 15);
+  const ids = kapitel.map((k) => k.id);
+  assert.strictEqual(new Set(ids).size, ids.length);
+  kapitel.forEach((k) => {
+    assert.ok(k.titel && k.fuer && k.html, k.id);
+    (k.html.match(/handbuch\/bilder\/[\w-]+\.png/g) || []).forEach((b) => assert.ok(fs.existsSync(path.join(wurzel, b)), b));
+  });
+  assert.ok(fs.statSync(path.join(wurzel, "handbuch", "Handbuch.pdf")).size > 100000);
+});

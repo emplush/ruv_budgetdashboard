@@ -714,3 +714,59 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
 .als-admin .btn:hover { background: rgba(255, 255, 255, .16); }
 @media print { .als-admin { display: none !important; } }
 /* BETA-ANMELDEN-ALS Ende */
+
+/* ---------- Handbuch ---------- */
+.hb { display: grid; grid-template-columns: minmax(14rem, 17rem) minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+.hb-deckblatt { display: none; }
+.hb-inhalt { position: sticky; top: 5.5rem; max-height: calc(100vh - 7rem); overflow: auto; padding: 1.1rem 1.2rem; }
+.hb-inhalt h2 { font-size: 1.05rem; margin: 0 0 .6rem; }
+.hb-inhalt ol { margin: 0; padding-left: 1.8rem; display: grid; gap: .3rem; }
+.hb-inhalt a { color: var(--text); text-decoration: none; }
+.hb-inhalt a:hover { color: var(--link, var(--akzent)); text-decoration: underline; }
+.hb-text { display: grid; gap: 1.5rem; min-width: 0; max-width: 62rem; }
+.hb-kapitel { scroll-margin-top: 5.5rem; line-height: 1.6; }
+.hb-kapitel > h2 { margin: 0 0 .8rem; font-size: 1.5rem; }
+.hb-kapitel h3 { margin: 1.4rem 0 .5rem; font-size: 1.1rem; }
+.hb-kapitel p, .hb-kapitel li, .hb-kapitel dd { max-width: 70ch; }
+.hb-kapitel ol, .hb-kapitel ul { padding-left: 1.4rem; display: grid; gap: .25rem; }
+.hb-kapitel code { font-size: .92em; background: var(--flaeche-2); padding: .05rem .3rem; border-radius: 3px; }
+.hb-fuer { margin: 0 0 .2rem; font-size: .85rem; font-weight: 700; color: var(--topline); }
+.hb-bild { margin: 1rem 0 1.2rem; }
+.hb-bild img { display: block; width: 100%; height: auto; border: 1px solid var(--linie); border-radius: 6px; box-shadow: var(--schatten-klein); }
+.hb-bild--schmal img { max-width: 30rem; }
+.hb-bild figcaption { margin-top: .4rem; font-size: .85rem; color: var(--text-2); }
+.hb-tipp, .hb-hinweis { padding: .6rem .8rem; border-left: 3px solid var(--akzent); background: var(--flaeche-2); border-radius: 4px; }
+.hb-hinweis { border-left-color: var(--ruv-orange-dark, #eb6504); }
+.hb-tabelle { overflow-x: auto; margin: .6rem 0 1rem; }
+.hb-tabelle table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+.hb-tabelle th, .hb-tabelle td { text-align: left; vertical-align: top; padding: .5rem .6rem; border-bottom: 1px solid var(--linie); }
+.hb-tabelle thead th { font-size: .85rem; color: var(--text-2); }
+.hb-begriffe dt { font-weight: 700; margin-top: .8rem; }
+.hb-begriffe dd { margin: .15rem 0 0; }
+@media (max-width: 900px) {
+  .hb { grid-template-columns: minmax(0, 1fr); }
+  .hb-inhalt { position: static; max-height: none; }
+}
+@page handbuch { size: A4 portrait; margin: 16mm 15mm 18mm; }
+@media print {
+  html:has(.hb), html:has(.hb) body, html:has(.hb) #app, html:has(.hb) main { page: handbuch; }
+  main:has(.hb) .druckkopf, main:has(.hb) .seite__kopf { display: none !important; }
+  .hb { display: block; font-size: 10.5pt; }
+  .hb-deckblatt { display: block; padding-top: 60mm; break-after: page; }
+  .hb-deckblatt img { display: block; }
+  .hb-deckblatt img { width: 9rem; margin-bottom: 3rem; }
+  .hb-deckblatt h1 { font-size: 3.2rem; margin: 0 0 .5rem; }
+  .hb-deckblatt__unter { font-size: 1.6rem; margin: 0 0 1rem; color: var(--ruv-primary); }
+  .hb-inhalt { position: static; max-height: none; overflow: visible; border: 0 !important; padding: 0 !important; break-after: page; }
+  .hb-inhalt h2 { font-size: 1.6rem; margin-bottom: 1rem; }
+  .hb-inhalt ol { gap: .45rem; font-size: 1.1rem; padding-left: 2.2rem; }
+  .hb-text { display: block; max-width: none; }
+  .hb-kapitel { border: 0 !important; padding: 0 !important; break-before: page; break-inside: auto; }
+  .hb-kapitel:first-child { break-before: auto; }
+  .hb-bild { break-inside: avoid; }
+  .hb-bild img { box-shadow: none; max-height: 165mm; width: auto; max-width: 100%; }
+  .hb-bild--schmal img { max-width: 60%; }
+  .hb-tabelle { overflow: visible; }
+  .hb-tabelle tr, .hb-begriffe dt { break-inside: avoid; break-after: auto; }
+  .hb-begriffe dt { break-after: avoid; }
+}

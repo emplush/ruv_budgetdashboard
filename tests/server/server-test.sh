@@ -187,6 +187,8 @@ pruefe "nach Abmelden 401" "401" "$(code -b "$A" -H "$H" "$U?aktion=sitzung")"
 pruefe "Sicherungen angelegt" "1" "$( [ "$(ls "$TMP/app/App_Data/sicherungen" | wc -l)" -ge 5 ] && echo 1 || echo 0)"
 pruefe "App_Data gesperrt" "404" "$(code "http://localhost:$PORT/App_Data/daten.json")"
 pruefe "Startseite" "Budgetdashboard" "$(curl -s "http://localhost:$PORT/")"
+pruefe "Handbuch als PDF" "200" "$(code "http://localhost:$PORT/handbuch/Handbuch.pdf")"
+pruefe "Handbuch-Bilder" "200" "$(code "http://localhost:$PORT/handbuch/bilder/anmeldung.png")"
 if [[ "${UI_TEST:-0}" == "1" ]]; then
   # Frischer Prozess und leere Daten, damit Sitzungen und Sperren aus den Tests nicht stören
   kill $PID 2>/dev/null; sleep 1

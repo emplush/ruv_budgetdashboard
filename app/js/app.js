@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "0.9.2";
+  var VERSION = "0.10.0";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -341,6 +341,7 @@
       '<div class="menue__liste" hidden>' +
       '<div class="menue__kopf"><strong>' + esc(D.anzeigeName(b)) + '</strong><br><span class="leise klein">' + esc(b.kennung) + " · " + esc(D.rollenName(b.rolle)) + "</span></div>" +
       '<a href="#/profil">' + icon("person") + "Mein Profil</a>" +
+      '<a href="#/handbuch">' + icon("bookOpen") + "Handbuch</a>" +
       '<button type="button" data-abmelden>' + icon("logout") + "Abmelden</button>" +
       "</div></div></div></div></header>";
   }
@@ -1969,6 +1970,56 @@
     });
   }
 
+  /* ---------- Handbuch (Inhalt in js/handbuch.js, PDF aus tools/handbuch_pdf.js) ---------- */
+
+  var HANDBUCH_PDF = "handbuch/Handbuch.pdf";
+
+  function zeigeHandbuch() {
+    var kapitel = (window.BDHandbuch && window.BDHandbuch.kapitel) || [];
+    var heute = new Date().toLocaleDateString("de-DE");
+    var kopf = '<div class="seite__kopf"><div><p class="topline">Hilfe</p><h1>Handbuch</h1></div>' +
+      '<div class="kopfaktionen"><button type="button" class="btn btn--primaer" data-handbuch-pdf>' + icon("documentPdf") + " Handbuch als PDF herunterladen</button></div></div>";
+    var deckblatt = '<div class="hb-deckblatt" aria-hidden="true"><img src="img/logo-positiv.svg" alt=""><p class="topline">Training und Entwicklung Vertrieb</p>' +
+      "<h1>Budgetdashboard</h1><p class=\"hb-deckblatt__unter\">Handbuch für alle Funktionen</p><p class=\"leise\">Version " + VERSION + " · Stand " + esc(heute) + "</p></div>";
+    var inhalt = '<nav class="hb-inhalt karte" aria-label="Inhalt des Handbuchs"><h2>Inhalt</h2><ol>' + kapitel.map(function (k) {
+      return '<li><a href="#hb-' + k.id + '" data-hb-sprung="' + k.id + '">' + esc(k.titel) + "</a></li>";
+    }).join("") + "</ol></nav>";
+    var text = '<div class="hb-text">' + kapitel.map(function (k, i) {
+      return '<section class="hb-kapitel karte" id="hb-' + k.id + '"><p class="hb-fuer">' + (i + 1) + " · Für " + esc(k.fuer) + "</p><h2>" + esc(k.titel) + "</h2>" + k.html + "</section>";
+    }).join("") + "</div>";
+    seite("handbuch", "Handbuch", kopf + '<div class="hb">' + deckblatt + inhalt + text + "</div>");
+    app.querySelectorAll("[data-hb-sprung]").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        var ziel = document.getElementById("hb-" + a.getAttribute("data-hb-sprung"));
+        if (ziel) ziel.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+    app.querySelector("[data-handbuch-pdf]").addEventListener("click", handbuchHerunterladen);
+  }
+
+  /* Im Claude-Artefakt speichert die Plattform die Datei (mit Rückfrage), sonst ein normaler Download-Link */
+  function handbuchHerunterladen() {
+    var name = "Budgetdashboard_Handbuch_" + VERSION + ".pdf";
+    if (window.claude && typeof window.claude.use === "function") {
+      return window.claude.use("downloads").then(function (dl) {
+        if (!dl) { meldung("Hier kann das Tool keine Dateien speichern.", true); return; }
+        return fetch(HANDBUCH_PDF).then(function (r) {
+          if (!r.ok) throw new Error("fehlt");
+          return r.blob();
+        }).then(function (blob) { return dl.save({ filename: name, data: blob }); }).catch(function (f) {
+          if (!f || f.code !== "declined") meldung("Das Handbuch ließ sich gerade nicht speichern. Probiere es bitte noch einmal.", true);
+        });
+      });
+    }
+    var a = document.createElement("a");
+    a.href = HANDBUCH_PDF;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
   /* ---------- Steuerung ---------- */
 
   function zeige() {
@@ -1984,6 +2035,7 @@
     else if (r.seite === "projekt" && darfProjekt(b, r.unter)) zeigeProjekt(r.unter);
     else if (r.seite === "verwaltung" && D.Rechte.benutzer(b)) zeigeVerwaltung(r.unter);
     else if (r.seite === "profil") zeigeProfil();
+    else if (r.seite === "handbuch") zeigeHandbuch();
     else zeigeStart();
     window.scrollTo(0, 0);
   }
