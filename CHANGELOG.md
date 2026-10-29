@@ -1,5 +1,8 @@
 # Änderungen
 
+## 0.8.3 (29.10.2026)
+- Prognose in Prozent: Wie viel vom Planbudget bis Dezember ausgeschöpft wird, steht jetzt je Kostenart in der Spalte „Prognose in %“, im Prognose-Diagramm und in der Kachel „Hochrechnung Jahresende“.
+
 ## 0.8.2 (29.10.2026)
 - Planbudgets, IST-Werte, Berichte und Detailseiten nutzen die ganze Breite des Fensters. Die Planbudget-Tabelle ist etwas kompakter und passt so auch auf kleinere Bildschirme.
 - Zahlen in den Kacheln stehen immer in einer Zeile; die Schrift passt sich der Kachelbreite an. Betrag und EUR werden nie getrennt.

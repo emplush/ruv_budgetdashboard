@@ -3190,7 +3190,7 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
 (function () {
   "use strict";
 
-  var VERSION = "0.8.2";
+  var VERSION = "0.8.3";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -3769,11 +3769,12 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
         '<td class="zahl' + (rest < 0 ? " minus" : "") + '">' + (plan.vorhanden ? euro(rest) : "–") + "</td>" +
         '<td class="zahl' + (rest < 0 ? " minus" : " leise") + '">' + (p > 0 ? prozent(rest / p) : "–") + "</td>" +
         '<td class="zahl">' + euro(hoch) + "</td>" +
+        '<td class="zahl' + (p > 0 && hoch > p ? " minus" : "") + '">' + (p > 0 ? "<strong>" + prozent(hoch / p) + "</strong>" : "–") + "</td>" +
         '<td class="zahl' + (plan.vorhanden && prog < 0 ? " minus" : plan.vorhanden ? " plus" : "") + '">' + (plan.vorhanden ? (prog > 0 ? "+" : "") + euro(prog) : "–") + "</td>" +
         (vj ? '<td class="zahl leise">' + euro(vj[z.id]) + "</td>" : "") + "</tr>";
     }
     return '<div class="tabelle-huelle"><table class="budgettabelle kostenarten"><thead><tr><th>Kostenart</th><th class="zahl">IST</th><th>vom Plan</th>' +
-      '<th class="zahl">Restbudget</th><th class="zahl">Rest in %</th><th class="zahl" title="IST gleichmäßig bis Dezember fortgeschrieben">Hochrechnung</th><th class="zahl" title="Plan minus Hochrechnung: Plus bleibt übrig, Minus wird überschritten">Prognose Rest</th>' +
+      '<th class="zahl">Restbudget</th><th class="zahl">Rest in %</th><th class="zahl" title="IST gleichmäßig bis Dezember fortgeschrieben">Hochrechnung</th><th class="zahl" title="Hochrechnung im Verhältnis zum Planbudget">Prognose in %</th><th class="zahl" title="Plan minus Hochrechnung: Plus bleibt übrig, Minus wird überschritten">Prognose Rest</th>' +
       (vj ? '<th class="zahl">IST ' + (zustand.jahr - 1) + " gesamt</th>" : "") + "</tr></thead><tbody>" +
       KOSTENARTEN.map(function (z) { return zeile(z, z.summe ? "teilsumme" : z.unter ? "einrueck" : ""); }).join("") +
       "</tbody><tfoot>" + zeile({ id: "gesamt", name: "Gesamt" }, "") + "</tfoot></table></div>";
@@ -3830,7 +3831,8 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
       (plan.vorhanden ? '<li><span class="prognose__muster prognose__muster--plan"></span>Plan zeitanteilig <span class="prognose__wert">' + euro(plan.gesamt) + "</span></li>" : "") +
       (vjg !== null && vjm !== null ? '<li><span class="prognose__muster prognose__muster--vj"></span>Vorjahr <span class="prognose__wert">' + euro(vjg) + "</span></li>" : "") + "</ul>" +
       '<svg class="prognose__svg" viewBox="0 0 ' + B + " " + H + '" role="img" aria-label="Prognose: ' + esc(D.betragText(hoch)) + " zum Jahresende" + (diff !== null ? ", Plan " + esc(D.betragText(plan.gesamt)) : "") + '">' + svg + "</svg>" +
-      (diff !== null ? '<p class="prognose__fazit ' + (diff < 0 ? "minus" : "plus") + '">' + (diff < 0 ? "Bei gleichem Tempo wird das Planbudget um " + esc(D.betragText(-diff)) + " überschritten."
+      (diff !== null ? '<p class="prognose__fazit ' + (diff < 0 ? "minus" : "plus") + '">' + (plan.gesamt > 0 ? "Prognose: " + esc(D.prozentText(hoch / plan.gesamt)) + " vom Planbudget ausgeschöpft. " : "") +
+        (diff < 0 ? "Bei gleichem Tempo wird das Planbudget um " + esc(D.betragText(-diff)) + " überschritten."
         : "Bei gleichem Tempo bleiben zum Jahresende " + esc(D.betragText(diff)) + " übrig.") + "</p>" : "") + "</figure>";
   }
 
@@ -3849,7 +3851,7 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
       var restMonate = 12 - mon;
       kpis += kpi(istUeberschrift(ist), euro(k.ist), w.vorhanden ? "<strong>" + prozent(k.quote) + "</strong> vom Plan" : "kein Plan zum Vergleich") +
         (w.vorhanden ? kpi("Restbudget", euro(k.rest), k.rest < 0 ? "überschritten" : restMonate > 0 ? euro(k.rest / restMonate) + " je Restmonat" : prozent(k.rest / k.plan) + " vom Plan", k.rest < 0 ? "kpi--minus" : "") : "") +
-        (w.vorhanden && mon < 12 ? kpi("Hochrechnung Jahresende", euro(k.hochrechnung), (k.abweichung > 0 ? "+" : "") + euro(k.abweichung) + " zum Plan", k.abweichung > 0 ? "kpi--minus" : "") : "") +
+        (w.vorhanden && mon < 12 ? kpi("Hochrechnung Jahresende", euro(k.hochrechnung), (k.plan > 0 ? "<strong>" + prozent(k.hochrechnung / k.plan) + "</strong> vom Plan · " : "") + (k.abweichung > 0 ? "+" : "") + euro(k.abweichung) + " zum Plan", k.abweichung > 0 ? "kpi--minus" : "") : "") +
         (k.vorjahr !== null ? kpi("Vorjahr gleicher Zeitraum", euro(k.vorjahr), prozent(k.vorjahrQuote, true) + " Veränderung") : "");
     }
     return '<article class="karte budget budget--ks" id="' + esc("nr-ks-" + nummer) + '" data-nummer="ks-' + esc(nummer) + '">' +
@@ -3864,7 +3866,7 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
       (k ? '<div class="budget__raster budget__raster--prognose"><section class="budget__abschnitt">' + prognoseHtml(w, ist, vj) + "</section>" +
         '<section class="budget__abschnitt"><h3>Auf einen Blick</h3>' + auffaelligkeiten(w, ist, k) + "</section></div>" : "") +
       (k ? '<section class="budget__abschnitt budget__abschnitt--ist"><h3>' + esc(istUeberschrift(ist)) + " je Kostenart</h3>" + istKostenartenHtml(w, ist, vj) +
-        '<p class="leise klein">Balken = IST vom Plan, Strich = gebuchter Anteil des Jahres, Farbe = Stand zum zeitanteiligen Plan. „Prognose Rest“ = Plan minus Hochrechnung.</p></section>' : "") +
+        '<p class="leise klein">Balken = IST vom Plan, Strich = gebuchter Anteil des Jahres, Farbe = Stand zum zeitanteiligen Plan. „Prognose in %“ = so viel vom Planbudget wird bis Dezember ausgeschöpft, „Prognose Rest“ = Plan minus Hochrechnung.</p></section>' : "") +
       '<div class="budget__raster budget__raster--plan">' +
       '<section class="budget__abschnitt budget__abschnitt--plan"><h3>Planbudget ' + jahr + " je Kostenart</h3>" +
       (w.vorhanden ? anteilHtml(w) + planKostenartenHtml(w) : '<p class="leer-hinweis">Für ' + jahr + " ist noch kein Planbudget eingetragen.</p>") + "</section>" +
@@ -4474,7 +4476,7 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
       kennzahl(istUeberschrift(ist), euro(k.ist), (plan.vorhanden ? "<strong>" + prozent(k.quote) + "</strong> vom Plan · Rest " + euro(k.rest) + "<br>" : "") + esc(D.standText(ist.stand, ist.monat))) +
       (plan.vorhanden
         ? kennzahl("Zum zeitanteiligen Plan", zzvHtml(k), "Plan bis " + D.monatName(ist.monat) + ": " + euro(zeitPlan(plan.gesamt))) +
-          kennzahl("Hochrechnung Jahresende", euro(k.hochrechnung), (k.hochrechnung - plan.gesamt > 0 ? "über Plan um " : "unter Plan um ") + euro(Math.abs(k.hochrechnung - plan.gesamt)))
+          kennzahl("Hochrechnung Jahresende", euro(k.hochrechnung), (plan.gesamt > 0 ? "<strong>" + prozent(k.hochrechnung / plan.gesamt) + "</strong> vom Plan · " : "") + (k.hochrechnung - plan.gesamt > 0 ? "über Plan um " : "unter Plan um ") + euro(Math.abs(k.hochrechnung - plan.gesamt)))
         : kennzahl("Planbudget", "–", "noch nicht eingetragen")) +
       kennzahl("Je Monat", euro(k.ist / mon), proMonat !== null ? "IST im Schnitt · verfügbar je Restmonat " + euro(proMonat) : "IST im Schnitt") +
       (k.vorjahr !== null ? kennzahl("Vorjahr gleicher Zeitraum", euro(k.vorjahr), "Veränderung " + prozent(k.vorjahrQuote, true)) : "") + "</div>";
