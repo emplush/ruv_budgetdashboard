@@ -26,6 +26,8 @@
  *   POST nummer-loeschen         <- {art,nummer}                                        (Administrator, Abteilungsleitung)
  *   POST ist-importieren         <- {nummer,eintrag:{stand,monat,aktuell:{jahr,werte},vorjahrZeitraum,vorjahr,datei}} (Abteilungsleitung;
  *                                   ersetzt die IST-Daten der Kostenstelle, sichert vorher den bisherigen Stand in istSicherungen)
+ *   POST kosten-speichern        <- {id,pn,datum,kostenart,betrag,text}                (Abteilungsleitung; Projektkosten, id leer = neu)
+ *   POST kosten-loeschen         <- {id}                                               (Abteilungsleitung)
  *   POST ist-wiederherstellen    <- {id}                                               (Administrator, Abteilungsleitung)
  *   POST budget-speichern        <- {jahr,art,nummer,werte:{pkId,pkAd,werbung,reise,sonstiges}} (Abteilungsleitung)
  *
@@ -106,7 +108,7 @@ public class BdErgebnis
 
 public static class BdKern
 {
-    public const string Version = "0.3.0";
+    public const string Version = "0.4.0";
     public const string CookieName = "budgetdashboard_sitzung";
     public const int MaxBytes = 2 * 1024 * 1024;
     private const int AnzahlSicherungen = 50;
@@ -270,7 +272,7 @@ public static class BdKern
                 {
                     if (!verwaltet) throw new Fehler(403, "Dafür fehlen Dir die Rechte.");
                     var unter = k.ContainsKey("unter") && k["unter"] != null ? L(k["unter"]).Select(x => x as string).Where(x => x != null).ToList() : null;
-                    NummerSpeichern(daten, S(k, "art") ?? "", (S(k, "alt") ?? "").Trim(), (S(k, "nummer") ?? "").Trim(), L(G(k, "benutzer")).Select(x => x as string).Where(x => x != null).ToList(), unter);
+                    NummerSpeichern(daten, S(k, "art") ?? "", (S(k, "alt") ?? "").Trim(), (S(k, "nummer") ?? "").Trim(), L(G(k, "benutzer")).Select(x => x as string).Where(x => x != null).ToList(), unter, G(k, "ks") as string);
                     break;
                 }
             case "nummer-loeschen":
@@ -280,8 +282,10 @@ public static class BdKern
                     var eintrag = FindeNummer(daten, art, nummer);
                     if (eintrag == null) throw new Fehler(404, "Diese Nummer gibt es nicht mehr.");
                     Liste(daten, art).Remove(eintrag);
+                    if (art == "pn") daten["kosten"] = L(daten["kosten"]).Where(x => S(D(x), "pn") != nummer).ToList();
                     if (art == "ks")
                     {
+                        foreach (var p in L(daten["projekte"]).Select(x => D(x))) if (S(p, "ks") == nummer) p["ks"] = "";
                         foreach (var n in Liste(daten, "ks").Select(x => D(x)))
                             n["unter"] = Unter(n).Where(u => u != nummer).Cast<object>().ToList();
                         D(daten["ist"]).Remove("ks-" + nummer);
@@ -300,6 +304,21 @@ public static class BdKern
                 {
                     if (rolle != "al") throw new Fehler(403, "IST-Daten importiert nur die Abteilungsleitung.");
                     IstSetzen(daten, (S(k, "nummer") ?? "").Trim(), G(k, "eintrag") as Dictionary<string, object>, S(ich, "kennung"));
+                    break;
+                }
+            case "kosten-speichern":
+                {
+                    if (rolle != "al") throw new Fehler(403, "Projektkosten erfasst nur die Abteilungsleitung.");
+                    KostenSpeichern(daten, (S(k, "id") ?? "").Trim(), k, S(ich, "kennung"));
+                    break;
+                }
+            case "kosten-loeschen":
+                {
+                    if (rolle != "al") throw new Fehler(403, "Projektkosten erfasst nur die Abteilungsleitung.");
+                    string id = S(k, "id") ?? "";
+                    var liste = L(daten["kosten"]).ToList();
+                    if (!liste.Any(x => S(D(x), "id") == id)) throw new Fehler(404, "Diesen Eintrag gibt es nicht mehr.");
+                    daten["kosten"] = liste.Where(x => S(D(x), "id") != id).ToList();
                     break;
                 }
             case "ist-wiederherstellen":
@@ -539,7 +558,7 @@ public static class BdKern
     }
 
     /// <summary>Gleiche Regeln wie speichereNummer in js/daten.js. Eine geänderte Nummer nimmt ihre Planbudgets und Zuordnungen mit.</summary>
-    private static void NummerSpeichern(Dictionary<string, object> daten, string art, string alt, string nummer, List<string> kennungen, List<string> unter)
+    private static void NummerSpeichern(Dictionary<string, object> daten, string art, string alt, string nummer, List<string> kennungen, List<string> unter, string ks)
     {
         var liste = Liste(daten, art);
         string name = ArtName(art);
@@ -554,6 +573,12 @@ public static class BdKern
             neuUnter.Sort(string.CompareOrdinal);
             PruefeUnter(daten, alt, nummer, neuUnter);
         }
+        string neuKs = null;
+        if (art == "pn" && ks != null)
+        {
+            neuKs = ks.Trim();
+            if (neuKs != "" && FindeNummer(daten, "ks", neuKs) == null) throw new Fehler(400, "Die Kostenstelle " + neuKs + " gibt es nicht.");
+        }
         var zugewiesen = new List<string>();
         foreach (var k in kennungen)
         {
@@ -564,7 +589,7 @@ public static class BdKern
         if (eintrag == null)
         {
             eintrag = new Dictionary<string, object>();
-            if (art == "ks") eintrag["unter"] = new List<object>();
+            if (art == "ks") eintrag["unter"] = new List<object>(); else eintrag["ks"] = "";
             liste.Add(eintrag);
         }
         if (alt != "" && nummer != alt)
@@ -585,11 +610,14 @@ public static class BdKern
                 var ist = D(daten["ist"]);
                 if (ist.ContainsKey("ks-" + alt)) { ist["ks-" + nummer] = ist["ks-" + alt]; ist.Remove("ks-" + alt); }
                 foreach (var x in L(daten["istSicherungen"]).Select(y => D(y))) if (S(x, "nummer") == alt) x["nummer"] = nummer;
+                foreach (var p in L(daten["projekte"]).Select(y => D(y))) if (S(p, "ks") == alt) p["ks"] = nummer;
             }
+            else foreach (var x in L(daten["kosten"]).Select(y => D(y))) if (S(x, "pn") == alt) x["pn"] = nummer;
         }
         eintrag["nummer"] = nummer;
         eintrag["benutzer"] = zugewiesen.Cast<object>().ToList();
         if (neuUnter != null) eintrag["unter"] = neuUnter.Cast<object>().ToList();
+        if (neuKs != null) eintrag["ks"] = neuKs;
         else if (art == "ks" && !eintrag.ContainsKey("unter")) eintrag["unter"] = new List<object>();
         var sortiert = liste.OrderBy(x => S(D(x), "nummer"), StringComparer.Ordinal).ToList();
         liste.Clear();
@@ -703,6 +731,36 @@ public static class BdKern
         else ist.Remove("ks-" + nummer);
     }
 
+    // ---------- Projektkosten (gleiche Regeln wie speichereKosten in js/daten.js) ----------
+
+    private static void KostenSpeichern(Dictionary<string, object> daten, string id, Dictionary<string, object> f, string kennung)
+    {
+        string pn = S(f, "pn") ?? "", datum = S(f, "datum") ?? "", art = S(f, "kostenart") ?? "", text = (S(f, "text") ?? "").Trim();
+        if (FindeNummer(daten, "pn", pn) == null) throw new Fehler(404, "Die Projektnummer " + pn + " gibt es nicht.");
+        DateTime d;
+        if (!Regex.IsMatch(datum, "^20[0-9]{2}-[0-9]{2}-[0-9]{2}$") || !DateTime.TryParseExact(datum, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out d))
+            throw new Fehler(400, "Gib bitte ein gültiges Datum ein.");
+        if (!Positionen.Contains(art)) throw new Fehler(400, "Wähle bitte die Kostenart.");
+        var betrag = LeseBetrag(G(f, "betrag"));
+        if (betrag == null || betrag.Value == 0m) throw new Fehler(400, "Gib bitte einen Betrag größer als 0 € ein, zum Beispiel 1.250,00.");
+        if (text.Length > 120) throw new Fehler(400, "Die Beschreibung hat höchstens 120 Zeichen.");
+        var liste = L(daten["kosten"]).ToList();
+        Dictionary<string, object> e = null;
+        if (id != "")
+        {
+            e = liste.Select(x => D(x)).FirstOrDefault(x => S(x, "id") == id);
+            if (e == null) throw new Fehler(404, "Diesen Eintrag gibt es nicht mehr.");
+        }
+        else
+        {
+            e = new Dictionary<string, object> { { "id", "k" + Guid.NewGuid().ToString("N").Substring(0, 12) }, { "erfasst", Jetzt() }, { "von", kennung ?? "" } };
+            liste.Add(e);
+        }
+        e["pn"] = pn; e["datum"] = datum; e["kostenart"] = art; e["betrag"] = betrag.Value; e["text"] = text;
+        e["geaendert"] = Jetzt(); e["geaendertVon"] = kennung ?? "";
+        daten["kosten"] = liste.OrderByDescending(x => S(D(x), "datum"), StringComparer.Ordinal).ToList();
+    }
+
     // ---------- Sicht für die Oberfläche (gleiche Regeln wie sicht() in js/daten.js) ----------
 
     private static object Sicht(Dictionary<string, object> daten, Dictionary<string, object> ich)
@@ -732,6 +790,7 @@ public static class BdKern
                 if (!verwaltet && !k.Contains(kennung)) continue;
                 var kopie = new Dictionary<string, object> { { "nummer", S(n, "nummer") }, { "benutzer", verwaltet ? k : new List<string> { kennung } } };
                 if (art == "ks") kopie["unter"] = Unter(n);
+                else kopie["ks"] = S(n, "ks");
                 liste.Add(kopie);
                 erlaubt.Add(art + "-" + S(n, "nummer"));
             }
@@ -749,8 +808,28 @@ public static class BdKern
                         }
                 liste = liste.OrderBy(x => S(D(x), "nummer"), StringComparer.Ordinal).ToList();
             }
+            // Projektnummern, deren Kosten von sichtbaren Kostenstellen abgehen, kommen ohne Zuweisung dazu
+            if (art == "pn" && !verwaltet)
+            {
+                var ksDa = new HashSet<string>(L(d["kostenstellen"]).Select(x => S(D(x), "nummer")));
+                var da = new HashSet<string>(liste.Select(x => S(D(x), "nummer")));
+                foreach (var n in L(daten["projekte"]).Select(x => D(x)))
+                {
+                    string ks = S(n, "ks"), nr = S(n, "nummer");
+                    if (ks == "" || !ksDa.Contains(ks) || da.Contains(nr)) continue;
+                    da.Add(nr);
+                    liste.Add(new Dictionary<string, object> { { "nummer", nr }, { "benutzer", new List<string>() }, { "ks", ks } });
+                    erlaubt.Add("pn-" + nr);
+                }
+                liste = liste.OrderBy(x => S(D(x), "nummer"), StringComparer.Ordinal).ToList();
+            }
             d[art == "ks" ? "kostenstellen" : "projekte"] = liste;
         }
+        // Projektkosten: Administrator keine, Abteilungsleitung alle, sonst die der sichtbaren Projektnummern
+        var kosten = new List<object>();
+        if (rolle != "admin")
+            foreach (var x in L(daten["kosten"])) if (rolle == "al" || erlaubt.Contains("pn-" + S(D(x), "pn"))) kosten.Add(x);
+        d["kosten"] = kosten;
         var budgets = new Dictionary<string, object>();
         if (rolle != "admin")
         {
@@ -791,7 +870,7 @@ public static class BdKern
                 { "schema", 1 }, { "stand", 0 },
                 { "einstellungen", new Dictionary<string, object> { { "titel", StandardTitel } } },
                 { "benutzer", new List<object>() }, { "kostenstellen", new List<object>() }, { "projekte", new List<object>() },
-                { "budgets", new Dictionary<string, object>() }, { "ist", new Dictionary<string, object>() }, { "istSicherungen", new List<object>() } };
+                { "budgets", new Dictionary<string, object>() }, { "ist", new Dictionary<string, object>() }, { "istSicherungen", new List<object>() }, { "kosten", new List<object>() } };
             var admin = NeuerBenutzer(StandardAdmin, "Admin", "Budget", "admin");
             PasswortSetzen(admin, StandardPasswort, false);
             L(neu["benutzer"]).Add(admin);
@@ -804,6 +883,8 @@ public static class BdKern
         if (!(G(daten, "budgets") is Dictionary<string, object>)) daten["budgets"] = new Dictionary<string, object>();
         if (!(G(daten, "ist") is Dictionary<string, object>)) daten["ist"] = new Dictionary<string, object>();
         daten["istSicherungen"] = L(G(daten, "istSicherungen")).ToList();
+        daten["kosten"] = L(G(daten, "kosten")).ToList();
+        foreach (var p in L(daten["projekte"]).Select(x => D(x))) if (!(G(p, "ks") is string)) p["ks"] = "";
         if (!(G(daten, "einstellungen") is Dictionary<string, object>)) daten["einstellungen"] = new Dictionary<string, object> { { "titel", StandardTitel } };
         if (!daten.ContainsKey("stand")) daten["stand"] = 0;
         return daten;

@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.4.0 (29.10.2026)
+- Projektkosten: Für Projektnummern gibt es keinen KST-Bericht. Die Abteilungsleitung erfasst die Kosten je Projektnummer von Hand mit Datum, Kostenart (Personalkosten ID oder AD, Werbung, Reise/KfZ, Sonstiges), Betrag und Beschreibung und kann sie ändern oder löschen.
+- Jede Projektnummer ist einer Kostenstelle zugeordnet (Verwaltung → Projektnummern). Ihre Kosten gehen dort ab: Sie zählen zum IST dieser Kostenstelle und damit auch zur übergreifenden Kostenstelle. Übersicht, Karten und Bericht weisen „davon Projektkosten“ aus.
+- Eigene Seite je Projektnummer mit Planbudget, IST in % vom Plan, Restbudget, Veränderung zum Vorjahr und Plan gegen IST nach Kostenart; die Übersicht hat dafür die Tabelle „Projektnummern: IST gegen Plan“.
+- Wer eine Kostenstelle sieht, sieht auch die Projektnummern, deren Kosten von ihr abgehen.
+
 ## 0.3.0 (29.10.2026)
 - IST-Daten je Kostenstelle: Die Abteilungsleitung importiert den KST-Bericht des Konzern-Controllings (.xlsx). Das Tool liest Kostenstelle (KST1xxx00), Datenstand, Abrechnungsmonat und die Spalten „Ist“ (Vorjahr gesamt, Vorjahr bis Monat, aktuelles Jahr bis Monat) und zeigt vorher eine Vorschau mit Prüfsummen (Sachkosten, Primärkosten I).
 - Zuordnung: Personalkosten AD und ID, Werbung, Reise/Kfz; alle übrigen Sachkosten-Zeilen ergeben „Sonstiges“.

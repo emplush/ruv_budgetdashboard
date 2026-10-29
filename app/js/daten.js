@@ -153,6 +153,7 @@
       budgets: {},
       ist: {},
       istSicherungen: [],
+      kosten: [],
       geaendert: jetzt()
     };
   }
@@ -183,6 +184,8 @@
     if (!daten.budgets || typeof daten.budgets !== "object" || Array.isArray(daten.budgets)) daten.budgets = {};
     if (!daten.ist || typeof daten.ist !== "object" || Array.isArray(daten.ist)) daten.ist = {};
     if (!Array.isArray(daten.istSicherungen)) daten.istSicherungen = [];
+    if (!Array.isArray(daten.kosten)) daten.kosten = [];
+    daten.projekte.forEach(function (n) { if (typeof n.ks !== "string") n.ks = ""; });
     daten.benutzer.forEach(function (b) {
       var muster = neuerBenutzer(b.kennung);
       Object.keys(muster).forEach(function (k) { if (b[k] === undefined) b[k] = muster[k]; });
@@ -319,7 +322,8 @@
   }
 
   /* Legt eine Nummer an oder ändert sie. alt: bisherige Nummer ("" für neu). kennungen: zugewiesene Benutzer.
-     unter: zugeordnete Kostenstellen (nur bei Kostenstellen; fehlt es, bleibt die Zuordnung).
+     unter: bei Kostenstellen die zugeordneten Kostenstellen, bei Projektnummern die Kostenstelle, von der die Projektkosten
+     abgehen (Text); fehlt es, bleibt die Zuordnung.
      Eine geänderte Nummer nimmt ihre Planbudgets und Zuordnungen mit. Liefert Fehlertext oder "". */
   function speichereNummer(daten, art, alt, nummer, kennungen, unter) {
     var a = ARTEN[art];
@@ -337,13 +341,18 @@
       var fehler = pruefeUnter(daten, alt, nummer, neuUnter);
       if (fehler) return fehler;
     }
+    var neuKs = null;
+    if (art === "pn" && typeof unter === "string") {
+      neuKs = unter.trim();
+      if (neuKs && !findeNummer(daten, "ks", neuKs)) return "Die Kostenstelle " + neuKs + " gibt es nicht.";
+    }
     var zugewiesen = [];
     (kennungen || []).forEach(function (k) {
       var b = findeBenutzer(daten, k);
       if (passtZurArt(b, art) && zugewiesen.indexOf(b.kennung) < 0) zugewiesen.push(b.kennung);
     });
     zugewiesen.sort();
-    if (!eintrag) { eintrag = art === "ks" ? { nummer: nummer, benutzer: [], unter: [] } : { nummer: nummer, benutzer: [] }; liste(daten, art).push(eintrag); }
+    if (!eintrag) { eintrag = art === "ks" ? { nummer: nummer, benutzer: [], unter: [] } : { nummer: nummer, benutzer: [], ks: "" }; liste(daten, art).push(eintrag); }
     if (alt && nummer !== alt) {
       Object.keys(daten.budgets).forEach(function (jahr) {
         var j = daten.budgets[jahr];
@@ -356,19 +365,24 @@
         });
         if (daten.ist["ks-" + alt]) { daten.ist["ks-" + nummer] = daten.ist["ks-" + alt]; delete daten.ist["ks-" + alt]; }
         daten.istSicherungen.forEach(function (x) { if (x.nummer === alt) x.nummer = nummer; });
-      }
+        daten.projekte.forEach(function (n) { if (n.ks === alt) n.ks = nummer; });
+      } else daten.kosten.forEach(function (x) { if (x.pn === alt) x.pn = nummer; });
     }
     eintrag.nummer = nummer;
     eintrag.benutzer = zugewiesen;
     if (neuUnter) eintrag.unter = neuUnter;
+    if (neuKs !== null) eintrag.ks = neuKs;
     sortiereNummern(liste(daten, art));
     return "";
   }
 
   /* Löscht eine Nummer samt ihrer Planbudgets */
   function loescheNummer(daten, art, nummer) {
-    if (art === "pn") daten.projekte = daten.projekte.filter(function (n) { return n.nummer !== nummer; });
-    else {
+    if (art === "pn") {
+      daten.projekte = daten.projekte.filter(function (n) { return n.nummer !== nummer; });
+      daten.kosten = daten.kosten.filter(function (x) { return x.pn !== nummer; });
+    } else {
+      daten.projekte.forEach(function (n) { if (n.ks === nummer) n.ks = ""; });
       daten.kostenstellen = daten.kostenstellen.filter(function (n) { return n.nummer !== nummer; });
       daten.kostenstellen.forEach(function (n) { n.unter = (n.unter || []).filter(function (u) { return u !== nummer; }); });
       delete daten.ist["ks-" + nummer];
@@ -628,7 +642,7 @@
   }
 
   /* IST einer Kostenstelle in einem Jahr: bisMonat (12 = ganzes Jahr), vergleich = Vorjahr im gleichen Zeitraum */
-  function istVon(daten, jahr, nummer) {
+  function importIstVon(daten, jahr, nummer) {
     var e = (daten.ist || {})["ks-" + nummer];
     jahr = Number(jahr);
     if (e && e.aktuell && e.aktuell.jahr === jahr) {
@@ -647,9 +661,90 @@
     return leer;
   }
 
+  /* ---------- Projektkosten (manuell erfasst, je Projektnummer und Kostenart) ---------- */
+
+  /* Zählen die Projektkosten zusätzlich zum IST aus dem KST-Bericht der zugeordneten Kostenstelle? */
+  var PROJEKTKOSTEN_ZUSAETZLICH = true;
+
+  function istDatum(t) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(t || ""));
+    if (!m || !istJahr(m[1])) return false;
+    var d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    return d.getUTCMonth() === +m[2] - 1 && d.getUTCDate() === +m[3];
+  }
+
+  /* felder: {pn, datum (JJJJ-MM-TT), kostenart (Position), betrag, text}. id leer = neu. Liefert Fehlertext oder "". */
+  function speichereKosten(daten, id, felder, kennung, jetztZeit) {
+    felder = felder || {};
+    var pn = String(felder.pn || "");
+    if (!findeNummer(daten, "pn", pn)) return "Die Projektnummer " + pn + " gibt es nicht.";
+    if (!istDatum(felder.datum)) return "Gib bitte ein gültiges Datum ein.";
+    if (!POSITIONEN.some(function (p) { return p.id === felder.kostenart; })) return "Wähle bitte die Kostenart.";
+    var betrag = leseBetrag(felder.betrag);
+    if (betrag === null || betrag === 0) return "Gib bitte einen Betrag größer als 0 € ein, zum Beispiel 1.250,00.";
+    var text = String(felder.text || "").trim();
+    if (text.length > 120) return "Die Beschreibung hat höchstens 120 Zeichen.";
+    var zeit = jetztZeit || jetzt();
+    var e = id ? daten.kosten.filter(function (x) { return x.id === id; })[0] : null;
+    if (id && !e) return "Diesen Eintrag gibt es nicht mehr.";
+    if (!e) { e = { id: "k" + Date.parse(zeit).toString(36) + Math.random().toString(36).slice(2, 7), erfasst: zeit, von: kennung || "" }; daten.kosten.push(e); }
+    e.pn = pn; e.datum = felder.datum; e.kostenart = felder.kostenart; e.betrag = betrag; e.text = text;
+    e.geaendert = zeit; e.geaendertVon = kennung || "";
+    daten.kosten.sort(function (a, b) { return a.datum < b.datum ? 1 : a.datum > b.datum ? -1 : 0; });
+    return "";
+  }
+
+  function loescheKosten(daten, id) {
+    if (!daten.kosten.some(function (x) { return x.id === id; })) return "Diesen Eintrag gibt es nicht mehr.";
+    daten.kosten = daten.kosten.filter(function (x) { return x.id !== id; });
+    return "";
+  }
+
+  function kostenVon(daten, jahr, pn) {
+    return (daten.kosten || []).filter(function (x) { return x.pn === pn && x.datum.slice(0, 4) === String(jahr); });
+  }
+
+  /* IST einer Projektnummer aus den erfassten Kosten. bisMonat: nur Kosten bis zu diesem Monat (für den Vorjahresvergleich). */
+  function projektIstVon(daten, jahr, pn, bisMonat) {
+    var w = {};
+    var liste = kostenVon(daten, jahr, pn).filter(function (x) { return !bisMonat || Number(x.datum.slice(5, 7)) <= bisMonat; });
+    liste.forEach(function (x) { w[x.kostenart] = runde((w[x.kostenart] || 0) + x.betrag); });
+    var aus = mitSummen(w);
+    aus.vorhanden = liste.length > 0;
+    var heute = new Date();
+    aus.bisMonat = Number(jahr) < heute.getFullYear() ? 12 : Number(jahr) === heute.getFullYear() ? heute.getMonth() + 1 : 0;
+    aus.stand = liste.reduce(function (m, x) { var t = String(x.geaendert || x.erfasst || "").slice(0, 10); return t > m ? t : m; }, "");
+    aus.monat = "";
+    aus.anzahl = liste.length;
+    aus.vergleich = null;
+    return aus;
+  }
+
+  /* IST einer Kostenstelle: KST-Bericht plus die Kosten der Projektnummern, die von ihr abgehen */
+  function istVon(daten, jahr, nummer) {
+    var basis = importIstVon(daten, jahr, nummer);
+    var pns = PROJEKTKOSTEN_ZUSAETZLICH ? (daten.projekte || []).filter(function (n) { return n.ks === nummer; }) : [];
+    var teile = pns.map(function (n) { return projektIstVon(daten, jahr, n.nummer); }).filter(function (t) { return t.vorhanden; });
+    basis.projekte = summe(teile);
+    basis.projektNummern = pns.map(function (n) { return n.nummer; });
+    if (!teile.length) return basis;
+    var aus = summe([basis].concat(teile));
+    aus.projekte = basis.projekte;
+    aus.projektNummern = basis.projektNummern;
+    aus.vorhanden = true;
+    aus.importiert = basis.vorhanden;
+    if (basis.vorhanden) {
+      aus.bisMonat = basis.bisMonat; aus.stand = basis.stand; aus.monat = basis.monat;
+      aus.vergleich = basis.vergleich ? summe([basis.vergleich].concat(pns.map(function (n) { return projektIstVon(daten, Number(jahr) - 1, n.nummer, basis.bisMonat); }))) : null;
+    } else {
+      aus.bisMonat = teile[0].bisMonat; aus.stand = teile.reduce(function (m, t) { return t.stand > m ? t.stand : m; }, ""); aus.monat = ""; aus.vergleich = null;
+    }
+    return aus;
+  }
+
   /* IST einer übergreifenden Kostenstelle = eigenes IST plus IST der zugeordneten. Stand und Monat: der älteste Teil. */
   function gesamtIstVon(daten, jahr, art, nummer) {
-    if (art !== "ks") { var l = mitSummen(null); l.vorhanden = false; return { uebergreifend: false, eigen: l, unter: [], gesamt: l }; }
+    if (art !== "ks") { var p = projektIstVon(daten, jahr, nummer); return { uebergreifend: false, eigen: p, unter: [], gesamt: p }; }
     var eigen = istVon(daten, jahr, nummer);
     var e = findeNummer(daten, "ks", nummer);
     var unter = (e && e.unter || []).map(function (u) { return { nummer: u, ist: istVon(daten, jahr, u) }; });
@@ -664,6 +759,7 @@
     var vgl = teile.filter(function (t) { return t.vergleich; });
     g.vergleich = vgl.length === teile.length && teile.length ? summe(vgl.map(function (t) { return t.vergleich; })) : null;
     g.fehlend = 1 + unter.length - teile.length;
+    g.projekte = summe(teile.map(function (t) { return t.projekte || {}; }));
     return { uebergreifend: unter.length > 0, eigen: eigen, unter: unter, gesamt: g };
   }
 
@@ -727,6 +823,7 @@
     }
     d.kostenstellen = nummern(daten.kostenstellen, "ks");
     d.projekte = nummern(daten.projekte, "pn");
+    d.projekte.forEach(function (k) { k.ks = findeNummer(daten, "pn", k.nummer).ks || ""; });
     /* Zu eigenen übergreifenden Kostenstellen kommen die zugeordneten dazu (ohne Zuweisung), damit die Summe stimmt */
     if (!Rechte.nummern(ich)) {
       var da = {};
@@ -735,7 +832,15 @@
         n.unter.forEach(function (u) { if (!da[u] && findeNummer(daten, "ks", u)) { da[u] = 1; d.kostenstellen.push({ nummer: u, benutzer: [], unter: [] }); } });
       });
       sortiereNummern(d.kostenstellen);
+      /* Projektnummern, deren Kosten von sichtbaren Kostenstellen abgehen, kommen ohne Zuweisung dazu */
+      var pnDa = {};
+      d.projekte.forEach(function (n) { pnDa[n.nummer] = 1; });
+      daten.projekte.forEach(function (n) { if (n.ks && da[n.ks] && !pnDa[n.nummer]) { pnDa[n.nummer] = 1; d.projekte.push({ nummer: n.nummer, benutzer: [], ks: n.ks }); } });
+      sortiereNummern(d.projekte);
     }
+    var pnSichtbar = {};
+    d.projekte.forEach(function (n) { pnSichtbar[n.nummer] = 1; });
+    d.kosten = ich.rolle === "admin" ? [] : (daten.kosten || []).filter(function (x) { return ich.rolle === "al" || pnSichtbar[x.pn]; }).map(kopie);
     d.budgets = {};
     if (ich.rolle !== "admin") {
       var erlaubt = {};
@@ -843,6 +948,11 @@
     stelleIstWiederHer: stelleIstWiederHer,
     istVon: istVon,
     gesamtIstVon: gesamtIstVon,
+    istDatum: istDatum,
+    speichereKosten: speichereKosten,
+    loescheKosten: loescheKosten,
+    kostenVon: kostenVon,
+    projektIstVon: projektIstVon,
     kennzahlen: kennzahlen,
     prozentText: prozentText,
     nummernVon: nummernVon,

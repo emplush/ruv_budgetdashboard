@@ -40,9 +40,9 @@
       { nummer: "413", benutzer: [], unter: [] }
     ];
     daten.projekte = [
-      { nummer: "41000101", benutzer: ["xv10004"] },
-      { nummer: "41000102", benutzer: ["xv10004", "xv10005"] },
-      { nummer: "41000103", benutzer: [] }
+      { nummer: "41000101", benutzer: ["xv10004"], ks: "410" },
+      { nummer: "41000102", benutzer: ["xv10004", "xv10005"], ks: "410" },
+      { nummer: "41000103", benutzer: [], ks: "" }
     ];
     daten.budgets[String(jahr)] = {
       "ks-410": werte(124000, 0, 18000, 14500, 9800),
@@ -57,6 +57,17 @@
       "ks-412": werte(190000, 205000, 8000, 39000, 10500),
       "pn-41000101": werte(60000, 35000, 20000, 14000, 3500)
     };
+    /* Erfundene Projektkosten, manuell erfasst */
+    var tag = function (monat, t) { return jahr + "-" + ("0" + monat).slice(-2) + "-" + ("0" + t).slice(-2); };
+    var bisMonat = Math.max(1, new Date().getMonth() + 1);
+    daten.kosten = [
+      ["41000101", 1, 20, "werbung", 4800, "Messestand Frühjahr"], ["41000101", 2, 14, "reise", 2350.4, "Roadshow Nord"],
+      ["41000101", 4, 8, "pkAd", 12000, "Einsatz Außendienst-Trainer"], ["41000101", 6, 3, "sonstiges", 980, "Seminarunterlagen"],
+      ["41000102", 3, 11, "werbung", 6200, "Kampagne Vertriebsstart"], ["41000102", 5, 22, "reise", 3140.75, "Workshops Regionen"],
+      ["41000102", 7, 1, "pkId", 15500, "Projektleitung Innendienst"]
+    ].filter(function (x) { return x[1] <= bisMonat; }).map(function (x, i) {
+      return { id: "kdemo" + i, pn: x[0], datum: tag(x[1], x[2]), kostenart: x[3], betrag: x[4], text: x[5], erfasst: new Date().toISOString(), von: "xv10001", geaendert: new Date().toISOString(), geaendertVon: "xv10001" };
+    });
     var heute = new Date(), m = heute.getMonth(), istJahr = m === 0 ? jahr - 1 : jahr, monat = m === 0 ? 12 : m;
     var stand = new Date(heute.getTime() - 3 * 864e5).toISOString().slice(0, 10);
     daten.ist = {};

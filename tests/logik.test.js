@@ -162,6 +162,54 @@ test("IST: KST-Bericht lesen, importieren, sichern, wiederherstellen", async () 
   assert.deepStrictEqual([d.ist, d.istSicherungen], [{}, []]);
 });
 
+test("Projektkosten: erfassen, gehen von der Kostenstelle ab, Sicht", () => {
+  const d = daten();
+  D.speichereNummer(d, "ks", "", "410", []);
+  D.speichereNummer(d, "ks", "", "411", ["xv10002"]);
+  D.speichereNummer(d, "ks", "410", "410", [], ["411"]);
+  assert.match(D.speichereNummer(d, "pn", "", "41000101", ["xv10004"], "999"), /999/);
+  assert.strictEqual(D.speichereNummer(d, "pn", "", "41000101", ["xv10004"], "411"), "");
+  D.speichereNummer(d, "pn", "", "41000102", [], "");
+  const k = (pn, datum, kostenart, betrag) => D.speichereKosten(d, "", { pn, datum, kostenart, betrag, text: "Test" }, "xv10001");
+  assert.match(k("41000101", "2025-02-30", "werbung", "10"), /Datum/);
+  assert.match(k("41000101", "2025-03-01", "", "10"), /Kostenart/);
+  assert.match(k("41000101", "2025-03-01", "werbung", "0"), /größer als 0/);
+  assert.match(k("41000101", "2025-03-01", "werbung", "-5"), /größer als 0/);
+  assert.match(k("41009999", "2025-03-01", "werbung", "10"), /gibt es nicht/);
+  assert.strictEqual(k("41000101", "2025-03-01", "werbung", "1.000,50"), "");
+  assert.strictEqual(k("41000101", "2025-07-10", "reise", "200"), "");
+  assert.strictEqual(k("41000102", "2025-07-10", "reise", "999"), "");
+  assert.deepStrictEqual(d.kosten.map((x) => x.datum), ["2025-07-10", "2025-07-10", "2025-03-01"]);
+  const p = D.projektIstVon(d, 2025, "41000101");
+  assert.deepStrictEqual([p.gesamt, p.werbung, p.reise, p.sachkosten, p.anzahl, p.bisMonat], [1200.5, 1000.5, 200, 1200.5, 2, 12]);
+  /* ohne KST-Bericht: IST der Kostenstelle nur aus Projektkosten, die nicht zugeordnete Projektnummer zählt nicht */
+  const i = D.istVon(d, 2025, "411");
+  assert.deepStrictEqual([i.vorhanden, i.importiert, i.gesamt, i.projekte.gesamt], [true, false, 1200.5, 1200.5]);
+  assert.strictEqual(D.gesamtIstVon(d, 2025, "ks", "410").gesamt.gesamt, 1200.5);
+  assert.strictEqual(D.gesamtIstVon(d, 2025, "pn", "41000102").gesamt.gesamt, 999);
+  /* Sicht: Gruppenleitung sieht die Projektnummer ihrer Kostenstelle ohne Zuweisung, Admin keine Kosten */
+  const gl = D.sicht(d, "xv10002");
+  assert.deepStrictEqual(gl.projekte, [{ nummer: "41000101", benutzer: [], ks: "411" }]);
+  assert.strictEqual(gl.kosten.length, 2);
+  assert.strictEqual(D.sicht(d, "xv10004").kosten.length, 2);
+  assert.strictEqual(D.sicht(d, "xv10001").kosten.length, 3);
+  assert.deepStrictEqual(D.sicht(d, "xv00000").kosten, []);
+  /* ändern, umbenennen, löschen */
+  const id = d.kosten.find((x) => x.pn === "41000101" && x.kostenart === "reise").id;
+  assert.strictEqual(D.speichereKosten(d, id, { pn: "41000101", datum: "2025-08-01", kostenart: "pkId", betrag: 50 }, "xv10001"), "");
+  assert.strictEqual(D.projektIstVon(d, 2025, "41000101").pkId, 50);
+  D.speichereNummer(d, "pn", "41000101", "41000109", ["xv10004"], "411");
+  assert.strictEqual(d.kosten.filter((x) => x.pn === "41000109").length, 2);
+  D.speichereNummer(d, "ks", "411", "419", ["xv10002"]);
+  assert.strictEqual(D.findeNummer(d, "pn", "41000109").ks, "419");
+  assert.strictEqual(D.loescheKosten(d, id), "");
+  assert.match(D.loescheKosten(d, id), /nicht mehr/);
+  D.loescheNummer(d, "ks", "419");
+  assert.strictEqual(D.findeNummer(d, "pn", "41000109").ks, "");
+  D.loescheNummer(d, "pn", "41000109");
+  assert.deepStrictEqual(d.kosten.map((x) => x.pn), ["41000102"]);
+});
+
 test("Rechte der Rollen", () => {
   const d = daten();
   const [admin, al, gl, kam] = d.benutzer;

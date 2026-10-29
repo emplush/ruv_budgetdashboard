@@ -201,6 +201,12 @@
     istImportieren: function (daten, b, nummer, eintrag) {
       return aendern(function (ich) { return recht(D.Rechte.budgets(ich)) || D.setzeIst(speicher, nummer, eintrag, ich.kennung); });
     },
+    kostenSpeichern: function (daten, b, id, felder) {
+      return aendern(function (ich) { return recht(D.Rechte.budgets(ich)) || D.speichereKosten(speicher, id, felder, ich.kennung); });
+    },
+    kostenLoeschen: function (daten, b, id) {
+      return aendern(function (ich) { return recht(D.Rechte.budgets(ich)) || D.loescheKosten(speicher, id); });
+    },
     istWiederherstellen: function (daten, b, id) {
       return aendern(function (ich) { return recht(D.Rechte.nummern(ich)) || D.stelleIstWiederHer(speicher, id, ich.kennung); });
     },
@@ -290,6 +296,7 @@
     nummerSpeichern: function (daten, b, art, alt, nummer, kennungen, unter) {
       var k = { art: art, alt: alt || "", nummer: nummer, benutzer: kennungen || [] };
       if (Array.isArray(unter)) k.unter = unter;
+      if (typeof unter === "string") k.ks = unter;
       return anfrage("nummer-speichern", k).then(uebernehmen);
     },
     nummerLoeschen: function (daten, b, art, nummer) { return anfrage("nummer-loeschen", { art: art, nummer: nummer }).then(uebernehmen); },
@@ -299,6 +306,10 @@
     istImportieren: function (daten, b, nummer, eintrag) {
       return anfrage("ist-importieren", { nummer: nummer, eintrag: eintrag }).then(uebernehmen);
     },
+    kostenSpeichern: function (daten, b, id, felder) {
+      return anfrage("kosten-speichern", { id: id || "", pn: felder.pn, datum: felder.datum, kostenart: felder.kostenart, betrag: felder.betrag, text: felder.text || "" }).then(uebernehmen);
+    },
+    kostenLoeschen: function (daten, b, id) { return anfrage("kosten-loeschen", { id: id }).then(uebernehmen); },
     istWiederherstellen: function (daten, b, id) { return anfrage("ist-wiederherstellen", { id: id }).then(uebernehmen); }
   };
 

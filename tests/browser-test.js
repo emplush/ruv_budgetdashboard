@@ -108,6 +108,22 @@ function pruefe(bedingung, text) {
   pruefe(await page.isVisible("text=IST in % vom Plan") && await page.isVisible("tr:has(th:has-text('413')) >> text=22.10.2026"), "Übersicht zeigt IST gegen Plan mit Stand");
   await bild("03d-ist-uebersicht");
 
+  // Projektkosten manuell erfassen (Projektnummer 41000101 geht von Kostenstelle 410 ab)
+  await page.goto(url + "#/projekt/41000101");
+  await page.waitForSelector("[data-kosten-neu]");
+  pruefe(await page.isVisible("text=gehen von der Kostenstelle"), "Projektseite nennt die Kostenstelle");
+  const zeilenVorher = await page.locator("tr[data-kosten]").count();
+  await page.click("[data-kosten-neu]");
+  await page.fill("#k-betrag", "1.234,56");
+  await page.click("dialog button[type=submit]");
+  pruefe(await page.isVisible("dialog >> text=Wähle bitte die Kostenart"), "Kostenart ist Pflicht");
+  await page.selectOption("#k-art", "werbung");
+  await page.fill("#k-text", "Roll-up für die Messe");
+  await page.click("dialog button[type=submit]");
+  await page.waitForSelector("text=Die Kosten sind erfasst");
+  pruefe(await page.locator("tr[data-kosten]").count() === zeilenVorher + 1 && await page.isVisible("tr[data-kosten] >> text=Roll-up für die Messe"), "Projektkosten erscheinen in der Liste");
+  await bild("03e-projektkosten");
+
   // Benutzer anlegen mit Einmalpasswort
   await page.goto(url + "#/verwaltung/benutzer");
   await page.waitForSelector("[data-kopfaktion] [data-neu]");

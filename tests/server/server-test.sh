@@ -120,6 +120,32 @@ post "$L" ist-importieren "$IST" >/dev/null
 pruefe "Umbenennen nimmt IST mit" "['ks-419']" "$(post "$L" nummer-speichern '{"art":"ks","alt":"411","nummer":"419","benutzer":["xv10002"]}' | py 'str(sorted(d["daten"]["ist"].keys()))')"
 post "$L" nummer-speichern '{"art":"ks","alt":"419","nummer":"411","benutzer":["xv10002"]}' >/dev/null
 
+# Projektkosten: manuell erfasst, gehen von der zugeordneten Kostenstelle ab
+pruefe "unbekannte Kostenstelle für Projektnummer 400" "999" "$(post "$L" nummer-speichern '{"art":"pn","alt":"41000101","nummer":"41000101","benutzer":["xv10004"],"ks":"999"}')"
+pruefe "Projektnummer einer Kostenstelle zuordnen" "411" "$(post "$L" nummer-speichern '{"art":"pn","alt":"41000101","nummer":"41000101","benutzer":["xv10004"],"ks":"411"}' | py '[n["ks"] for n in d["daten"]["projekte"] if n["nummer"]=="41000101"][0]')"
+KO='{"id":"","pn":"41000101","datum":"2026-03-15","kostenart":"werbung","betrag":"1.250,50","text":"Messestand"}'
+pruefe "Gruppenleitung darf keine Projektkosten erfassen 403" "403" "$(code -b "$G" -H "$H" -H "$J" -d "$KO" "$U?aktion=kosten-speichern")"
+pruefe "Projektkosten ohne Kostenart 400" "Kostenart" "$(post "$L" kosten-speichern "${KO/werbung/}")"
+pruefe "Projektkosten mit Betrag 0 400" "größer als 0" "$(post "$L" kosten-speichern "${KO/1.250,50/0}")"
+pruefe "Projektkosten mit falschem Datum 400" "Datum" "$(post "$L" kosten-speichern "${KO/2026-03-15/2026-02-30}")"
+pruefe "Projektkosten für unbekannte Projektnummer 404" "404" "$(code -b "$L" -H "$H" -H "$J" -d "${KO/41000101/41009999}" "$U?aktion=kosten-speichern")"
+pruefe "Projektkosten erfassen" "1|1250.5|werbung|xv10001" "$(post "$L" kosten-speichern "$KO" | py 'str(len(d["daten"]["kosten"]))+"|"+str(d["daten"]["kosten"][0]["betrag"])+"|"+d["daten"]["kosten"][0]["kostenart"]+"|"+d["daten"]["kosten"][0]["von"]')"
+KID="$(curl -s -b "$L" -H "$H" "$U?aktion=sitzung" | py 'd["daten"]["kosten"][0]["id"]')"
+pruefe "Projektkosten ändern" "1|99|reise" "$(post "$L" kosten-speichern "{\"id\":\"$KID\",\"pn\":\"41000101\",\"datum\":\"2026-04-01\",\"kostenart\":\"reise\",\"betrag\":99,\"text\":\"\"}" | py 'str(len(d["daten"]["kosten"]))+"|"+str(d["daten"]["kosten"][0]["betrag"])+"|"+d["daten"]["kosten"][0]["kostenart"]')"
+post "$L" kosten-speichern "$KO" >/dev/null
+pruefe "Gruppenleitung sieht Projektnummer ihrer Kostenstelle ohne Zuweisung und deren Kosten" "['41000101']|[]|411|2" "$(curl -s -b "$G" -H "$H" "$U?aktion=sitzung" | py 'str([n["nummer"] for n in d["daten"]["projekte"]])+"|"+str(d["daten"]["projekte"][0]["benutzer"])+"|"+d["daten"]["projekte"][0]["ks"]+"|"+str(len(d["daten"]["kosten"]))')"
+pruefe "Key Account Manager sieht Kosten seiner Projektnummer" "2" "$(curl -s -b "$K" -H "$H" "$U?aktion=sitzung" | py 'str(len(d["daten"]["kosten"]))')"
+pruefe "Administrator sieht keine Projektkosten" "[]" "$(curl -s -b "$A" -H "$H" "$U?aktion=sitzung" | py 'str(d["daten"]["kosten"])')"
+pruefe "Umbenennen der Projektnummer nimmt Kosten mit" "['41000109', '41000109']" "$(post "$L" nummer-speichern '{"art":"pn","alt":"41000101","nummer":"41000109","benutzer":["xv10004"],"ks":"411"}' | py 'str([x["pn"] for x in d["daten"]["kosten"]])')"
+post "$L" nummer-speichern '{"art":"pn","alt":"41000109","nummer":"41000101","benutzer":["xv10004"],"ks":"411"}' >/dev/null
+pruefe "Projektkosten löschen" "1" "$(post "$L" kosten-loeschen "{\"id\":\"$KID\"}" | py 'str(len(d["daten"]["kosten"]))')"
+pruefe "gelöschten Eintrag nochmals löschen 404" "404" "$(code -b "$L" -H "$H" -H "$J" -d "{\"id\":\"$KID\"}" "$U?aktion=kosten-loeschen")"
+post "$L" nummer-speichern '{"art":"ks","alt":"","nummer":"499","benutzer":[]}' >/dev/null
+post "$L" nummer-speichern '{"art":"pn","alt":"","nummer":"41000199","benutzer":[],"ks":"499"}' >/dev/null
+post "$L" kosten-speichern "${KO/41000101/41000199}" >/dev/null
+pruefe "Kostenstelle löschen hebt Zuordnung auf" "''" "$(post "$L" nummer-loeschen '{"art":"ks","nummer":"499"}' | py 'repr([n["ks"] for n in d["daten"]["projekte"] if n["nummer"]=="41000199"][0])')"
+pruefe "Projektnummer löschen entfernt ihre Kosten" "['41000101']" "$(post "$L" nummer-loeschen '{"art":"pn","nummer":"41000199"}' | py 'str([x["pn"] for x in d["daten"]["kosten"]])')"
+
 # Verwaltung
 pruefe "neues Einmalpasswort beendet Sitzungen" "401" "$(post "$A" passwort-zuruecksetzen '{"kennung":"xv10004","passwort":"Neu-Start#2026x"}' >/dev/null; code -b "$K" -H "$H" "$U?aktion=sitzung")"
 pruefe "Rollenwechsel nimmt Kostenstellen" "['xv10001']" "$(post "$L" benutzer-aendern '{"kennung":"xv10002","vorname":"Tom","nachname":"Becker","rolle":"kam","nummern":{"ks":["420"],"pn":[]}}' | py 'str([n["benutzer"] for n in d["daten"]["kostenstellen"] if n["nummer"]=="420"][0])')"
