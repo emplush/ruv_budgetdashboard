@@ -1,5 +1,12 @@
 # Änderungen
 
+## 0.6.0 (29.10.2026)
+- Texte in der ganzen App geprüft und gekürzt. Einheitlich „Unterkostenstelle“ statt „zugeordnete Kostenstelle“, „Verantwortlich“ statt „Zugewiesen“, „IST-Werte“ statt „IST-Daten“. Der Verwaltungsbereich heißt „KST-Berichte“.
+- Eine übergreifende Kostenstelle kann mehrere Unterkostenstellen haben; die Verwaltung zeigt sie als Liste, gesperrte Kostenstellen mit „Unterkostenstelle von …“.
+- „IST zum zeitanteiligen Plan“ (wie „IST / Plan ZZV“ der bisherigen Excel-Liste) steht jetzt sichtbar in Grün, Gelb oder Rot: im Plan bis 95 %, knapp bis 100 %, darüber über Plan. Die Spalte „Prognose“ heißt „zeitanteilig“.
+- Diagramm „Plan und IST nach Kostenarten“ im Abteilungsbudget: Plan, IST und Vorjahr im gleichen Zeitraum je Personalkosten AD, Personalkosten ID und Sachkosten.
+- IST-Positionen einer Kostenstelle mit Spalte „Vorjahr gesamt“, wenn der KST-Bericht das ganze Vorjahr enthält.
+
 ## 0.5.0 (29.10.2026)
 - Planbudget wie IST: Bei jeder Kostenstelle trägst Du das Gesamtplanbudget ein. Bei übergreifenden Kostenstellen enthält es die zugeordneten Kostenstellen, bei jeder Kostenstelle auch ihre Projektnummern. Das eigene Budget rechnet das Tool als Rest aus (Beispiel: 2.000.000 € gesamt, 1.500.000 € Unterkostenstelle, 200.000 € Projektnummer, 300.000 € eigenes Budget). Beim IST gilt dasselbe.
 - Karten der Kostenstellen und Projektnummern mit zwei getrennten Bereichen: links Planbudget, rechts IST. Oben steht der Status: Prognose, ausgegeben in Prozent und Restbudget. IST je Position mit Anteil vom Plan, über 100 % in Rot.

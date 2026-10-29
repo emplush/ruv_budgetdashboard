@@ -85,12 +85,12 @@ function pruefe(bedingung, text) {
   pruefe(await page.isVisible("th:has-text('Kostenstelle 411')") && await page.isVisible("th:has-text('Eigenes Budget')") && await page.isVisible("[data-kopieren]"), "Bericht der übergreifenden Kostenstelle");
   await bild("03b-bericht");
   await page.goto(url + "#/verwaltung/kostenstellen");
-  await page.waitForSelector("text=fasst 411, 412 zusammen");
+  await page.waitForSelector("td >> text=411, 412");
   await page.click("[data-bearbeiten='413']");
-  pruefe(await page.locator("dialog input[name=unter][value='411']").isDisabled() && await page.isVisible("dialog >> text=gehört zu 410"), "zugeordnete Kostenstellen sind gesperrt");
+  pruefe(await page.locator("dialog input[name=unter][value='411']").isDisabled() && await page.isVisible("dialog >> text=Unterkostenstelle von 410"), "Unterkostenstellen anderer Kostenstellen sind gesperrt");
   await page.click("dialog [data-schliessen]");
 
-  // IST-Daten importieren (Beispieldatei mit erfundenen Zahlen, Kostenstelle 413)
+  // KST-Bericht importieren (Beispieldatei mit erfundenen Zahlen, Kostenstelle 413)
   await page.goto(url + "#/verwaltung/ist");
   await page.waitForSelector("[data-import]");
   await page.selectOption("#i-ks", "411");
@@ -112,7 +112,7 @@ function pruefe(bedingung, text) {
   // Projektkosten manuell erfassen (Projektnummer 41000101 geht von Kostenstelle 410 ab)
   await page.goto(url + "#/projekt/41000101");
   await page.waitForSelector("[data-kosten-neu]");
-  pruefe(await page.isVisible("text=gehören zur Kostenstelle"), "Projektseite nennt die Kostenstelle");
+  pruefe(await page.isVisible("text=Gehört zur Kostenstelle"), "Projektseite nennt die Kostenstelle");
   const zeilenVorher = await page.locator("tr[data-kosten]").count();
   await page.click("[data-kosten-neu]");
   await page.fill("#k-betrag", "1.234,56");

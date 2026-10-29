@@ -493,3 +493,31 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
 .einzelbudgets tr.unter th { padding-left: 1.4rem; font-weight: 400; }
 .budget:focus { outline: none; }
 @media (max-width: 640px) { .einzelbudgets .spalte-wer { display: none; } }
+
+/* IST zum zeitanteiligen Plan */
+.zzv { font-weight: 700; font-variant-numeric: tabular-nums; }
+.zzv__text { font-weight: 400; font-size: .85em; }
+.zzv--gruen { color: var(--erfolg); }
+.zzv--gelb { color: var(--text); }
+.zzv--gelb::before { content: "●"; color: var(--akzent); margin-right: .3rem; }
+.zzv--rot { color: var(--fehler); }
+
+/* Diagramm Plan, IST, Vorjahr */
+:root { --balken-plan: var(--ruv-blue-4); --balken-ist: var(--ruv-orange-dark); --balken-vj: var(--ruv-grey-4); }
+:root[data-theme="dunkel"] { --balken-plan: var(--ruv-blue-2); --balken-ist: var(--ruv-orange-light); --balken-vj: var(--ruv-grey-3); }
+.diagramm { margin: 1.25rem 0 0; padding-top: 1.1rem; border-top: 1px solid var(--linie); }
+.diagramm figcaption { margin-bottom: .4rem; }
+.diagramm__legende { list-style: none; padding: 0; margin: 0 0 .8rem; display: flex; flex-wrap: wrap; gap: .25rem 1.1rem; font-size: .85rem; }
+.diagramm__legende li { display: flex; align-items: center; gap: .35rem; }
+.diagramm__punkt { width: .75rem; height: .75rem; border-radius: 2px; display: inline-block; }
+.diagramm__gruppen { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 1rem 2rem; }
+.diagramm__gruppe { display: grid; gap: 2px; align-content: start; }
+.diagramm__titel { font-weight: 700; font-size: .9rem; margin-bottom: .2rem; }
+.diagramm__zeile { display: flex; align-items: center; gap: .5rem; min-height: 1.3rem; }
+.diagramm__balken { display: block; height: .75rem; border-radius: 0 4px 4px 0; min-width: 2px; flex: none; }
+.diagramm__wert { font-size: .8rem; font-variant-numeric: tabular-nums; color: var(--text-2); white-space: nowrap; }
+.diagramm__balken--plan, .diagramm__punkt--plan { background: var(--balken-plan); }
+.diagramm__balken--ist, .diagramm__punkt--ist { background: var(--balken-ist); }
+.diagramm__balken--vj, .diagramm__punkt--vj { background: var(--balken-vj); }
+.diagramm__zeile { max-width: 100%; }
+.diagramm__zeile .diagramm__balken { max-width: calc(100% - 7.5rem); }

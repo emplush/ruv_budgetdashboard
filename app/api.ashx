@@ -108,7 +108,7 @@ public class BdErgebnis
 
 public static class BdKern
 {
-    public const string Version = "0.5.0";
+    public const string Version = "0.6.0";
     public const string CookieName = "budgetdashboard_sitzung";
     public const int MaxBytes = 2 * 1024 * 1024;
     private const int AnzahlSicherungen = 50;

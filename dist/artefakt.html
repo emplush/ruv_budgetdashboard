@@ -1246,6 +1246,34 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
 .budget:focus { outline: none; }
 @media (max-width: 640px) { .einzelbudgets .spalte-wer { display: none; } }
 
+/* IST zum zeitanteiligen Plan */
+.zzv { font-weight: 700; font-variant-numeric: tabular-nums; }
+.zzv__text { font-weight: 400; font-size: .85em; }
+.zzv--gruen { color: var(--erfolg); }
+.zzv--gelb { color: var(--text); }
+.zzv--gelb::before { content: "●"; color: var(--akzent); margin-right: .3rem; }
+.zzv--rot { color: var(--fehler); }
+
+/* Diagramm Plan, IST, Vorjahr */
+:root { --balken-plan: var(--ruv-blue-4); --balken-ist: var(--ruv-orange-dark); --balken-vj: var(--ruv-grey-4); }
+:root[data-theme="dunkel"] { --balken-plan: var(--ruv-blue-2); --balken-ist: var(--ruv-orange-light); --balken-vj: var(--ruv-grey-3); }
+.diagramm { margin: 1.25rem 0 0; padding-top: 1.1rem; border-top: 1px solid var(--linie); }
+.diagramm figcaption { margin-bottom: .4rem; }
+.diagramm__legende { list-style: none; padding: 0; margin: 0 0 .8rem; display: flex; flex-wrap: wrap; gap: .25rem 1.1rem; font-size: .85rem; }
+.diagramm__legende li { display: flex; align-items: center; gap: .35rem; }
+.diagramm__punkt { width: .75rem; height: .75rem; border-radius: 2px; display: inline-block; }
+.diagramm__gruppen { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 1rem 2rem; }
+.diagramm__gruppe { display: grid; gap: 2px; align-content: start; }
+.diagramm__titel { font-weight: 700; font-size: .9rem; margin-bottom: .2rem; }
+.diagramm__zeile { display: flex; align-items: center; gap: .5rem; min-height: 1.3rem; }
+.diagramm__balken { display: block; height: .75rem; border-radius: 0 4px 4px 0; min-width: 2px; flex: none; }
+.diagramm__wert { font-size: .8rem; font-variant-numeric: tabular-nums; color: var(--text-2); white-space: nowrap; }
+.diagramm__balken--plan, .diagramm__punkt--plan { background: var(--balken-plan); }
+.diagramm__balken--ist, .diagramm__punkt--ist { background: var(--balken-ist); }
+.diagramm__balken--vj, .diagramm__punkt--vj { background: var(--balken-vj); }
+.diagramm__zeile { max-width: 100%; }
+.diagramm__zeile .diagramm__balken { max-width: calc(100% - 7.5rem); }
+
 </style>
 <script>
 /* Design vor dem ersten Zeichnen setzen, damit nichts aufblitzt (eigene Datei wegen Content-Security-Policy).
@@ -2976,7 +3004,7 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
 (function () {
   "use strict";
 
-  var VERSION = "0.5.0";
+  var VERSION = "0.6.0";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -3169,7 +3197,7 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
     app.innerHTML =
       '<main class="anmeldung">' + markeAnfang() +
       '<div><p class="topline">Training und Entwicklung Vertrieb</p><h1>' + esc(titel) + "</h1>" +
-      "<p>Die Planbudgets Deiner Kostenstellen und Projekte auf einen Blick.</p></div>" +
+      "<p>Plan und IST Deiner Kostenstellen und Projektnummern auf einen Blick.</p></div>" +
       '<p class="klein">Version ' + VERSION + "</p></section>" +
       '<section class="anmeldung__form">' +
       '<button type="button" class="icon-btn ecke" data-design aria-label="Hell oder dunkel">' + icon("moon-star") + "</button>" +
@@ -3359,13 +3387,13 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
   function prozent(q, vz) { return esc(D.prozentText(q, vz)); }
 
   function istUeberschrift(ist) {
-    if (!ist.monat) return "IST " + zustand.jahr + " (erfasste Projektkosten)";
+    if (!ist.monat) return "IST " + zustand.jahr + " (erfasste Kosten)";
     return "IST " + zustand.jahr + (ist.bisMonat < 12 ? " bis " + D.monatName(ist.monat) : " gesamt");
   }
 
   function standHtml(ist) {
     return '<p class="stand">' + icon("calendar") + "<span>" + esc(D.standText(ist.stand, ist.monat)) +
-      (ist.unterschiedlich ? (ist.ohneEigenImport ? " (ältester Teil)" : ", zugeordnete mit anderem Stand") : "") + "</span></p>";
+      (ist.unterschiedlich ? (ist.ohneEigenImport ? " (ältester Teil)" : ", Unterkostenstellen mit anderem Stand") : "") + "</span></p>";
   }
 
   /* Balken: IST in Prozent vom Plan, Strich = verstrichener Anteil des Jahres */
@@ -3377,12 +3405,12 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
   }
 
   function ampelText(k) {
-    return { rot: "Hochrechnung über Plan", gelb: "Hochrechnung knapp am Plan", gruen: "im Plan" }[k.ampel] || "ohne Planbudget";
+    return { rot: "über Plan", gelb: "knapp", gruen: "im Plan" }[k.ampel] || "ohne Plan";
   }
 
   /* IST-Bereich einer Karte: Stand, Anteil vom Plan, wichtigste Werte und Positionen */
-  function istBereichHtml(art, plan, ist) {
-    var titel = art === "pn" ? "IST " + zustand.jahr + ": erfasste Projektkosten" : istUeberschrift(ist);
+  function istBereichHtml(art, plan, ist, vj) {
+    var titel = art === "pn" ? "IST " + zustand.jahr + " (erfasste Kosten)" : istUeberschrift(ist);
     if (!ist.vorhanden) {
       return "<h3>" + esc(art === "pn" ? "IST " + zustand.jahr : "IST " + zustand.jahr) + "</h3>" + '<p class="leer-hinweis">' +
         (art === "pn" ? "Für " + zustand.jahr + " sind noch keine Projektkosten erfasst."
@@ -3392,28 +3420,34 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
     return "<h3>" + esc(titel) + "</h3>" + standHtml(ist) +
       (plan.vorhanden
         ? '<p class="ist__quote"><strong>' + prozent(k.quote) + "</strong> vom Planbudget ausgegeben</p>" + fortschrittHtml(k) +
-          '<p class="fortschritt__legende leise klein">Der Strich zeigt den Anteil des Jahres, der bis zum Stand vergangen ist (' + Math.round(k.zeitanteil * 100) + " %).</p>"
+          '<p class="fortschritt__legende leise klein">Strich: ' + Math.round(k.zeitanteil * 100) + " % des Jahres sind gebucht.</p>"
         : '<p class="leise klein">Ohne Planbudget gibt es keinen Vergleich.</p>') +
       '<dl class="ist__werte">' +
       "<div><dt>IST</dt><dd>" + euro(k.ist) + "</dd></div>" +
       (plan.vorhanden ? "<div><dt>Restbudget</dt><dd" + (k.rest < 0 ? ' class="minus"' : "") + ">" + euro(k.rest) + "</dd></div>" : "") +
-      (plan.vorhanden && ist.bisMonat < 12 ? "<div><dt>Hochrechnung Jahresende</dt><dd>" + euro(k.hochrechnung) + ' <span class="leise">' + prozent(k.hochQuote) + "</span></dd></div>" : "") +
+      (plan.vorhanden && ist.bisMonat < 12 ? "<div><dt>Zum zeitanteiligen Plan</dt><dd>" + zzvHtml(k) + "</dd></div><div><dt>Hochrechnung Jahresende</dt><dd>" + euro(k.hochrechnung) + "</dd></div>" : "") +
       (k.vorjahr !== null ? "<div><dt>Vorjahr gleicher Zeitraum</dt><dd>" + euro(k.vorjahr) + ' <span class="leise">' + prozent(k.vorjahrQuote, true) + "</span></dd></div>" : "") +
       (art === "ks" && ist.projekte && ist.projekte.gesamt ? "<div><dt>davon Projektkosten</dt><dd>" + euro(ist.projekte.gesamt) + "</dd></div>" : "") +
-      "</dl>" + istPositionenHtml(plan, ist);
+      "</dl>" + istPositionenHtml(plan, ist, vj);
   }
 
-  /* IST je Position mit Anteil vom Plan; über 100 % rot */
-  function istPositionenHtml(plan, ist) {
+  /* IST je Position mit Anteil vom Plan (über 100 % rot), dazu das ganze Vorjahr, wenn es importiert ist */
+  function istPositionenHtml(plan, ist, vj) {
     function zeile(name, id, klasse) {
       var q = plan[id] > 0 ? ist[id] / plan[id] : null;
-      return "<tr" + (klasse ? ' class="' + klasse + '"' : "") + '><th scope="row">' + name + '</th><td class="zahl">' + euro(ist[id]) + "</td>" +
+      return "<tr" + (klasse ? ' class="' + klasse + '"' : "") + '><th scope="row">' + name + "</th>" + (vj ? '<td class="zahl leise">' + euro(vj[id]) + "</td>" : "") + '<td class="zahl">' + euro(ist[id]) + "</td>" +
         '<td class="zahl' + (q !== null && q > 1 ? " minus" : " leise") + '">' + prozent(q) + "</td></tr>";
     }
-    return '<table class="positionen positionen--ist"><thead><tr><th><span class="sr">Position</span></th><th class="zahl">IST</th><th class="zahl">vom Plan</th></tr></thead><tbody>' +
+    return '<table class="positionen positionen--ist"><thead><tr><th><span class="sr">Position</span></th>' + (vj ? '<th class="zahl" title="IST des ganzen Vorjahres">' + (zustand.jahr - 1) + " gesamt</th>" : "") + '<th class="zahl">IST</th><th class="zahl">vom Plan</th></tr></thead><tbody>' +
       zeile("Personalkosten ID", "pkId") + zeile("Personalkosten AD", "pkAd") + zeile("Sachkosten", "sachkosten", "positionen__bereich") +
       zeile("Werbung", "werbung", "positionen__unter") + zeile("Reise/KfZ", "reise", "positionen__unter") + zeile("Sonstiges", "sonstiges", "positionen__unter") +
-      '</tbody><tfoot><tr><th scope="row">IST gesamt</th><td class="zahl">' + euro(ist.gesamt) + '</td><td class="zahl">' + prozent(plan.gesamt > 0 ? ist.gesamt / plan.gesamt : null) + "</td></tr></tfoot></table>";
+      '</tbody><tfoot><tr><th scope="row">Gesamt</th>' + (vj ? '<td class="zahl leise">' + euro(vj.gesamt) + "</td>" : "") + '<td class="zahl">' + euro(ist.gesamt) + '</td><td class="zahl">' + prozent(plan.gesamt > 0 ? ist.gesamt / plan.gesamt : null) + "</td></tr></tfoot></table>";
+  }
+
+  /* IST des ganzen Vorjahres (Spalte „12 / Vorjahr“ der bisherigen Excel-Liste), nur wenn vollständig importiert */
+  function vorjahrGesamt(nummer) {
+    var v = D.gesamtIstVon(zustand.daten, zustand.jahr - 1, "ks", nummer).gesamt;
+    return v.vorhanden && v.bisMonat === 12 ? v : null;
   }
 
   /* Kleiner Balken für Tabellen */
@@ -3423,9 +3457,36 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
       (Math.max(0, Math.min(1, k.quote)) * 100).toFixed(1) + '%"></span><span class="fortschritt__zeit" style="left:' + (k.zeitanteil * 100).toFixed(1) + '%"></span></span><strong>' + prozent(k.quote) + "</strong></span>";
   }
 
+  /* IST zum zeitanteiligen Plan (wie „IST / Plan ZZV“ in der bisherigen Excel-Liste): IST / (Plan × gebuchte Monate / 12) */
+  function zzvAus(q) { return { hochQuote: q, ampel: q === null ? null : q > 1 ? "rot" : q > 0.95 ? "gelb" : "gruen" }; }
+
+  function zzvHtml(k) {
+    if (!k || k.hochQuote === null) return '<span class="leise">–</span>';
+    return '<span class="zzv zzv--' + k.ampel + '">' + prozent(k.hochQuote) + ' <span class="zzv__text">' + esc(ampelText(k)) + "</span></span>";
+  }
+
+  /* Balkendiagramm Plan, IST und Vorjahr je Kostenart; eine Skala, Werte direkt am Balken */
+  function diagrammHtml(plan, ist, vorjahr, hinweis) {
+    var reihen = [{ id: "plan", name: "Plan " + zustand.jahr, w: plan }, { id: "ist", name: ist.monat ? istUeberschrift(ist) : "IST " + zustand.jahr, w: ist }];
+    if (vorjahr) reihen.push({ id: "vj", name: "IST Vorjahr, gleicher Zeitraum", w: vorjahr });
+    var gruppen = [["pkAd", "Personalkosten AD"], ["pkId", "Personalkosten ID"], ["sachkosten", "Sachkosten"]];
+    var max = 0;
+    gruppen.forEach(function (g) { reihen.forEach(function (r) { max = Math.max(max, r.w[g[0]] || 0); }); });
+    if (!max) return "";
+    return '<figure class="diagramm"><figcaption><strong>Plan und IST nach Kostenarten</strong>' + (hinweis ? ' <span class="leise klein">' + esc(hinweis) + "</span>" : "") + "</figcaption>" +
+      '<ul class="diagramm__legende">' + reihen.map(function (r) { return '<li><span class="diagramm__punkt diagramm__punkt--' + r.id + '"></span>' + esc(r.name) + "</li>"; }).join("") + "</ul>" +
+      '<div class="diagramm__gruppen">' + gruppen.map(function (g) {
+        return '<div class="diagramm__gruppe"><span class="diagramm__titel">' + esc(g[1]) + "</span>" + reihen.map(function (r) {
+          var v = r.w[g[0]] || 0;
+          return '<div class="diagramm__zeile" title="' + esc(g[1] + " · " + r.name + ": " + D.betragText(v)) + '"><span class="diagramm__balken diagramm__balken--' + r.id + '" style="width:' + (v / max * 100).toFixed(2) + '%"></span>' +
+            '<span class="diagramm__wert">' + euro(v) + "</span></div>";
+        }).join("") + "</div>";
+      }).join("") + "</div></figure>";
+  }
+
   function ampelHtml(k) {
     if (!k || !k.ampel) return '<span class="leise">–</span>';
-    return '<span class="ampel ampel--' + k.ampel + '" title="Hochrechnung ' + esc(D.prozentText(k.hochQuote)) + ' vom Plan">' + esc(ampelText(k)) + "</span>";
+    return '<span class="ampel ampel--' + k.ampel + '" title="IST zum zeitanteiligen Plan">' + prozent(k.hochQuote) + " · " + esc(ampelText(k)) + "</span>";
   }
 
   /* Positionen mit Plan, IST und Prozent */
@@ -3450,7 +3511,7 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
     var pnKs = art === "pn" ? (D.findeNummer(daten, "pn", nummer) || {}).ks : "";
     var k = ist.vorhanden && w.vorhanden ? D.kennzahlen(w, ist) : null;
     var hinweis = oben ? "Gehört zur übergreifenden Kostenstelle " + oben + "."
-      : pnKs ? "Die Kosten sind im IST der Kostenstelle " + pnKs + " enthalten."
+      : pnKs ? "Gehört zur Kostenstelle " + pnKs + "."
       : g.uebergreifend ? "Fasst die Kostenstellen " + g.unter.map(function (u) { return u.nummer; }).join(", ") + " zusammen." : "";
     return '<article class="karte budget" id="' + esc("nr-" + art + "-" + nummer) + '" data-nummer="' + esc(art + "-" + nummer) + '">' +
       '<div class="budget__kopf"><div><p class="topline">' + (g.uebergreifend ? "Übergreifende Kostenstelle" : esc(D.ARTEN[art].name)) + "</p>" +
@@ -3459,10 +3520,10 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
       '<div class="budget__bereiche">' +
       '<section class="budget__bereich" aria-label="Planbudget"><h3>Planbudget ' + jahr + "</h3>" +
       (w.vorhanden
-        ? '<p class="budget__gesamt"><strong>' + euro(w.gesamt) + "</strong>" + (g.uebergreifend || g.projektNummern.length ? '<span class="leise klein">Gesamtbudget inklusive ' + (g.uebergreifend ? "zugeordneter Kostenstellen" + (g.projektNummern.length ? " und " : "") : "") + (g.projektNummern.length ? "Projektnummern" : "") + "</span>" : "") + "</p>" +
+        ? '<p class="budget__gesamt"><strong>' + euro(w.gesamt) + "</strong>" + (g.uebergreifend || g.projektNummern.length ? '<span class="leise klein">Gesamtbudget inklusive ' + (g.uebergreifend ? "Unterkostenstellen" + (g.projektNummern.length ? " und " : "") : "") + (g.projektNummern.length ? "Projektnummern" : "") + "</span>" : "") + "</p>" +
           anteilHtml(w) + positionenHtml(w) + (g.uebergreifend || g.projektNummern.length ? zusammensetzungHtml(g) : "")
         : '<p class="leer-hinweis">Für ' + jahr + " ist noch kein Planbudget eingetragen.</p>") + "</section>" +
-      '<section class="budget__bereich budget__bereich--ist" aria-label="IST">' + istBereichHtml(art, w, ist) + "</section></div>" +
+      '<section class="budget__bereich budget__bereich--ist" aria-label="IST">' + istBereichHtml(art, w, ist, art === "ks" ? vorjahrGesamt(nummer) : null) + "</section></div>" +
       (g.uebergreifend || art === "pn" ? '<p class="budget__link">' +
         (g.uebergreifend ? '<a class="btn btn--rahmen" href="#/bericht/' + esc(nummer) + '">' + icon("diagramBarchart") + " Bericht ansehen</a>" : "") +
         (art === "pn" ? '<a class="btn btn--rahmen" href="#/projekt/' + esc(nummer) + '">' + icon("money") + " Projektkosten ansehen</a>" : "") + "</p>" : "") +
@@ -3493,7 +3554,7 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
     }).join("");
     var sp = D.summe(plaene), si = D.summe(iste);
     return '<section class="karte bereich-tabelle blick"><h2>' + esc(D.ARTEN[art].mehrzahl) + " auf einen Blick</h2>" +
-      '<div class="tabelle-huelle"><table class="budgettabelle"><thead><tr><th>' + esc(D.ARTEN[art].name) + '</th><th class="zahl">Planbudget</th><th class="zahl">IST</th><th>ausgegeben</th><th class="zahl">Restbudget</th><th>Prognose</th></tr></thead>' +
+      '<div class="tabelle-huelle"><table class="budgettabelle"><thead><tr><th>' + esc(D.ARTEN[art].name) + '</th><th class="zahl">Planbudget</th><th class="zahl">IST</th><th>ausgegeben</th><th class="zahl">Restbudget</th><th title="IST zum zeitanteiligen Plan">zeitanteilig</th></tr></thead>' +
       "<tbody>" + zeilen + "</tbody>" +
       (plaene.length > 1 ? '<tfoot><tr><th scope="row">Gesamt</th><td class="zahl">' + euro(sp.gesamt) + '</td><td class="zahl">' + (iste.length ? euro(si.gesamt) : "–") + '</td><td colspan="3"></td></tr></tfoot>' : "") +
       "</table></div></section>";
@@ -3601,19 +3662,21 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
       var k = D.kennzahlen(a.planIst, w);
       ist = "<h3>" + esc(istUeberschrift(w)) + "</h3>" + standHtml(w) +
         '<p class="ist__quote"><strong>' + prozent(k.quote) + "</strong> vom Planbudget ausgegeben</p>" + fortschrittHtml(D.kennzahlen(a.planIst, w)) +
-        '<p class="fortschritt__legende leise klein">Der Strich zeigt den Anteil des Jahres, der bis zum Stand vergangen ist (' + Math.round(k.zeitanteil * 100) + " %).</p>" +
+        '<p class="fortschritt__legende leise klein">Strich: ' + Math.round(k.zeitanteil * 100) + " % des Jahres sind gebucht.</p>" +
         '<dl class="ist__werte"><div><dt>IST</dt><dd>' + euro(w.gesamt) + "</dd></div>" +
         "<div><dt>Restbudget</dt><dd" + (k.rest < 0 ? ' class="minus"' : "") + ">" + euro(k.rest) + "</dd></div>" +
-        "<div><dt>Hochrechnung Jahresende</dt><dd>" + euro(a.hoch) + ' <span class="leise">' + prozent(a.planIst.gesamt > 0 ? a.hoch / a.planIst.gesamt : null) + "</span></dd></div>" +
+        "<div><dt>Zum zeitanteiligen Plan</dt><dd>" + zzvHtml(zzvAus(a.planIst.gesamt > 0 ? a.hoch / a.planIst.gesamt : null)) + "</dd></div>" +
+        "<div><dt>Hochrechnung Jahresende</dt><dd>" + euro(a.hoch) + "</dd></div>" +
         (a.vorjahr !== null ? "<div><dt>Vorjahr gleicher Zeitraum</dt><dd>" + euro(a.vorjahr) + ' <span class="leise">' + prozent(a.vorjahr ? (w.gesamt - a.vorjahr) / a.vorjahr : null, true) + "</span></dd></div>" : "") + "</dl>" +
         (a.ohneIst.length ? '<p class="hinweis-box klein">Noch ohne IST-Werte: Kostenstelle ' + esc(a.ohneIst.join(", ")) + ". Prozent und Restbudget beziehen sich nur auf die Kostenstellen mit IST-Werten. " +
           '<a href="#/verwaltung/ist">KST-Bericht importieren</a></p>' : "");
     }
     return '<section class="karte budget budget--abteilung"><div class="budget__kopf"><div><p class="topline">Abteilung gesamt</p><h2 class="budget__nummer">Abteilungsbudget ' + jahr + "</h2></div></div>" +
-      '<div class="budget__bereiche">' + plan + '<section class="budget__bereich budget__bereich--ist" aria-label="IST der Abteilung">' + ist + "</section></div></section>";
+      '<div class="budget__bereiche">' + plan + '<section class="budget__bereich budget__bereich--ist" aria-label="IST der Abteilung">' + ist + "</section></div>" +
+      (a.iste.length ? diagrammHtml(a.planIst, a.ist, a.vorjahr !== null ? D.summe(a.vergleiche) : null, "Kostenstellen mit IST-Werten") : "") + "</section>";
   }
 
-  /* Einzelbudgets: jede Kostenstelle mit Plan, IST, Anteil und Prognose; übergreifende mit Gesamtzeile */
+  /* Einzelbudgets: jede Kostenstelle mit Plan, IST, Anteil und zeitanteiligem Plan; übergreifende mit Gesamtzeile */
   function einzelbudgetsHtml() {
     var daten = zustand.daten, jahr = zustand.jahr;
     function zeile(klasse, kopf, wer, w, ist, extra) {
@@ -3640,11 +3703,11 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
     }).join("");
     function tabelle(titel, spalte, zeilen, leer, text) {
       return '<section class="karte bereich-tabelle"><div class="bereich-tabelle__kopf"><h2>' + titel + "</h2></div>" + (text ? '<p class="leise klein">' + text + "</p>" : "") +
-        (zeilen ? '<div class="tabelle-huelle"><table class="budgettabelle einzelbudgets"><thead><tr><th>' + spalte + '</th><th class="spalte-wer">Verantwortlich</th><th class="zahl">Planbudget</th><th class="zahl">IST</th><th>ausgegeben</th><th class="zahl">Restbudget</th><th>Prognose</th><th><span class="sr">Bericht</span></th></tr></thead><tbody>' +
+        (zeilen ? '<div class="tabelle-huelle"><table class="budgettabelle einzelbudgets"><thead><tr><th>' + spalte + '</th><th class="spalte-wer">Verantwortlich</th><th class="zahl">Planbudget</th><th class="zahl">IST</th><th>ausgegeben</th><th class="zahl">Restbudget</th><th title="IST zum zeitanteiligen Plan">zeitanteilig</th><th><span class="sr">Bericht</span></th></tr></thead><tbody>' +
           zeilen + "</tbody></table></div>" : '<p class="leer-hinweis">' + leer + "</p>") + "</section>";
     }
     return tabelle("Einzelbudgets der Kostenstellen " + jahr, "Kostenstelle", ks, "Noch keine Kostenstellen angelegt.",
-        "Übergreifende Kostenstellen stehen mit ihren zugeordneten zusammen. Die Prognose vergleicht die Hochrechnung zum Jahresende mit dem Plan: im Plan bis 95 %, knapp bis 100 %, darüber über Plan.") +
+        "Übergreifende Kostenstellen stehen über ihren Unterkostenstellen. „Zeitanteilig“ vergleicht das IST mit dem Plan bis zum gebuchten Monat: im Plan bis 95 %, knapp bis 100 %, darüber über Plan.") +
       tabelle("Projektnummern " + jahr, "Projektnummer", pn, "Noch keine Projektnummern angelegt.", "Planbudget und Kosten einer Projektnummer sind Teil ihrer Kostenstelle. IST sind die erfassten Projektkosten; im KST-Bericht der Kostenstelle sind sie schon enthalten.");
   }
 
@@ -3703,7 +3766,7 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
       kennzahl("IST " + zustand.jahr, euro(a.ist.gesamt), esc(D.standText(a.stand, a.monat)) + (a.unterschiedlich ? " (ältester Stand)" : "")) +
       kennzahl("IST in % vom Plan", prozent(q), a.ohneIst.length ? "ohne Kostenstelle " + esc(a.ohneIst.join(", ")) : "alle Kostenstellen") +
       kennzahl("Restbudget", euro(a.planIst.gesamt - a.ist.gesamt), "Plan " + euro(a.planIst.gesamt)) +
-      kennzahl("Hochrechnung Jahresende", euro(a.hoch), prozent(a.planIst.gesamt > 0 ? a.hoch / a.planIst.gesamt : null) + " vom Plan") + "</div>";
+      kennzahl("Zum zeitanteiligen Plan", zzvHtml(zzvAus(a.planIst.gesamt > 0 ? a.hoch / a.planIst.gesamt : null)), "Hochrechnung Jahresende " + euro(a.hoch)) + "</div>";
   }
 
   function istTabelleHtml(art) {
@@ -3717,27 +3780,27 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
       else { plan = D.budgetVon(daten, jahr, "ks", nr); ist = D.istVon(daten, jahr, nr); }
       var kopf = r.art === "teilsumme" ? '<th scope="row">Gesamt übergreifende Kostenstelle ' + esc(nr) + "</th>"
         : '<th scope="row"><strong>' + (art === "pn" ? '<a href="#/projekt/' + esc(nr) + '">' + esc(nr) + "</a>" : esc(nr)) + "</strong>" +
-          (r.art === "oben" ? ' <span class="leise klein">eigenes Budget, IST ohne zugeordnete</span>' : "") + (art === "pn" && r.n.ks ? '<br><span class="leise klein">gehört zu ' + esc(r.n.ks) + "</span>" : "") + "</th>";
+          (r.art === "oben" ? ' <span class="leise klein">eigenes Budget</span>' : "") + (art === "pn" && r.n.ks ? '<br><span class="leise klein">Kostenstelle ' + esc(r.n.ks) + "</span>" : "") + "</th>";
       var klasse = r.art === "teilsumme" ? "teilsumme" : r.art === "unter" ? "unter" : "";
-      if (!ist.vorhanden) return "<tr" + (klasse ? ' class="' + klasse + ' ohne"' : ' class="ohne"') + ">" + kopf + '<td colspan="8" class="leise klein">' + (art === "pn" ? "noch keine Kosten erfasst" : "keine IST-Daten") + "</td></tr>";
+      if (!ist.vorhanden) return "<tr" + (klasse ? ' class="' + klasse + ' ohne"' : ' class="ohne"') + ">" + kopf + '<td colspan="8" class="leise klein">' + (art === "pn" ? "noch keine Kosten erfasst" : "keine IST-Werte") + "</td></tr>";
       var k = D.kennzahlen(plan, ist);
       return "<tr" + (klasse ? ' class="' + klasse + '"' : "") + ">" + kopf +
         '<td class="klein">' + esc(D.standText(ist.stand, ist.monat).replace("Stand ", "")) + "</td>" +
         '<td class="zahl">' + euro(k.plan) + '</td><td class="zahl">' + euro(k.ist) + '</td><td class="zahl summe"><strong>' + prozent(k.quote) + "</strong></td>" +
         '<td class="zahl' + (k.rest < 0 ? " minus" : "") + '">' + euro(k.rest) + '</td><td class="zahl">' + euro(k.hochrechnung) + "</td>" +
         '<td class="zahl">' + (k.vorjahrQuote === null ? "–" : prozent(k.vorjahrQuote, true)) + "</td>" +
-        '<td><span class="ampel ampel--' + (k.ampel || "leer") + '" title="' + esc(ampelText(k)) + '">' + esc(prozent(k.hochQuote)) + "</span></td></tr>";
+        '<td>' + ampelHtml(k) + "</td></tr>";
     }).join("");
     if (art === "pn") return '<section class="karte bereich-tabelle"><div class="bereich-tabelle__kopf"><h2>Projektnummern: IST gegen Plan ' + jahr + "</h2></div>" +
-      '<p class="leise klein">Das IST der Projektnummern sind die manuell erfassten Projektkosten. Sie sind im IST der zugeordneten Kostenstelle aus dem KST-Bericht schon enthalten und stehen hier einzeln.</p>' +
+      '<p class="leise klein">IST sind die erfassten Projektkosten. Sie stecken schon im KST-Bericht der Kostenstelle.</p>' +
       (zeilen ? '<div class="tabelle-huelle"><table class="budgettabelle"><thead><tr><th>Projektnummer</th><th>Stand</th><th class="zahl">Plan</th><th class="zahl">IST</th><th class="zahl">IST in %</th>' +
-        '<th class="zahl">Restbudget</th><th class="zahl">Hochrechnung</th><th class="zahl">zum Vorjahr</th><th>Ampel</th></tr></thead><tbody>' + zeilen + "</tbody></table></div>"
+        '<th class="zahl">Restbudget</th><th class="zahl">Hochrechnung</th><th class="zahl">zum Vorjahr</th><th>zeitanteilig</th></tr></thead><tbody>' + zeilen + "</tbody></table></div>"
         : '<p class="leer-hinweis">Noch keine Projektnummern angelegt.</p>') + "</section>";
     return '<section class="karte bereich-tabelle"><div class="bereich-tabelle__kopf"><h2>Kostenstellen: IST gegen Plan ' + jahr + "</h2>" +
-      (D.Rechte.budgets(zustand.benutzer) ? '<a class="leise klein" href="#/verwaltung/ist">IST-Daten importieren</a>' : "") + "</div>" +
-      '<p class="leise klein">IST-Daten gibt es je Kostenstelle aus dem KST-Bericht. Er enthält schon die Kosten ihrer Projektnummern, bei übergreifenden Kostenstellen auch die der zugeordneten. Die Zeile mit dem eigenen Budget zeigt, was nach Abzug der zugeordneten Kostenstellen auf der übergreifenden selbst liegt. Die Hochrechnung schreibt das IST bis zum gebuchten Monat gleichmäßig aufs Jahr fort. Die Ampel zeigt die Hochrechnung in % vom Plan: grün bis 95 %, gelb bis 100 %, rot darüber.</p>' +
+      (D.Rechte.budgets(zustand.benutzer) ? '<a class="leise klein" href="#/verwaltung/ist">IST-Werte importieren</a>' : "") + "</div>" +
+      '<p class="leise klein">Die IST-Werte kommen aus dem KST-Bericht je Kostenstelle. „Zeitanteilig“ vergleicht das IST mit dem Plan bis zum gebuchten Monat: im Plan bis 95 %, knapp bis 100 %, darüber über Plan. Die Hochrechnung schreibt das IST gleichmäßig bis Dezember fort.</p>' +
       (zeilen ? '<div class="tabelle-huelle"><table class="budgettabelle"><thead><tr><th>Kostenstelle</th><th>Stand · gebucht bis</th><th class="zahl">Plan</th><th class="zahl">IST</th><th class="zahl">IST in %</th>' +
-        '<th class="zahl">Restbudget</th><th class="zahl">Hochrechnung</th><th class="zahl">zum Vorjahr</th><th>Ampel</th></tr></thead><tbody>' + zeilen + "</tbody></table></div>"
+        '<th class="zahl">Restbudget</th><th class="zahl">Hochrechnung</th><th class="zahl">zum Vorjahr</th><th>zeitanteilig</th></tr></thead><tbody>' + zeilen + "</tbody></table></div>"
         : '<p class="leer-hinweis">Noch keine Kostenstellen angelegt.</p>') + "</section>";
   }
 
@@ -3750,7 +3813,7 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
       if (r.art === "teilsumme") {
         var gb = D.gesamtBudgetVon(zustand.daten, zustand.jahr, "ks", n.nummer), g = gb.eigen;
         if (!gb.eingetragen.vorhanden) return '<tr class="teilsumme ohne"><th scope="row" colspan="2">davon eigenes Budget ' + esc(n.nummer) + '</th><td colspan="7" class="leise klein">Trage oben das Gesamtplanbudget von ' + esc(n.nummer) + " ein, dann rechnet das Tool den Rest aus.</td><td></td></tr>";
-        return '<tr class="teilsumme' + (g.gesamt < 0 ? " fehlerzeile" : "") + '"><th scope="row" colspan="2">davon eigenes Budget ' + esc(n.nummer) + ' <span class="leise klein">Rest nach Abzug der zugeordneten und der Projektnummern</span></th>' +
+        return '<tr class="teilsumme' + (g.gesamt < 0 ? " fehlerzeile" : "") + '"><th scope="row" colspan="2">davon eigenes Budget ' + esc(n.nummer) + ' <span class="leise klein">ohne Unterkostenstellen und Projektnummern</span></th>' +
           D.POSITIONEN.map(function (p) { return '<td class="zahl' + (g[p.id] < 0 ? " minus" : "") + '">' + euro(g[p.id]) + "</td>"; }).join("") +
           '<td class="zahl summe">' + euro(g.sachkosten) + '</td><td class="zahl summe' + (g.gesamt < 0 ? " minus" : "") + '"><strong>' + euro(g.gesamt) + "</strong></td>" +
           '<td><a class="icon-btn" href="#/bericht/' + esc(n.nummer) + '" aria-label="Bericht übergreifende Kostenstelle ' + esc(n.nummer) + '" title="Bericht ansehen">' + icon("diagramBarchart") + "</a></td></tr>";
@@ -3759,7 +3822,7 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
       var namen = namenVon(n.benutzer);
       var klassen = [w.vorhanden ? "" : "ohne", r.art === "unter" ? "unter" : ""].filter(Boolean).join(" ");
       return "<tr" + (klassen ? ' class="' + klassen + '"' : "") + '><th scope="row"><strong>' + esc(n.nummer) + "</strong>" +
-        (r.art === "oben" ? ' <span class="chip chip--akzent" title="Fasst Kostenstellen zusammen">übergreifend</span><br><span class="leise klein">Gesamtbudget inklusive zugeordneter</span>' : "") + "</th>" +
+        (r.art === "oben" ? ' <span class="chip chip--akzent" title="Fasst Kostenstellen zusammen">übergreifend</span><br><span class="leise klein">Gesamtbudget</span>' : "") + "</th>" +
         '<td class="klein">' + (namen.length ? esc(namen.join(", ")) : '<span class="leise">niemand</span>') + "</td>" +
         D.POSITIONEN.map(function (p) { return '<td class="zahl">' + (w.vorhanden ? euro(w[p.id]) : "–") + "</td>"; }).join("") +
         '<td class="zahl summe">' + (w.vorhanden ? euro(w.sachkosten) : "–") + '</td><td class="zahl summe"><strong>' + (w.vorhanden ? euro(w.gesamt) : "–") + "</strong></td>" +
@@ -3770,10 +3833,10 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
     var s = art === "ks" ? D.abteilungsPlan(zustand.daten, zustand.jahr).kostenstellen : D.summe(l.map(function (n) { return D.budgetVon(zustand.daten, zustand.jahr, "pn", n.nummer); }));
     return '<section class="karte bereich-tabelle"><div class="bereich-tabelle__kopf"><h2>' + esc(a.mehrzahl) + "</h2>" +
       '<a class="leise klein" href="#/verwaltung/' + (art === "ks" ? "kostenstellen" : "projekte") + '">' + esc(a.mehrzahl) + " verwalten</a></div>" +
-      (l.length ? '<div class="tabelle-huelle"><table class="budgettabelle"><thead><tr><th>' + esc(a.name) + "</th><th>Zugewiesen</th>" +
+      (l.length ? '<div class="tabelle-huelle"><table class="budgettabelle"><thead><tr><th>' + esc(a.name) + "</th><th>Verantwortlich</th>" +
         D.POSITIONEN.map(function (p) { return '<th class="zahl">' + esc(p.name) + "</th>"; }).join("") +
         '<th class="zahl">Sachkosten</th><th class="zahl">Gesamt</th><th><span class="sr">Aktion</span></th></tr></thead><tbody>' + zeilen + "</tbody>" +
-        '<tfoot><tr><th scope="row" colspan="2">Summe ' + esc(a.mehrzahl) + (art === "ks" ? ' <span class="leise klein">zugeordnete nur einmal gezählt</span>' : "") + "</th>" +
+        '<tfoot><tr><th scope="row" colspan="2">Summe ' + esc(a.mehrzahl) + (art === "ks" ? ' <span class="leise klein">Unterkostenstellen nur einmal</span>' : "") + "</th>" +
         D.POSITIONEN.map(function (p) { return '<td class="zahl">' + euro(s[p.id]) + "</td>"; }).join("") +
         '<td class="zahl">' + euro(s.sachkosten) + '</td><td class="zahl"><strong>' + euro(s.gesamt) + "</strong></td><td></td></tr></tfoot></table></div>"
         : '<p class="leer-hinweis">Noch keine ' + esc(a.mehrzahl) + ' angelegt. <a href="#/verwaltung/' + (art === "ks" ? "kostenstellen" : "projekte") + '">Jetzt anlegen</a></p>') +
@@ -3787,7 +3850,7 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
       return ks ? '<p class="hinweis-box klein">Dieses Planbudget ist Teil des Gesamtbudgets der Kostenstelle ' + esc(ks) + ".</p>" : "";
     }
     var g = D.gesamtBudgetVon(zustand.daten, jahr, "ks", nummer), teile = [];
-    if (g.unter.length) teile.push("die zugeordneten Kostenstellen " + g.unter.map(function (u) { return u.nummer; }).join(", "));
+    if (g.unter.length) teile.push("die Unterkostenstellen " + g.unter.map(function (u) { return u.nummer; }).join(", "));
     if (g.projektNummern.length) teile.push("die Projektnummern " + g.projektNummern.join(", "));
     if (!teile.length) return "";
     var abzug = g.unter.reduce(function (x, u) { return x + u.budget.gesamt; }, 0) + g.projekte.gesamt;
@@ -3860,13 +3923,13 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
   /* Hinweise für den Abgleich: fehlende KST-Berichte, unterschiedliche Stände, Rest unter 0 */
   function berichtHinweise(nummer, gi, g) {
     var h = [];
-    if (g.gesamt.ohneEigenenEintrag && g.gesamt.vorhanden) h.push("Für " + nummer + " ist noch kein Gesamtplanbudget eingetragen. „Gesamt“ im Planbudget ist deshalb nur die Summe der zugeordneten Kostenstellen.");
-    if (g.gesamt.widerspruch) h.push("Die zugeordneten Kostenstellen haben zusammen ein höheres Planbudget als das Gesamtplanbudget von " + nummer + ". Bitte prüfe die Planbudgets.");
-    if (gi.gesamt.ohneEigenImport && gi.gesamt.vorhanden) h.push("Der KST-Bericht der Kostenstelle " + nummer + " fehlt noch. „Gesamt“ ist deshalb nur die Summe der zugeordneten Kostenstellen.");
+    if (g.gesamt.ohneEigenenEintrag && g.gesamt.vorhanden) h.push("Für " + nummer + " fehlt noch das Gesamtplanbudget. „Gesamt“ zeigt deshalb nur die Summe der Unterkostenstellen.");
+    if (g.gesamt.widerspruch) h.push("Die Unterkostenstellen und Projektnummern haben zusammen mehr Planbudget als " + nummer + " insgesamt. Bitte prüfe die Planbudgets.");
+    if (gi.gesamt.ohneEigenImport && gi.gesamt.vorhanden) h.push("Der KST-Bericht von " + nummer + " fehlt noch. „Gesamt“ zeigt deshalb nur die Summe der Unterkostenstellen.");
     var ohne = gi.unter.filter(function (u) { return !u.ist.vorhanden; }).map(function (u) { return u.nummer; });
-    if (ohne.length && !gi.gesamt.ohneEigenImport) h.push("Für " + ohne.join(", ") + " gibt es noch keine IST-Daten. Ihre Kosten stecken deshalb noch im eigenen Rest von " + nummer + ".");
+    if (ohne.length && !gi.gesamt.ohneEigenImport) h.push("Für " + ohne.join(", ") + " gibt es noch keine IST-Werte. Ihre Kosten stecken deshalb noch im eigenen Rest von " + nummer + ".");
     if (gi.gesamt.unterschiedlich) h.push("Die KST-Berichte haben unterschiedliche Stände. Für einen genauen Abgleich importiere sie bitte zum gleichen Monat.");
-    if (gi.gesamt.widerspruch) h.push("Die zugeordneten Kostenstellen haben zusammen mehr IST als der KST-Bericht von " + nummer + ". Bitte prüfe die Stände der Berichte.");
+    if (gi.gesamt.widerspruch) h.push("Die Unterkostenstellen haben zusammen mehr IST als der KST-Bericht von " + nummer + ". Bitte prüfe die Stände der Berichte.");
     return h.length ? '<ul class="warnungen">' + h.map(function (t) { return "<li>" + icon("warning") + "<span>" + esc(t) + "</span></li>"; }).join("") + "</ul>" : "";
   }
 
@@ -3901,7 +3964,7 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
       { name: "IST in % vom Plan", klasse: "teilsumme", wert: function (k) { return "<strong>" + prozent(k.quote) + "</strong>"; }, roh: function (k) { return k.quote; }, prozent: true },
       { name: "Restbudget", wert: function (k) { return euro(k.rest); }, roh: function (k) { return k.rest; } },
       { name: "Hochrechnung Jahresende", wert: function (k) { return euro(k.hochrechnung); }, roh: function (k) { return k.hochrechnung; } },
-      { name: "Hochrechnung in % vom Plan", wert: function (k) { return prozent(k.hochQuote); }, roh: function (k) { return k.hochQuote; }, prozent: true },
+      { name: "IST zum zeitanteiligen Plan", wert: function (k) { return prozent(k.hochQuote); }, roh: function (k) { return k.hochQuote; }, prozent: true },
       { name: "Vorjahr gleicher Zeitraum", wert: function (k) { return k.vorjahr === null ? "–" : euro(k.vorjahr); }, roh: function (k) { return k.vorjahr; } },
       { name: "Veränderung zum Vorjahr", wert: function (k) { return k.vorjahrQuote === null ? "–" : prozent(k.vorjahrQuote, true); }, roh: function (k) { return k.vorjahrQuote; }, prozent: true }
     ];
@@ -3909,27 +3972,26 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
     var kg = mitIst ? D.kennzahlen(g.gesamt, gi.gesamt) : null;
     var html = '<div class="seite__kopf"><div><p class="topline">Bericht übergreifende Kostenstelle</p><h1>Kostenstelle ' + esc(nummer) + " · " + jahr + "</h1></div>" + jahrwahlHtml() + "</div>" +
       '<div class="kennzahlen">' +
-      kennzahl("Planbudget gesamt", euro(g.gesamt.gesamt), "inklusive " + g.unter.length + " zugeordneter Kostenstellen") +
+      kennzahl("Planbudget gesamt", euro(g.gesamt.gesamt), "inklusive " + g.unter.length + " Unterkostenstellen") +
       (kg ? kennzahl(istUeberschrift(gi.gesamt), euro(kg.ist), esc(D.standText(gi.gesamt.stand, gi.gesamt.monat))) +
         kennzahl("IST in % vom Plan", prozent(kg.quote), "Restbudget " + euro(kg.rest)) +
-        kennzahl("Hochrechnung Jahresende", euro(kg.hochrechnung), prozent(kg.hochQuote) + " vom Plan")
+        kennzahl("Zum zeitanteiligen Plan", zzvHtml(kg), "Hochrechnung Jahresende " + euro(kg.hochrechnung))
         : kennzahl("Eigenes Budget", euro(g.eigen.gesamt), "Kostenstelle " + esc(nummer)) +
         kennzahl("Zugeordnete Kostenstellen", euro(D.summe(g.unter.map(function (u) { return u.budget; })).gesamt), esc(g.unter.map(function (u) { return u.nummer; }).join(", "))) +
-        kennzahl("IST-Daten", "–", "noch nicht importiert")) + "</div>" +
+        kennzahl("IST-Werte", "–", "noch nicht importiert")) + "</div>" +
       '<section class="karte bereich-tabelle"><div class="bereich-tabelle__kopf"><h2>Bericht ' + jahr + "</h2>" +
       '<button type="button" class="btn btn--rahmen" data-kopieren>' + icon("copy") + " Bericht kopieren</button></div>" +
       '<p class="leise klein">Mit „Bericht kopieren“ fügst Du alle Tabellen direkt in Excel ein und kannst sie dort mit Deinen KST-Berichten abgleichen. ' +
-      "„IST gesamt“ in der Spalte Gesamt entspricht den Primärkosten I im KST-Bericht der Kostenstelle " + esc(nummer) + ". Er enthält die zugeordneten Kostenstellen und alle Projektkosten. " +
-      "In der Spalte „Eigenes Budget“ steht, was nach Abzug der zugeordneten Kostenstellen und der Projektnummern auf " + esc(nummer) + " selbst liegt.</p>" + berichtHinweise(nummer, gi, g) +
+      "„IST gesamt“ in der Spalte Gesamt entspricht den Primärkosten I im KST-Bericht von " + esc(nummer) + ". „Eigenes Budget“ ist, was ohne Unterkostenstellen und Projektnummern auf " + esc(nummer) + " selbst liegt.</p>" + berichtHinweise(nummer, gi, g) +
       "<h3>Planbudget nach Positionen</h3>" + tabelle("Planbudget nach Positionen", positionen("w", "Planbudget gesamt"), "Position") +
       (mitIst
         ? "<h3>" + esc(istUeberschrift(gi.gesamt)) + " nach Positionen</h3>" +
-          tabelle("IST nach Positionen", zeile("Stand", "standzeile", function (sp) { return sp.i.vorhanden ? esc(D.standText(sp.i.stand, sp.i.monat).replace("Stand ", "")) : '<span class="leise">keine IST-Daten</span>'; }) +
+          tabelle("IST nach Positionen", zeile("Stand", "standzeile", function (sp) { return sp.i.vorhanden ? esc(D.standText(sp.i.stand, sp.i.monat).replace("Stand ", "")) : '<span class="leise">keine IST-Werte</span>'; }) +
             positionen("i", "IST gesamt") + zeile("davon Projektkosten", "standzeile", function (sp) { return sp.i.vorhanden && sp.i.projekte ? euro(sp.i.projekte.gesamt || 0) : '<span class="leise">–</span>'; }), "Position") +
           "<h3>Plan gegen IST</h3>" + tabelle("Plan gegen IST", VERGLEICH.map(function (v) {
             return zeile(v.name, v.klasse || "", function (sp) { var k = kz(sp); return k ? v.wert(k) : '<span class="leise">–</span>'; });
           }).join(""), "Kennzahl")
-        : '<p class="leer-hinweis">Für ' + jahr + " gibt es noch keine IST-Daten zu dieser Kostenstelle und den zugeordneten.</p>") +
+        : '<p class="leer-hinweis">Für ' + jahr + " gibt es noch keine IST-Werte für diese Kostenstelle und ihre Unterkostenstellen.</p>") +
       "</section>";
     seite("bericht", "Bericht " + nummer, html, true);
     verbindeJahrwahl();
@@ -3958,7 +4020,7 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
       { id: "benutzer", name: "Benutzer", icon: "peopleTwo" },
       { id: "kostenstellen", name: "Kostenstellen", icon: "folderOpen" },
       { id: "projekte", name: "Projektnummern", icon: "briefcase" },
-      { id: "ist", name: "IST-Daten", icon: "documentXls" }
+      { id: "ist", name: "KST-Berichte", icon: "documentXls" }
     ];
     if (D.Rechte.einstellungen(b)) r.push({ id: "einstellungen", name: "Einstellungen", icon: "settings" });
     return r;
@@ -4122,7 +4184,7 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
     var jahr = new Date().getFullYear();
     ziel.innerHTML = '<div class="karte"><p class="leise klein">' + esc(a.mehrzahl) + " haben genau " + a.stellen + " Ziffern. Zuweisen kannst Du sie " +
       (art === "ks" ? "Gruppenleitungen und Abteilungsleitungen" : "Key Account Managern") + ", gern auch mehreren Personen.</p>" +
-      (l.length ? '<div class="tabelle-huelle"><table><thead><tr><th>' + esc(a.name) + "</th><th>Zugewiesen</th>" + (art === "ks" ? "<th>Übergreifend</th>" : "<th>Kostenstelle</th>") +
+      (l.length ? '<div class="tabelle-huelle"><table><thead><tr><th>' + esc(a.name) + "</th><th>Verantwortlich</th>" + (art === "ks" ? "<th>Unterkostenstellen</th>" : "<th>Kostenstelle</th>") +
         (D.Rechte.budgets(ich) ? '<th class="zahl">Planbudget ' + jahr + "</th>" : "") + '<th><span class="sr">Aktionen</span></th></tr></thead><tbody>' +
         l.map(function (n) {
           var namen = namenVon(n.benutzer);
@@ -4141,7 +4203,7 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
     ziel.querySelectorAll("[data-loeschen]").forEach(function (k) {
       k.addEventListener("click", function () {
         var nr = k.getAttribute("data-loeschen");
-        bestaetige(a.name + " löschen", "Möchtest Du die " + a.name + " " + nr + " löschen? Alle Planbudgets dieser " + a.name + " in allen Kalenderjahren gehen dabei verloren" + (art === "pn" ? ", ebenso die erfassten Projektkosten." : ", ebenso ihre IST-Daten.") , a.name + " löschen")
+        bestaetige(a.name + " löschen", "Möchtest Du die " + a.name + " " + nr + " löschen? Alle Planbudgets dieser " + a.name + " in allen Kalenderjahren gehen dabei verloren" + (art === "pn" ? ", ebenso die erfassten Projektkosten." : ", ebenso ihre IST-Werte.") , a.name + " löschen")
           .then(function (ja) { if (ja) Dienst.nummerLoeschen(daten, ich, art, nr).then(nachAenderung("Die " + a.name + " " + nr + " ist gelöscht."), serverFehler); });
       });
     });
@@ -4149,8 +4211,8 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
 
   function uebergreifendText(daten, n) {
     var oben = D.uebergeordnete(daten, n.nummer);
-    if ((n.unter || []).length) return '<span class="klein">fasst ' + esc(n.unter.join(", ")) + " zusammen</span>";
-    if (oben) return '<span class="klein">gehört zu ' + esc(oben) + "</span>";
+    if ((n.unter || []).length) return '<span class="klein">' + esc(n.unter.join(", ")) + "</span>";
+    if (oben) return '<span class="klein leise">Unterkostenstelle von ' + esc(oben) + "</span>";
     return '<span class="leise">–</span>';
   }
 
@@ -4159,13 +4221,13 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
     var selbst = eintrag ? eintrag.nummer : "";
     var oben = selbst ? D.uebergeordnete(daten, selbst) : "";
     var kopf = '<fieldset class="zuweisung" data-unter><legend>Übergreifende Kostenstelle</legend>';
-    if (oben) return kopf + '<p class="leise klein">Diese Kostenstelle gehört zur übergreifenden Kostenstelle ' + esc(oben) + " und kann deshalb keine weiteren zusammenfassen.</p></fieldset>";
+    if (oben) return kopf + '<p class="leise klein">Diese Kostenstelle ist Unterkostenstelle von ' + esc(oben) + " und kann selbst keine Unterkostenstellen haben.</p></fieldset>";
     var andere = daten.kostenstellen.filter(function (n) { return n.nummer !== selbst; });
     if (!andere.length) return kopf + '<p class="leise klein">Lege zuerst weitere Kostenstellen an, um sie hier zuzuordnen.</p></fieldset>';
-    return kopf + '<p class="hilfe" style="margin-top:0">Wähle die Kostenstellen, die diese Kostenstelle zusammenfasst. Ihr Planbudget ergibt sich dann aus dem eigenen Budget plus den Planbudgets der zugeordneten Kostenstellen.</p>' +
+    return kopf + '<p class="hilfe" style="margin-top:0">Wähle eine oder mehrere Unterkostenstellen. Ihr Planbudget und ihr IST sind dann im Gesamtbudget und im KST-Bericht dieser Kostenstelle enthalten.</p>' +
       '<div class="zuweisung__liste">' + andere.map(function (n) {
         var gehoert = D.uebergeordnete(daten, n.nummer);
-        var gesperrt = (n.unter || []).length ? "selbst übergreifend" : gehoert && gehoert !== selbst ? "gehört zu " + gehoert : "";
+        var gesperrt = (n.unter || []).length ? "hat selbst Unterkostenstellen" : gehoert && gehoert !== selbst ? "Unterkostenstelle von " + gehoert : "";
         return '<label class="check"><input type="checkbox" name="unter" value="' + esc(n.nummer) + '"' + (gehoert && gehoert === selbst ? " checked" : "") + (gesperrt ? " disabled" : "") + "> " +
           esc(n.nummer) + (gesperrt ? ' <span class="leise klein">' + esc(gesperrt) + "</span>" : "") + "</label>";
       }).join("") + "</div></fieldset>";
@@ -4223,7 +4285,7 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
     var k = D.kennzahlen(plan, ist);
     var liste = D.kostenVon(daten, jahr, nummer);
     var html = '<div class="seite__kopf"><div><p class="topline">Projektkosten</p><h1>Projektnummer ' + esc(nummer) + " · " + jahr + "</h1></div>" + jahrwahlHtml() + "</div>" +
-      '<p class="einleitung">' + (n.ks ? "Die Kosten dieser Projektnummer gehören zur Kostenstelle <strong>" + esc(n.ks) + "</strong> und sind in deren IST aus dem KST-Bericht schon enthalten. Hier stehen sie einzeln."
+      '<p class="einleitung">' + (n.ks ? "Gehört zur Kostenstelle <strong>" + esc(n.ks) + "</strong>. Die Kosten stecken schon in deren KST-Bericht, hier stehen sie einzeln."
         : "Diese Projektnummer ist noch keiner Kostenstelle zugeordnet. Das legst Du unter Verwaltung → Projektnummern fest.") + "</p>" +
       '<div class="kennzahlen">' +
       kennzahl("Planbudget " + jahr, plan.vorhanden ? euro(plan.gesamt) : "–", plan.vorhanden ? "" : "noch nicht eingetragen") +
@@ -4286,7 +4348,7 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
       });
   }
 
-  /* ---------- IST-Daten: Import je Kostenstelle und Sicherungen ---------- */
+  /* ---------- IST-Werte: Import je Kostenstelle und Sicherungen ---------- */
 
   function datumZeit(iso) {
     var d = new Date(iso);
@@ -4302,13 +4364,13 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
     var html = "";
     if (darfImport) {
       html += '<form class="karte" data-import novalidate><h2>KST-Bericht importieren</h2>' +
-        "<p>Wähle die Kostenstelle und ihren KST-Bericht als Excel-Datei (.xlsx). Die bisherigen IST-Daten dieser Kostenstelle werden ersetzt. Vorher legt das Tool automatisch eine Sicherung an.</p>" +
+        "<p>Wähle die Kostenstelle und ihren KST-Bericht (.xlsx). Das Tool ersetzt damit die bisherigen IST-Werte und sichert sie vorher.</p>" +
         (ks.length
           ? '<div class="import-felder"><div class="feld"><label for="i-ks">Kostenstelle</label><select id="i-ks" name="ks"><option value="">Bitte wählen</option>' +
             ks.map(function (n) { return '<option value="' + esc(n.nummer) + '">' + esc(n.nummer) + "</option>"; }).join("") + "</select></div>" +
             '<div class="feld"><label for="i-datei">KST-Bericht</label><input id="i-datei" name="datei" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></div></div>' +
             '<div data-vorschau></div><p class="fehlertext" hidden></p>' +
-            '<button type="submit" class="btn btn--primaer" data-importieren disabled>' + icon("documentXls") + " IST-Daten importieren</button>"
+            '<button type="submit" class="btn btn--primaer" data-importieren disabled>' + icon("documentXls") + " IST-Werte importieren</button>"
           : '<p class="leer-hinweis">Lege zuerst Kostenstellen an.</p>') + "</form>";
       html += '<section class="karte"><h2>Aktuelle IST-Stände</h2>' + (staende.length
         ? '<div class="tabelle-huelle"><table><thead><tr><th>Kostenstelle</th><th>Stand</th><th>Gebucht bis</th><th>Importiert</th><th>Datei</th></tr></thead><tbody>' +
@@ -4317,15 +4379,14 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
             return '<tr><th scope="row"><strong>' + esc(n.nummer) + "</strong></th><td>" + esc(D.standText(e.stand).replace("Stand ", "")) + "</td><td>" + esc(D.monatName(e.monat) + " " + e.monat.slice(0, 4)) +
               '</td><td class="klein">' + esc(datumZeit(e.importiert)) + "<br>" + esc(nameVon(e.von)) + '</td><td class="klein">' + esc(e.datei || "–") + "</td></tr>";
           }).join("") + "</tbody></table></div>"
-        : '<p class="leer-hinweis">Noch keine IST-Daten importiert.</p>') + "</section>";
+        : '<p class="leer-hinweis">Noch keine IST-Werte importiert.</p>') + "</section>";
     }
     var sich = daten.istSicherungen || [];
-    html += '<section class="karte"><h2>Sicherungen</h2><p class="leise klein">Vor jedem Import und jeder Wiederherstellung sichert das Tool den bisherigen Stand der Kostenstelle. ' +
-      "Mit „Wiederherstellen“ holst Du diesen Stand zurück; der dann ersetzte Stand wird wiederum gesichert.</p>" + (sich.length
+    html += '<section class="karte"><h2>Sicherungen</h2><p class="leise klein">Vor jedem Import sichert das Tool den bisherigen Stand. Mit „Wiederherstellen“ holst Du ihn zurück.</p>' + (sich.length
       ? '<div class="tabelle-huelle"><table><thead><tr><th>Zeitpunkt</th><th>Kostenstelle</th><th>Anlass</th><th>Gesicherter Stand</th><th><span class="sr">Aktion</span></th></tr></thead><tbody>' +
         sich.map(function (x) {
           return '<tr><td class="klein">' + esc(datumZeit(x.zeit)) + "<br>" + esc(nameVon(x.von)) + "</td><td><strong>" + esc(x.nummer) + "</strong></td><td>" + esc(x.anlass || "Import") + "</td><td>" +
-            (x.vorherStand ? esc(D.standText(x.vorherStand, x.vorherMonat)) : '<span class="leise">keine IST-Daten</span>') + "</td>" +
+            (x.vorherStand ? esc(D.standText(x.vorherStand, x.vorherMonat)) : '<span class="leise">keine IST-Werte</span>') + "</td>" +
             '<td><button type="button" class="btn btn--rahmen btn--klein" data-wiederherstellen="' + esc(x.id) + '">' + icon("reload") + " Wiederherstellen</button></td></tr>";
         }).join("") + "</tbody></table></div>"
       : '<p class="leer-hinweis">Noch keine Sicherungen vorhanden.</p>') + "</section>";
@@ -4335,7 +4396,7 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
       k.addEventListener("click", function () {
         var x = sich.filter(function (s) { return s.id === k.getAttribute("data-wiederherstellen"); })[0];
         bestaetige("Sicherung wiederherstellen", "Möchtest Du für die Kostenstelle " + x.nummer + " den Stand vom " + datumZeit(x.zeit) + " wiederherstellen? " +
-          (x.vorherStand ? "Danach gilt wieder der " + D.standText(x.vorherStand, x.vorherMonat) + "." : "Danach hat die Kostenstelle keine IST-Daten mehr.") + " Der aktuelle Stand wird vorher gesichert.", "Wiederherstellen")
+          (x.vorherStand ? "Danach gilt wieder der " + D.standText(x.vorherStand, x.vorherMonat) + "." : "Danach hat die Kostenstelle keine IST-Werte mehr.") + " Der aktuelle Stand wird vorher gesichert.", "Wiederherstellen")
           .then(function (ja) { if (ja) Dienst.istWiederherstellen(daten, ich, x.id).then(nachAenderung("Der Stand der Kostenstelle " + x.nummer + " ist wiederhergestellt."), serverFehler); });
       });
     });
@@ -4390,11 +4451,11 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
       ev.preventDefault();
       if (knopf.disabled || !gelesen || gelesen.fehler) return;
       var e = gelesen, nr = form.ks.value;
-      bestaetige("IST-Daten importieren", "Die IST-Daten der Kostenstelle " + nr + " werden durch den " + D.standText(e.stand, e.monat) + " ersetzt. Der bisherige Stand wird vorher gesichert.", "Importieren")
+      bestaetige("IST-Werte importieren", "Die IST-Werte der Kostenstelle " + nr + " werden durch den " + D.standText(e.stand, e.monat) + " ersetzt. Der bisherige Stand wird vorher gesichert.", "Importieren")
         .then(function (ja) {
           if (!ja) return;
           Dienst.istImportieren(daten, ich, nr, { stand: e.stand, monat: e.monat, aktuell: e.aktuell, vorjahrZeitraum: e.vorjahrZeitraum, vorjahr: e.vorjahr, datei: dateiName })
-            .then(nachAenderung("Die IST-Daten der Kostenstelle " + nr + " sind importiert."), function (x) { serverFehler(x, form); });
+            .then(nachAenderung("Die IST-Werte der Kostenstelle " + nr + " sind importiert."), function (x) { serverFehler(x, form); });
         });
     });
   }
