@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "0.6.2";
+  var VERSION = "0.6.3";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -466,7 +466,7 @@
   /* Balkendiagramm Plan, IST und Vorjahr je Kostenart; eine Skala, Werte direkt am Balken */
   function diagrammHtml(plan, ist, vorjahr, hinweis) {
     var reihen = [{ id: "plan", name: "Plan " + zustand.jahr, w: plan }, { id: "ist", name: ist.monat ? istUeberschrift(ist) : "IST " + zustand.jahr, w: ist }];
-    if (vorjahr) reihen.push({ id: "vj", name: "IST Vorjahr, gleicher Zeitraum", w: vorjahr });
+    if (vorjahr) reihen.push({ id: "vj", name: "IST " + (zustand.jahr - 1) + (ist.monat && ist.bisMonat < 12 ? " bis " + D.monatName(ist.monat) : " gesamt"), w: vorjahr });
     var gruppen = [["pkAd", "Personalkosten AD"], ["pkId", "Personalkosten ID"], ["sachkosten", "Sachkosten"]];
     var max = 0;
     gruppen.forEach(function (g) { reihen.forEach(function (r) { max = Math.max(max, r.w[g[0]] || 0); }); });

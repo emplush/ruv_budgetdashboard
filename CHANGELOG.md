@@ -1,5 +1,8 @@
 # Änderungen
 
+## 0.6.3 (29.10.2026)
+- Diagramm: Die Vorjahresreihe heißt jetzt so wie der Zeitraum, z. B. „IST 2025 bis September“. Die Werte kommen aus der Spalte „Ist Vorjahr bis Abrechnungsmonat“ des KST-Berichts.
+
 ## 0.6.2 (29.10.2026)
 - Tabellen ohne Zusätze „übergreifend“ und „eigenes Budget“: Die übergreifende Kostenstelle steht hervorgehoben über ihren Unterkostenstellen, die eingerückte Zeile mit gleicher Nummer zeigt ihren eigenen Teil.
 
