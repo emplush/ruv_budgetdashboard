@@ -1853,11 +1853,12 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
     return "";
   }
 
-  /* Prüft die zugeordneten Kostenstellen für die Kostenstelle nummer (bisher alt). Liefert Fehlertext oder "". */
-  function pruefeUnter(daten, alt, nummer, unter) {
+  /* Prüft die Unterkostenstellen für die Kostenstelle nummer (bisher alt). oben: künftige übergreifende Kostenstelle
+     (fehlt es, bleibt die bisherige). Liefert Fehlertext oder "". */
+  function pruefeUnter(daten, alt, nummer, unter, oben) {
+    if (typeof oben !== "string") oben = alt ? uebergeordnete(daten, alt) : "";
     if (!unter.length) return "";
-    var oben = alt ? uebergeordnete(daten, alt) : "";
-    if (oben) return "Die Kostenstelle " + (alt || nummer) + " gehört schon zur übergreifenden Kostenstelle " + oben + " und kann deshalb keine Kostenstellen zusammenfassen.";
+    if (oben) return "Die Kostenstelle " + (alt || nummer) + " gehört zur übergreifenden Kostenstelle " + oben + " und kann deshalb keine Unterkostenstellen haben.";
     for (var i = 0; i < unter.length; i++) {
       var u = unter[i], e = findeNummer(daten, "ks", u);
       if (u === nummer || u === alt) return "Eine Kostenstelle kann sich nicht selbst zugeordnet werden.";
@@ -1869,11 +1870,23 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
     return "";
   }
 
+  /* Prüft die übergreifende Kostenstelle oben für die Kostenstelle nummer (bisher alt) mit den Unterkostenstellen unter. */
+  function pruefeOben(daten, alt, nummer, oben, unter) {
+    if (!oben) return "";
+    var e = findeNummer(daten, "ks", oben);
+    if (oben === nummer || oben === alt) return "Eine Kostenstelle kann nicht zu sich selbst gehören.";
+    if (!e) return "Die Kostenstelle " + oben + " gibt es nicht.";
+    if (uebergeordnete(daten, oben)) return "Die Kostenstelle " + oben + " ist selbst Unterkostenstelle von " + uebergeordnete(daten, oben) + ".";
+    if (unter.length) return "Die Kostenstelle " + nummer + " hat selbst Unterkostenstellen und kann deshalb nicht zu " + oben + " gehören.";
+    return "";
+  }
+
   /* Legt eine Nummer an oder ändert sie. alt: bisherige Nummer ("" für neu). kennungen: zugewiesene Benutzer.
-     unter: bei Kostenstellen die zugeordneten Kostenstellen, bei Projektnummern die Kostenstelle, von der die Projektkosten
-     abgehen (Text); fehlt es, bleibt die Zuordnung.
+     unter: bei Kostenstellen die Unterkostenstellen, bei Projektnummern die Kostenstelle, von der die Projektkosten
+     abgehen (Text); fehlt es, bleibt die Zuordnung. oben: bei Kostenstellen die übergreifende Kostenstelle ("" = keine,
+     fehlt es, bleibt die Zuordnung).
      Eine geänderte Nummer nimmt ihre Planbudgets und Zuordnungen mit. Liefert Fehlertext oder "". */
-  function speichereNummer(daten, art, alt, nummer, kennungen, unter) {
+  function speichereNummer(daten, art, alt, nummer, kennungen, unter, oben) {
     var a = ARTEN[art];
     if (!a) return "Unbekannte Art.";
     nummer = String(nummer || "").trim();
@@ -1886,8 +1899,14 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
       neuUnter = [];
       unter.forEach(function (u) { u = String(u || "").trim(); if (u && neuUnter.indexOf(u) < 0) neuUnter.push(u); });
       neuUnter.sort();
-      var fehler = pruefeUnter(daten, alt, nummer, neuUnter);
+      var fehler = pruefeUnter(daten, alt, nummer, neuUnter, typeof oben === "string" ? oben.trim() : undefined);
       if (fehler) return fehler;
+    }
+    var neuOben = null;
+    if (art === "ks" && typeof oben === "string") {
+      neuOben = oben.trim();
+      var fehlerOben = pruefeOben(daten, alt, nummer, neuOben, neuUnter || (eintrag && eintrag.unter) || []);
+      if (fehlerOben) return fehlerOben;
     }
     var neuKs = null;
     if (art === "pn" && typeof unter === "string") {
@@ -1920,6 +1939,10 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
     eintrag.benutzer = zugewiesen;
     if (neuUnter) eintrag.unter = neuUnter;
     if (neuKs !== null) eintrag.ks = neuKs;
+    if (neuOben !== null) {
+      daten.kostenstellen.forEach(function (n) { n.unter = (n.unter || []).filter(function (u) { return u !== nummer; }); });
+      if (neuOben) { var o = findeNummer(daten, "ks", neuOben); o.unter.push(nummer); o.unter.sort(); }
+    }
     sortiereNummern(liste(daten, art));
     return "";
   }
@@ -2857,8 +2880,8 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
         return D.setzePasswort(ziel, passwort, true).then(function () { return ""; });
       });
     },
-    nummerSpeichern: function (daten, b, art, alt, nummer, kennungen, unter) {
-      return aendern(function (ich) { return recht(D.Rechte.nummern(ich)) || D.speichereNummer(speicher, art, alt, nummer, kennungen, unter); });
+    nummerSpeichern: function (daten, b, art, alt, nummer, kennungen, unter, oben) {
+      return aendern(function (ich) { return recht(D.Rechte.nummern(ich)) || D.speichereNummer(speicher, art, alt, nummer, kennungen, unter, oben); });
     },
     nummerLoeschen: function (daten, b, art, nummer) {
       return aendern(function (ich) {
@@ -2965,9 +2988,10 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
     },
     benutzerLoeschen: function (daten, b, kennung) { return anfrage("benutzer-loeschen", { kennung: kennung }).then(uebernehmen); },
     passwortZuruecksetzen: function (daten, b, kennung, passwort) { return anfrage("passwort-zuruecksetzen", { kennung: kennung, passwort: passwort }).then(uebernehmen); },
-    nummerSpeichern: function (daten, b, art, alt, nummer, kennungen, unter) {
+    nummerSpeichern: function (daten, b, art, alt, nummer, kennungen, unter, oben) {
       var k = { art: art, alt: alt || "", nummer: nummer, benutzer: kennungen || [] };
       if (Array.isArray(unter)) k.unter = unter;
+      if (typeof oben === "string") k.oben = oben;
       if (typeof unter === "string") k.ks = unter;
       return anfrage("nummer-speichern", k).then(uebernehmen);
     },
@@ -3004,7 +3028,7 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
 (function () {
   "use strict";
 
-  var VERSION = "0.6.0";
+  var VERSION = "0.6.1";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -4216,21 +4240,44 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
     return '<span class="leise">–</span>';
   }
 
-  /* Auswahl der zugeordneten Kostenstellen für eine übergreifende Kostenstelle */
+  /* Zuordnung einer Kostenstelle: zu welcher übergreifenden sie gehört oder welche Unterkostenstellen sie hat (nur eine Ebene) */
   function unterHtml(daten, eintrag) {
     var selbst = eintrag ? eintrag.nummer : "";
     var oben = selbst ? D.uebergeordnete(daten, selbst) : "";
-    var kopf = '<fieldset class="zuweisung" data-unter><legend>Übergreifende Kostenstelle</legend>';
-    if (oben) return kopf + '<p class="leise klein">Diese Kostenstelle ist Unterkostenstelle von ' + esc(oben) + " und kann selbst keine Unterkostenstellen haben.</p></fieldset>";
+    var moeglich = daten.kostenstellen.filter(function (n) { return n.nummer !== selbst && !D.uebergeordnete(daten, n.nummer); });
     var andere = daten.kostenstellen.filter(function (n) { return n.nummer !== selbst; });
-    if (!andere.length) return kopf + '<p class="leise klein">Lege zuerst weitere Kostenstellen an, um sie hier zuzuordnen.</p></fieldset>';
-    return kopf + '<p class="hilfe" style="margin-top:0">Wähle eine oder mehrere Unterkostenstellen. Ihr Planbudget und ihr IST sind dann im Gesamtbudget und im KST-Bericht dieser Kostenstelle enthalten.</p>' +
-      '<div class="zuweisung__liste">' + andere.map(function (n) {
-        var gehoert = D.uebergeordnete(daten, n.nummer);
-        var gesperrt = (n.unter || []).length ? "hat selbst Unterkostenstellen" : gehoert && gehoert !== selbst ? "Unterkostenstelle von " + gehoert : "";
-        return '<label class="check"><input type="checkbox" name="unter" value="' + esc(n.nummer) + '"' + (gehoert && gehoert === selbst ? " checked" : "") + (gesperrt ? " disabled" : "") + "> " +
-          esc(n.nummer) + (gesperrt ? ' <span class="leise klein">' + esc(gesperrt) + "</span>" : "") + "</label>";
-      }).join("") + "</div></fieldset>";
+    var feldOben = '<div class="feld"><label for="n-oben">Gehört zu</label><select id="n-oben" name="oben"><option value="">keiner übergreifenden Kostenstelle</option>' +
+      moeglich.map(function (n) { return '<option value="' + esc(n.nummer) + '"' + (n.nummer === oben ? " selected" : "") + ">Kostenstelle " + esc(n.nummer) + "</option>"; }).join("") +
+      '</select><p class="hilfe" data-oben-hilfe>Wähle die übergreifende Kostenstelle, wenn diese eine Unterkostenstelle ist.</p></div>';
+    var liste = '<fieldset class="zuweisung" data-unter><legend>Unterkostenstellen</legend>' + (andere.length
+      ? '<p class="hilfe" style="margin-top:0" data-unter-hilfe>Optional. Ihr Planbudget und ihr IST sind im Gesamtbudget und im KST-Bericht dieser Kostenstelle enthalten.</p>' +
+        '<div class="zuweisung__liste">' + andere.map(function (n) {
+          var gehoert = D.uebergeordnete(daten, n.nummer);
+          var gesperrt = (n.unter || []).length ? "hat selbst Unterkostenstellen" : gehoert && gehoert !== selbst ? "Unterkostenstelle von " + gehoert : "";
+          return '<label class="check"><input type="checkbox" name="unter" value="' + esc(n.nummer) + '"' + (gehoert && gehoert === selbst ? " checked" : "") + (gesperrt ? " disabled data-gesperrt" : "") + "> " +
+            esc(n.nummer) + (gesperrt ? ' <span class="leise klein">' + esc(gesperrt) + "</span>" : "") + "</label>";
+        }).join("") + "</div>"
+      : '<p class="leise klein">Es gibt noch keine weiteren Kostenstellen.</p>') + "</fieldset>";
+    return feldOben + liste;
+  }
+
+  /* Entweder Unterkostenstelle oder übergreifend: sperrt jeweils die andere Auswahl */
+  function verbindeUnter(form) {
+    var wahl = form.querySelector("[name=oben]");
+    if (!wahl) return;
+    var boxen = Array.prototype.slice.call(form.querySelectorAll("[name=unter]"));
+    var hilfeOben = form.querySelector("[data-oben-hilfe]"), hilfeUnter = form.querySelector("[data-unter-hilfe]");
+    function abgleichen() {
+      var hatUnter = boxen.some(function (b) { return b.checked; });
+      wahl.disabled = hatUnter;
+      hilfeOben.textContent = hatUnter ? "Sie hat selbst Unterkostenstellen und gehört deshalb zu keiner anderen." : "Wähle die übergreifende Kostenstelle, wenn diese eine Unterkostenstelle ist.";
+      boxen.forEach(function (b) { b.disabled = b.hasAttribute("data-gesperrt") || !!wahl.value; });
+      if (hilfeUnter) hilfeUnter.textContent = wahl.value ? "Als Unterkostenstelle von " + wahl.value + " hat sie keine eigenen Unterkostenstellen."
+        : "Optional. Ihr Planbudget und ihr IST sind im Gesamtbudget und im KST-Bericht dieser Kostenstelle enthalten.";
+    }
+    wahl.addEventListener("change", abgleichen);
+    boxen.forEach(function (b) { b.addEventListener("change", abgleichen); });
+    abgleichen();
   }
 
   /* Kostenstelle, von der die Kosten einer Projektnummer abgehen */
@@ -4245,11 +4292,11 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
     var daten = zustand.daten, ich = zustand.benutzer, a = D.ARTEN[art];
     var personen = daten.benutzer.filter(function (b) { return D.passtZurArt(b, art); })
       .sort(function (x, y) { return D.anzeigeName(x).localeCompare(D.anzeigeName(y), "de"); });
-    oeffneDialog(eintrag ? a.name + " " + eintrag.nummer + " bearbeiten" : "Neue " + a.name,
+    var form = oeffneDialog(eintrag ? a.name + " " + eintrag.nummer + " bearbeiten" : "Neue " + a.name,
       '<div class="feld"><label for="n-nummer">' + esc(a.name) + '</label><input id="n-nummer" name="nummer" type="text" inputmode="numeric" maxlength="' + a.stellen + '" placeholder="' +
       (art === "ks" ? "123" : "12345678") + '" value="' + esc(eintrag ? eintrag.nummer : "") + '"><p class="hilfe">Genau ' + a.stellen + " Ziffern." +
       (eintrag ? " Änderst Du die Nummer, wandern die Planbudgets mit." : "") + "</p></div>" +
-      '<fieldset class="zuweisung"><legend>Zugewiesen an</legend>' +
+      '<fieldset class="zuweisung"><legend>Verantwortlich</legend>' +
       (personen.length ? '<div class="zuweisung__liste zuweisung__liste--breit">' + personen.map(function (b) {
         return '<label class="check"><input type="checkbox" name="person" value="' + esc(b.kennung) + '"' + (eintrag && eintrag.benutzer.indexOf(b.kennung) >= 0 ? " checked" : "") + "> " +
           esc(D.anzeigeName(b)) + ' <span class="leise klein">' + esc(b.kennung) + " · " + esc(D.rollenName(b.rolle)) + "</span></label>";
@@ -4261,11 +4308,13 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
         if (!D.istGueltigeNummer(art, nummer)) { zeigeFehler(f, "Eine " + a.name + " besteht aus genau " + a.stellen + " Ziffern."); f.nummer.focus(); return; }
         if ((!eintrag || eintrag.nummer !== nummer) && D.findeNummer(daten, art, nummer)) { zeigeFehler(f, "Die " + a.name + " " + nummer + " gibt es schon."); return; }
         var kennungen = Array.prototype.slice.call(f.querySelectorAll("[name=person]:checked")).map(function (c) { return c.value; });
-        var unter = art === "ks" && f.querySelector("[name=unter]") ? Array.prototype.slice.call(f.querySelectorAll("[name=unter]:checked")).map(function (c) { return c.value; }) : undefined;
+        var unter = art === "ks" ? Array.prototype.slice.call(f.querySelectorAll("[name=unter]:checked:not(:disabled)")).map(function (c) { return c.value; }) : undefined;
+        var oben = art === "ks" && f.oben && !f.oben.disabled ? f.oben.value : undefined;
         if (art === "pn" && f.pnks) unter = f.pnks.value;
-        Dienst.nummerSpeichern(daten, ich, art, eintrag ? eintrag.nummer : "", nummer, kennungen, unter)
+        Dienst.nummerSpeichern(daten, ich, art, eintrag ? eintrag.nummer : "", nummer, kennungen, unter, oben)
           .then(nachAenderung("Die " + a.name + " " + nummer + " ist gespeichert."), function (x) { serverFehler(x, f); });
       });
+    if (art === "ks") verbindeUnter(form);
   }
 
   /* ---------- Projektkosten je Projektnummer ---------- */

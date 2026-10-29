@@ -89,6 +89,13 @@ function pruefe(bedingung, text) {
   await page.click("[data-bearbeiten='413']");
   pruefe(await page.locator("dialog input[name=unter][value='411']").isDisabled() && await page.isVisible("dialog >> text=Unterkostenstelle von 410"), "Unterkostenstellen anderer Kostenstellen sind gesperrt");
   await page.click("dialog [data-schliessen]");
+  await page.click("[data-kopfaktion] [data-neu]");
+  await page.fill("#n-nummer", "415");
+  await page.selectOption("#n-oben", "410");
+  pruefe(await page.locator("dialog input[name=unter][value='413']").isDisabled(), "als Unterkostenstelle keine eigenen Unterkostenstellen");
+  await page.click("dialog button[type=submit]");
+  await page.waitForSelector("td >> text=411, 412, 415");
+  pruefe(true, "neue Kostenstelle direkt einer übergreifenden zuordnen");
 
   // KST-Bericht importieren (Beispieldatei mit erfundenen Zahlen, Kostenstelle 413)
   await page.goto(url + "#/verwaltung/ist");

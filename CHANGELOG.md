@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.6.1 (29.10.2026)
+- Neue Kostenstelle direkt einer übergreifenden zuordnen: Im Dialog gibt es das Feld „Gehört zu“. Bisher ging das nur über die übergreifende Kostenstelle.
+- Eine Kostenstelle ist entweder Unterkostenstelle oder hat selbst Unterkostenstellen; der Dialog sperrt jeweils die andere Auswahl.
+- Im Dialog heißt „Zugewiesen an“ jetzt „Verantwortlich“.
+
 ## 0.6.0 (29.10.2026)
 - Texte in der ganzen App geprüft und gekürzt. Einheitlich „Unterkostenstelle“ statt „zugeordnete Kostenstelle“, „Verantwortlich“ statt „Zugewiesen“, „IST-Werte“ statt „IST-Daten“. Der Verwaltungsbereich heißt „KST-Berichte“.
 - Eine übergreifende Kostenstelle kann mehrere Unterkostenstellen haben; die Verwaltung zeigt sie als Liste, gesperrte Kostenstellen mit „Unterkostenstelle von …“.

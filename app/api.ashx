@@ -108,7 +108,7 @@ public class BdErgebnis
 
 public static class BdKern
 {
-    public const string Version = "0.6.0";
+    public const string Version = "0.6.1";
     public const string CookieName = "budgetdashboard_sitzung";
     public const int MaxBytes = 2 * 1024 * 1024;
     private const int AnzahlSicherungen = 50;
@@ -272,7 +272,7 @@ public static class BdKern
                 {
                     if (!verwaltet) throw new Fehler(403, "Dafür fehlen Dir die Rechte.");
                     var unter = k.ContainsKey("unter") && k["unter"] != null ? L(k["unter"]).Select(x => x as string).Where(x => x != null).ToList() : null;
-                    NummerSpeichern(daten, S(k, "art") ?? "", (S(k, "alt") ?? "").Trim(), (S(k, "nummer") ?? "").Trim(), L(G(k, "benutzer")).Select(x => x as string).Where(x => x != null).ToList(), unter, G(k, "ks") as string);
+                    NummerSpeichern(daten, S(k, "art") ?? "", (S(k, "alt") ?? "").Trim(), (S(k, "nummer") ?? "").Trim(), L(G(k, "benutzer")).Select(x => x as string).Where(x => x != null).ToList(), unter, G(k, "ks") as string, G(k, "oben") as string);
                     break;
                 }
             case "nummer-loeschen":
@@ -541,11 +541,11 @@ public static class BdKern
     }
 
     /// <summary>Gleiche Regeln wie pruefeUnter in js/daten.js: nur eine Ebene, jede Kostenstelle gehört zu höchstens einer übergreifenden.</summary>
-    private static void PruefeUnter(Dictionary<string, object> daten, string alt, string nummer, List<string> unter)
+    private static void PruefeUnter(Dictionary<string, object> daten, string alt, string nummer, List<string> unter, string oben)
     {
+        if (oben == null) oben = alt != "" ? Uebergeordnete(daten, alt) : "";
         if (unter.Count == 0) return;
-        string oben = alt != "" ? Uebergeordnete(daten, alt) : "";
-        if (oben != "") throw new Fehler(400, "Die Kostenstelle " + (alt != "" ? alt : nummer) + " gehört schon zur übergreifenden Kostenstelle " + oben + " und kann deshalb keine Kostenstellen zusammenfassen.");
+        if (oben != "") throw new Fehler(400, "Die Kostenstelle " + (alt != "" ? alt : nummer) + " gehört zur übergreifenden Kostenstelle " + oben + " und kann deshalb keine Unterkostenstellen haben.");
         foreach (var u in unter)
         {
             var e = FindeNummer(daten, "ks", u);
@@ -557,8 +557,20 @@ public static class BdKern
         }
     }
 
+    /// <summary>Gleiche Regeln wie pruefeOben in js/daten.js.</summary>
+    private static void PruefeOben(Dictionary<string, object> daten, string alt, string nummer, string oben, List<string> unter)
+    {
+        if (oben == "") return;
+        var e = FindeNummer(daten, "ks", oben);
+        if (oben == nummer || oben == alt) throw new Fehler(400, "Eine Kostenstelle kann nicht zu sich selbst gehören.");
+        if (e == null) throw new Fehler(400, "Die Kostenstelle " + oben + " gibt es nicht.");
+        string hoeher = Uebergeordnete(daten, oben);
+        if (hoeher != "") throw new Fehler(400, "Die Kostenstelle " + oben + " ist selbst Unterkostenstelle von " + hoeher + ".");
+        if (unter.Count > 0) throw new Fehler(400, "Die Kostenstelle " + nummer + " hat selbst Unterkostenstellen und kann deshalb nicht zu " + oben + " gehören.");
+    }
+
     /// <summary>Gleiche Regeln wie speichereNummer in js/daten.js. Eine geänderte Nummer nimmt ihre Planbudgets und Zuordnungen mit.</summary>
-    private static void NummerSpeichern(Dictionary<string, object> daten, string art, string alt, string nummer, List<string> kennungen, List<string> unter, string ks)
+    private static void NummerSpeichern(Dictionary<string, object> daten, string art, string alt, string nummer, List<string> kennungen, List<string> unter, string ks, string oben)
     {
         var liste = Liste(daten, art);
         string name = ArtName(art);
@@ -571,7 +583,13 @@ public static class BdKern
         {
             neuUnter = unter.Select(u => u.Trim()).Where(u => u != "").Distinct().ToList();
             neuUnter.Sort(string.CompareOrdinal);
-            PruefeUnter(daten, alt, nummer, neuUnter);
+            PruefeUnter(daten, alt, nummer, neuUnter, art == "ks" && oben != null ? oben.Trim() : null);
+        }
+        string neuOben = null;
+        if (art == "ks" && oben != null)
+        {
+            neuOben = oben.Trim();
+            PruefeOben(daten, alt, nummer, neuOben, neuUnter ?? (eintrag != null ? Unter(eintrag) : new List<string>()));
         }
         string neuKs = null;
         if (art == "pn" && ks != null)
@@ -619,6 +637,17 @@ public static class BdKern
         if (neuUnter != null) eintrag["unter"] = neuUnter.Cast<object>().ToList();
         if (neuKs != null) eintrag["ks"] = neuKs;
         else if (art == "ks" && !eintrag.ContainsKey("unter")) eintrag["unter"] = new List<object>();
+        if (neuOben != null)
+        {
+            foreach (var n in liste.Select(x => D(x)))
+                if (n != eintrag) n["unter"] = Unter(n).Where(u => u != nummer).Cast<object>().ToList();
+            if (neuOben != "")
+            {
+                var o = FindeNummer(daten, "ks", neuOben);
+                var u = Unter(o); u.Add(nummer); u.Sort(string.CompareOrdinal);
+                o["unter"] = u.Cast<object>().ToList();
+            }
+        }
         var sortiert = liste.OrderBy(x => S(D(x), "nummer"), StringComparer.Ordinal).ToList();
         liste.Clear();
         foreach (var x in sortiert) liste.Add(x);

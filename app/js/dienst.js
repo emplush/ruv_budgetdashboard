@@ -185,8 +185,8 @@
         return D.setzePasswort(ziel, passwort, true).then(function () { return ""; });
       });
     },
-    nummerSpeichern: function (daten, b, art, alt, nummer, kennungen, unter) {
-      return aendern(function (ich) { return recht(D.Rechte.nummern(ich)) || D.speichereNummer(speicher, art, alt, nummer, kennungen, unter); });
+    nummerSpeichern: function (daten, b, art, alt, nummer, kennungen, unter, oben) {
+      return aendern(function (ich) { return recht(D.Rechte.nummern(ich)) || D.speichereNummer(speicher, art, alt, nummer, kennungen, unter, oben); });
     },
     nummerLoeschen: function (daten, b, art, nummer) {
       return aendern(function (ich) {
@@ -293,9 +293,10 @@
     },
     benutzerLoeschen: function (daten, b, kennung) { return anfrage("benutzer-loeschen", { kennung: kennung }).then(uebernehmen); },
     passwortZuruecksetzen: function (daten, b, kennung, passwort) { return anfrage("passwort-zuruecksetzen", { kennung: kennung, passwort: passwort }).then(uebernehmen); },
-    nummerSpeichern: function (daten, b, art, alt, nummer, kennungen, unter) {
+    nummerSpeichern: function (daten, b, art, alt, nummer, kennungen, unter, oben) {
       var k = { art: art, alt: alt || "", nummer: nummer, benutzer: kennungen || [] };
       if (Array.isArray(unter)) k.unter = unter;
+      if (typeof oben === "string") k.oben = oben;
       if (typeof unter === "string") k.ks = unter;
       return anfrage("nummer-speichern", k).then(uebernehmen);
     },

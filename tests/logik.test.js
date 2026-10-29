@@ -62,6 +62,29 @@ test("Kostenstellen und Projektnummern: Format, Zuweisung nur zur passenden Roll
   assert.deepStrictEqual(D.nummernVon(d, "xv10002", "ks"), ["411"]);
 });
 
+test("Kostenstelle beim Anlegen einer übergreifenden zuordnen (oben)", () => {
+  const d = daten();
+  ["410", "411", "420"].forEach((n) => D.speichereNummer(d, "ks", "", n, []));
+  D.speichereNummer(d, "ks", "410", "410", [], ["411"]);
+  assert.strictEqual(D.speichereNummer(d, "ks", "", "412", [], undefined, "410"), "");
+  assert.deepStrictEqual(D.findeNummer(d, "ks", "410").unter, ["411", "412"]);
+  /* Wechsel zu einer anderen übergreifenden, dann keine */
+  assert.strictEqual(D.speichereNummer(d, "ks", "412", "412", [], [], "420"), "");
+  assert.deepStrictEqual([D.findeNummer(d, "ks", "410").unter, D.findeNummer(d, "ks", "420").unter], [["411"], ["412"]]);
+  assert.strictEqual(D.speichereNummer(d, "ks", "412", "412", [], [], ""), "");
+  assert.deepStrictEqual(D.findeNummer(d, "ks", "420").unter, []);
+  /* ohne oben bleibt die Zuordnung */
+  D.speichereNummer(d, "ks", "411", "411", ["xv10002"]);
+  assert.strictEqual(D.uebergeordnete(d, "411"), "410");
+  /* nur eine Ebene */
+  assert.match(D.speichereNummer(d, "ks", "", "413", [], undefined, "411"), /selbst Unterkostenstelle von 410/);
+  assert.match(D.speichereNummer(d, "ks", "410", "410", [], undefined, "420"), /hat selbst Unterkostenstellen/);
+  assert.match(D.speichereNummer(d, "ks", "", "413", [], ["420"], "410"), /keine Unterkostenstellen haben/);
+  assert.match(D.speichereNummer(d, "ks", "420", "420", [], undefined, "420"), /nicht zu sich selbst/);
+  assert.match(D.speichereNummer(d, "ks", "", "413", [], undefined, "999"), /gibt es nicht/);
+  assert.strictEqual(D.findeNummer(d, "ks", "413"), null);
+});
+
 test("Zuweisungen über den Benutzer setzen, Rollenwechsel nimmt unpassende Nummern", () => {
   const d = daten();
   D.speichereNummer(d, "ks", "", "411", []);
@@ -95,7 +118,7 @@ test("Übergreifende Kostenstelle: Regeln, Summe, Sicht", () => {
   assert.deepStrictEqual(D.findeNummer(d, "ks", "410").unter, ["411", "412"]);
   assert.strictEqual(D.uebergeordnete(d, "411"), "410");
   assert.match(D.speichereNummer(d, "ks", "413", "413", [], ["410"]), /selbst übergreifend/);
-  assert.match(D.speichereNummer(d, "ks", "411", "411", [], ["413"]), /gehört schon/);
+  assert.match(D.speichereNummer(d, "ks", "411", "411", [], ["413"]), /keine Unterkostenstellen haben/);
   assert.match(D.speichereNummer(d, "ks", "413", "413", [], ["412"]), /übergreifenden Kostenstelle 410/);
   assert.match(D.speichereNummer(d, "ks", "413", "413", [], ["413"]), /nicht selbst/);
   D.speichereNummer(d, "ks", "410", "410", ["xv10002"]);

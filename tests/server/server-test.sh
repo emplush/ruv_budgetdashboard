@@ -80,9 +80,12 @@ post "$L" budget-speichern '{"jahr":"2026","art":"ks","nummer":"413","werte":{"w
 pruefe "übergreifende Kostenstelle anlegen" "['413']|[]" "$(post "$L" nummer-speichern '{"art":"ks","alt":"420","nummer":"420","benutzer":["xv10001","xv10002"],"unter":["413"]}' | py 'str([n["unter"] for n in d["daten"]["kostenstellen"] if n["nummer"]=="420"][0])+"|"+str([n["unter"] for n in d["daten"]["kostenstellen"] if n["nummer"]=="413"][0])')"
 pruefe "Zuordnung bleibt ohne unter" "['413']" "$(post "$L" nummer-speichern '{"art":"ks","alt":"420","nummer":"420","benutzer":["xv10001","xv10002"]}' | py 'str([n["unter"] for n in d["daten"]["kostenstellen"] if n["nummer"]=="420"][0])')"
 pruefe "nur eine Ebene" "selbst übergreifend" "$(post "$L" nummer-speichern '{"art":"ks","alt":"411","nummer":"411","benutzer":["xv10002"],"unter":["420"]}')"
-pruefe "zugeordnete Kostenstelle fasst nichts zusammen" "gehört schon" "$(post "$L" nummer-speichern '{"art":"ks","alt":"413","nummer":"413","benutzer":[],"unter":["411"]}')"
+pruefe "zugeordnete Kostenstelle fasst nichts zusammen" "keine Unterkostenstellen haben" "$(post "$L" nummer-speichern '{"art":"ks","alt":"413","nummer":"413","benutzer":[],"unter":["411"]}')"
 pruefe "nur zu einer übergreifenden" "gehört schon zur übergreifenden Kostenstelle 420" "$(post "$L" nummer-speichern '{"art":"ks","alt":"","nummer":"430","benutzer":[],"unter":["413"]}')"
 pruefe "nicht sich selbst" "nicht selbst" "$(post "$L" nummer-speichern '{"art":"ks","alt":"420","nummer":"420","benutzer":[],"unter":["420"]}')"
+pruefe "beim Anlegen zuordnen (oben)" "['413', '431']" "$(post "$L" nummer-speichern '{"art":"ks","alt":"","nummer":"431","benutzer":[],"oben":"420"}' | py 'str([n["unter"] for n in d["daten"]["kostenstellen"] if n["nummer"]=="420"][0])')"
+pruefe "oben nur eine Ebene" "selbst Unterkostenstelle von 420" "$(post "$L" nummer-speichern '{"art":"ks","alt":"","nummer":"432","benutzer":[],"oben":"413"}')"
+pruefe "oben leer löst Zuordnung" "['413']" "$(post "$L" nummer-speichern '{"art":"ks","alt":"431","nummer":"431","benutzer":[],"unter":[],"oben":""}' | py 'str([n["unter"] for n in d["daten"]["kostenstellen"] if n["nummer"]=="420"][0])')"
 
 # Gruppenleitung und Key Account Manager
 curl -s -c "$G" -H "$H" -H "$J" -d '{"kennung":"xv10002","passwort":"Tq8#nPz3-wJte"}' "$U?aktion=anmelden" >/dev/null

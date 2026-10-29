@@ -305,11 +305,12 @@
     return "";
   }
 
-  /* Prüft die zugeordneten Kostenstellen für die Kostenstelle nummer (bisher alt). Liefert Fehlertext oder "". */
-  function pruefeUnter(daten, alt, nummer, unter) {
+  /* Prüft die Unterkostenstellen für die Kostenstelle nummer (bisher alt). oben: künftige übergreifende Kostenstelle
+     (fehlt es, bleibt die bisherige). Liefert Fehlertext oder "". */
+  function pruefeUnter(daten, alt, nummer, unter, oben) {
+    if (typeof oben !== "string") oben = alt ? uebergeordnete(daten, alt) : "";
     if (!unter.length) return "";
-    var oben = alt ? uebergeordnete(daten, alt) : "";
-    if (oben) return "Die Kostenstelle " + (alt || nummer) + " gehört schon zur übergreifenden Kostenstelle " + oben + " und kann deshalb keine Kostenstellen zusammenfassen.";
+    if (oben) return "Die Kostenstelle " + (alt || nummer) + " gehört zur übergreifenden Kostenstelle " + oben + " und kann deshalb keine Unterkostenstellen haben.";
     for (var i = 0; i < unter.length; i++) {
       var u = unter[i], e = findeNummer(daten, "ks", u);
       if (u === nummer || u === alt) return "Eine Kostenstelle kann sich nicht selbst zugeordnet werden.";
@@ -321,11 +322,23 @@
     return "";
   }
 
+  /* Prüft die übergreifende Kostenstelle oben für die Kostenstelle nummer (bisher alt) mit den Unterkostenstellen unter. */
+  function pruefeOben(daten, alt, nummer, oben, unter) {
+    if (!oben) return "";
+    var e = findeNummer(daten, "ks", oben);
+    if (oben === nummer || oben === alt) return "Eine Kostenstelle kann nicht zu sich selbst gehören.";
+    if (!e) return "Die Kostenstelle " + oben + " gibt es nicht.";
+    if (uebergeordnete(daten, oben)) return "Die Kostenstelle " + oben + " ist selbst Unterkostenstelle von " + uebergeordnete(daten, oben) + ".";
+    if (unter.length) return "Die Kostenstelle " + nummer + " hat selbst Unterkostenstellen und kann deshalb nicht zu " + oben + " gehören.";
+    return "";
+  }
+
   /* Legt eine Nummer an oder ändert sie. alt: bisherige Nummer ("" für neu). kennungen: zugewiesene Benutzer.
-     unter: bei Kostenstellen die zugeordneten Kostenstellen, bei Projektnummern die Kostenstelle, von der die Projektkosten
-     abgehen (Text); fehlt es, bleibt die Zuordnung.
+     unter: bei Kostenstellen die Unterkostenstellen, bei Projektnummern die Kostenstelle, von der die Projektkosten
+     abgehen (Text); fehlt es, bleibt die Zuordnung. oben: bei Kostenstellen die übergreifende Kostenstelle ("" = keine,
+     fehlt es, bleibt die Zuordnung).
      Eine geänderte Nummer nimmt ihre Planbudgets und Zuordnungen mit. Liefert Fehlertext oder "". */
-  function speichereNummer(daten, art, alt, nummer, kennungen, unter) {
+  function speichereNummer(daten, art, alt, nummer, kennungen, unter, oben) {
     var a = ARTEN[art];
     if (!a) return "Unbekannte Art.";
     nummer = String(nummer || "").trim();
@@ -338,8 +351,14 @@
       neuUnter = [];
       unter.forEach(function (u) { u = String(u || "").trim(); if (u && neuUnter.indexOf(u) < 0) neuUnter.push(u); });
       neuUnter.sort();
-      var fehler = pruefeUnter(daten, alt, nummer, neuUnter);
+      var fehler = pruefeUnter(daten, alt, nummer, neuUnter, typeof oben === "string" ? oben.trim() : undefined);
       if (fehler) return fehler;
+    }
+    var neuOben = null;
+    if (art === "ks" && typeof oben === "string") {
+      neuOben = oben.trim();
+      var fehlerOben = pruefeOben(daten, alt, nummer, neuOben, neuUnter || (eintrag && eintrag.unter) || []);
+      if (fehlerOben) return fehlerOben;
     }
     var neuKs = null;
     if (art === "pn" && typeof unter === "string") {
@@ -372,6 +391,10 @@
     eintrag.benutzer = zugewiesen;
     if (neuUnter) eintrag.unter = neuUnter;
     if (neuKs !== null) eintrag.ks = neuKs;
+    if (neuOben !== null) {
+      daten.kostenstellen.forEach(function (n) { n.unter = (n.unter || []).filter(function (u) { return u !== nummer; }); });
+      if (neuOben) { var o = findeNummer(daten, "ks", neuOben); o.unter.push(nummer); o.unter.sort(); }
+    }
     sortiereNummern(liste(daten, art));
     return "";
   }

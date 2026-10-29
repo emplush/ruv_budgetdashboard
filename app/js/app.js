@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "0.6.0";
+  var VERSION = "0.6.1";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -1214,21 +1214,44 @@
     return '<span class="leise">–</span>';
   }
 
-  /* Auswahl der zugeordneten Kostenstellen für eine übergreifende Kostenstelle */
+  /* Zuordnung einer Kostenstelle: zu welcher übergreifenden sie gehört oder welche Unterkostenstellen sie hat (nur eine Ebene) */
   function unterHtml(daten, eintrag) {
     var selbst = eintrag ? eintrag.nummer : "";
     var oben = selbst ? D.uebergeordnete(daten, selbst) : "";
-    var kopf = '<fieldset class="zuweisung" data-unter><legend>Übergreifende Kostenstelle</legend>';
-    if (oben) return kopf + '<p class="leise klein">Diese Kostenstelle ist Unterkostenstelle von ' + esc(oben) + " und kann selbst keine Unterkostenstellen haben.</p></fieldset>";
+    var moeglich = daten.kostenstellen.filter(function (n) { return n.nummer !== selbst && !D.uebergeordnete(daten, n.nummer); });
     var andere = daten.kostenstellen.filter(function (n) { return n.nummer !== selbst; });
-    if (!andere.length) return kopf + '<p class="leise klein">Lege zuerst weitere Kostenstellen an, um sie hier zuzuordnen.</p></fieldset>';
-    return kopf + '<p class="hilfe" style="margin-top:0">Wähle eine oder mehrere Unterkostenstellen. Ihr Planbudget und ihr IST sind dann im Gesamtbudget und im KST-Bericht dieser Kostenstelle enthalten.</p>' +
-      '<div class="zuweisung__liste">' + andere.map(function (n) {
-        var gehoert = D.uebergeordnete(daten, n.nummer);
-        var gesperrt = (n.unter || []).length ? "hat selbst Unterkostenstellen" : gehoert && gehoert !== selbst ? "Unterkostenstelle von " + gehoert : "";
-        return '<label class="check"><input type="checkbox" name="unter" value="' + esc(n.nummer) + '"' + (gehoert && gehoert === selbst ? " checked" : "") + (gesperrt ? " disabled" : "") + "> " +
-          esc(n.nummer) + (gesperrt ? ' <span class="leise klein">' + esc(gesperrt) + "</span>" : "") + "</label>";
-      }).join("") + "</div></fieldset>";
+    var feldOben = '<div class="feld"><label for="n-oben">Gehört zu</label><select id="n-oben" name="oben"><option value="">keiner übergreifenden Kostenstelle</option>' +
+      moeglich.map(function (n) { return '<option value="' + esc(n.nummer) + '"' + (n.nummer === oben ? " selected" : "") + ">Kostenstelle " + esc(n.nummer) + "</option>"; }).join("") +
+      '</select><p class="hilfe" data-oben-hilfe>Wähle die übergreifende Kostenstelle, wenn diese eine Unterkostenstelle ist.</p></div>';
+    var liste = '<fieldset class="zuweisung" data-unter><legend>Unterkostenstellen</legend>' + (andere.length
+      ? '<p class="hilfe" style="margin-top:0" data-unter-hilfe>Optional. Ihr Planbudget und ihr IST sind im Gesamtbudget und im KST-Bericht dieser Kostenstelle enthalten.</p>' +
+        '<div class="zuweisung__liste">' + andere.map(function (n) {
+          var gehoert = D.uebergeordnete(daten, n.nummer);
+          var gesperrt = (n.unter || []).length ? "hat selbst Unterkostenstellen" : gehoert && gehoert !== selbst ? "Unterkostenstelle von " + gehoert : "";
+          return '<label class="check"><input type="checkbox" name="unter" value="' + esc(n.nummer) + '"' + (gehoert && gehoert === selbst ? " checked" : "") + (gesperrt ? " disabled data-gesperrt" : "") + "> " +
+            esc(n.nummer) + (gesperrt ? ' <span class="leise klein">' + esc(gesperrt) + "</span>" : "") + "</label>";
+        }).join("") + "</div>"
+      : '<p class="leise klein">Es gibt noch keine weiteren Kostenstellen.</p>') + "</fieldset>";
+    return feldOben + liste;
+  }
+
+  /* Entweder Unterkostenstelle oder übergreifend: sperrt jeweils die andere Auswahl */
+  function verbindeUnter(form) {
+    var wahl = form.querySelector("[name=oben]");
+    if (!wahl) return;
+    var boxen = Array.prototype.slice.call(form.querySelectorAll("[name=unter]"));
+    var hilfeOben = form.querySelector("[data-oben-hilfe]"), hilfeUnter = form.querySelector("[data-unter-hilfe]");
+    function abgleichen() {
+      var hatUnter = boxen.some(function (b) { return b.checked; });
+      wahl.disabled = hatUnter;
+      hilfeOben.textContent = hatUnter ? "Sie hat selbst Unterkostenstellen und gehört deshalb zu keiner anderen." : "Wähle die übergreifende Kostenstelle, wenn diese eine Unterkostenstelle ist.";
+      boxen.forEach(function (b) { b.disabled = b.hasAttribute("data-gesperrt") || !!wahl.value; });
+      if (hilfeUnter) hilfeUnter.textContent = wahl.value ? "Als Unterkostenstelle von " + wahl.value + " hat sie keine eigenen Unterkostenstellen."
+        : "Optional. Ihr Planbudget und ihr IST sind im Gesamtbudget und im KST-Bericht dieser Kostenstelle enthalten.";
+    }
+    wahl.addEventListener("change", abgleichen);
+    boxen.forEach(function (b) { b.addEventListener("change", abgleichen); });
+    abgleichen();
   }
 
   /* Kostenstelle, von der die Kosten einer Projektnummer abgehen */
@@ -1243,11 +1266,11 @@
     var daten = zustand.daten, ich = zustand.benutzer, a = D.ARTEN[art];
     var personen = daten.benutzer.filter(function (b) { return D.passtZurArt(b, art); })
       .sort(function (x, y) { return D.anzeigeName(x).localeCompare(D.anzeigeName(y), "de"); });
-    oeffneDialog(eintrag ? a.name + " " + eintrag.nummer + " bearbeiten" : "Neue " + a.name,
+    var form = oeffneDialog(eintrag ? a.name + " " + eintrag.nummer + " bearbeiten" : "Neue " + a.name,
       '<div class="feld"><label for="n-nummer">' + esc(a.name) + '</label><input id="n-nummer" name="nummer" type="text" inputmode="numeric" maxlength="' + a.stellen + '" placeholder="' +
       (art === "ks" ? "123" : "12345678") + '" value="' + esc(eintrag ? eintrag.nummer : "") + '"><p class="hilfe">Genau ' + a.stellen + " Ziffern." +
       (eintrag ? " Änderst Du die Nummer, wandern die Planbudgets mit." : "") + "</p></div>" +
-      '<fieldset class="zuweisung"><legend>Zugewiesen an</legend>' +
+      '<fieldset class="zuweisung"><legend>Verantwortlich</legend>' +
       (personen.length ? '<div class="zuweisung__liste zuweisung__liste--breit">' + personen.map(function (b) {
         return '<label class="check"><input type="checkbox" name="person" value="' + esc(b.kennung) + '"' + (eintrag && eintrag.benutzer.indexOf(b.kennung) >= 0 ? " checked" : "") + "> " +
           esc(D.anzeigeName(b)) + ' <span class="leise klein">' + esc(b.kennung) + " · " + esc(D.rollenName(b.rolle)) + "</span></label>";
@@ -1259,11 +1282,13 @@
         if (!D.istGueltigeNummer(art, nummer)) { zeigeFehler(f, "Eine " + a.name + " besteht aus genau " + a.stellen + " Ziffern."); f.nummer.focus(); return; }
         if ((!eintrag || eintrag.nummer !== nummer) && D.findeNummer(daten, art, nummer)) { zeigeFehler(f, "Die " + a.name + " " + nummer + " gibt es schon."); return; }
         var kennungen = Array.prototype.slice.call(f.querySelectorAll("[name=person]:checked")).map(function (c) { return c.value; });
-        var unter = art === "ks" && f.querySelector("[name=unter]") ? Array.prototype.slice.call(f.querySelectorAll("[name=unter]:checked")).map(function (c) { return c.value; }) : undefined;
+        var unter = art === "ks" ? Array.prototype.slice.call(f.querySelectorAll("[name=unter]:checked:not(:disabled)")).map(function (c) { return c.value; }) : undefined;
+        var oben = art === "ks" && f.oben && !f.oben.disabled ? f.oben.value : undefined;
         if (art === "pn" && f.pnks) unter = f.pnks.value;
-        Dienst.nummerSpeichern(daten, ich, art, eintrag ? eintrag.nummer : "", nummer, kennungen, unter)
+        Dienst.nummerSpeichern(daten, ich, art, eintrag ? eintrag.nummer : "", nummer, kennungen, unter, oben)
           .then(nachAenderung("Die " + a.name + " " + nummer + " ist gespeichert."), function (x) { serverFehler(x, f); });
       });
+    if (art === "ks") verbindeUnter(form);
   }
 
   /* ---------- Projektkosten je Projektnummer ---------- */
