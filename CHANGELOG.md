@@ -1,5 +1,8 @@
 # Änderungen
 
+## 0.4.2 (29.10.2026)
+- Jede Ansicht startet mit dem aktuellen Kalenderjahr, auch nach der Anmeldung. Ein anderes Jahr gilt nur in der Ansicht, in der Du es gewählt hast.
+
 ## 0.4.1 (29.10.2026)
 - IST nach dem KST-Bericht: Der Bericht einer Kostenstelle enthält schon die Kosten ihrer Projektnummern, der Bericht einer übergreifenden Kostenstelle auch die zugeordneten Kostenstellen. Das Tool rechnet deshalb nichts mehr dazu.
 - IST einer übergreifenden Kostenstelle = ihr eigener KST-Bericht. Was nach Abzug der zugeordneten Kostenstellen auf ihr selbst liegt, steht als eigener Rest in Übersicht und Bericht (Beispiel: 50.000 € gesamt, 30.000 € auf der zugeordneten, 5.000 € Projektkosten, 15.000 € auf der übergreifenden selbst).

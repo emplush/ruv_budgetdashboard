@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "0.4.1";
+  var VERSION = "0.4.2";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -33,7 +33,11 @@
   }
 
   /* Übernimmt die neue Sicht nach einer Änderung */
+  /* Jede Ansicht startet mit dem aktuellen Kalenderjahr; eine andere Wahl gilt nur, bis Du die Ansicht wechselst */
+  function aktuellesJahr() { zustand.jahr = new Date().getFullYear(); }
+
   function uebernehmen(r) {
+    if (zustand.benutzer !== r.benutzer && (!zustand.benutzer || !r.benutzer || zustand.benutzer.kennung !== r.benutzer.kennung)) aktuellesJahr();
     zustand.daten = r.daten;
     zustand.benutzer = r.benutzer;
     document.title = zustand.daten.einstellungen.titel;
@@ -1398,7 +1402,7 @@
     }).then(function (r) {
       uebernehmen(r);
       if (r.benutzer) setzeDesign(r.benutzer.design || "auto", r.benutzer.farbe || "klassik");
-      window.addEventListener("hashchange", zeige);
+      window.addEventListener("hashchange", function () { aktuellesJahr(); zeige(); });
       document.addEventListener("click", function (e) {
         var liste = app.querySelector(".menue__liste");
         if (liste && !liste.hidden && !liste.contains(e.target)) {

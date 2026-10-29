@@ -170,6 +170,10 @@ function pruefe(bedingung, text) {
   await page.selectOption("[data-jahr]", vorjahr);
   pruefe(await page.isVisible("text=Planbudget " + vorjahr), "Kalenderjahr wechseln");
   await page.goto(url + "#/profil");
+  await page.goto(url + "#/");
+  await page.waitForSelector("text=Meine Kostenstellen");
+  pruefe(await page.inputValue("[data-jahr]") === String(new Date().getFullYear()), "neue Ansicht startet mit dem aktuellen Kalenderjahr");
+  await page.goto(url + "#/profil");
   await page.waitForSelector("text=Farbdesign");
   pruefe(await page.locator(".farbwahl__option").count() === 10, "zehn Farbdesigns");
   await page.click(".modus__option:has-text('Dunkel')");
