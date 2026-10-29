@@ -521,3 +521,28 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
 .diagramm__balken--vj, .diagramm__punkt--vj { background: var(--balken-vj); }
 .diagramm__zeile { max-width: 100%; }
 .diagramm__zeile .diagramm__balken { max-width: calc(100% - 7.5rem); }
+
+/* Planbudget-Tabelle: Gruppen Personal- und Sachkosten, mehr Luft */
+.planbudgettabelle { min-width: 62rem; }
+.planbudgettabelle th, .planbudgettabelle td { padding: .75rem .9rem; }
+.planbudgettabelle thead th { font-size: .82rem; }
+.planbudgettabelle .gruppenkopf th.gruppe { text-align: center; border-bottom: 2px solid var(--linie-stark); }
+.planbudgettabelle .gruppe { border-left: 1px solid var(--linie); }
+.planbudgettabelle tbody th { min-width: 11rem; }
+.planbudgettabelle tr.oben th, .planbudgettabelle tr.oben td { background: var(--flaeche-2); }
+.planbudgettabelle tr.einzel th, .planbudgettabelle tr.einzel td { border-bottom: 2px solid var(--linie-stark); }
+.planbudget__art { font-size: .78rem; font-weight: 600; color: var(--text-2); margin-left: .25rem; }
+.planbudget__wer { display: block; font-size: .8rem; font-weight: 400; color: var(--text-2); white-space: normal; margin-top: .1rem; }
+.kennzahlen--sechs { grid-template-columns: repeat(auto-fit, minmax(min(100%, 12.5rem), 1fr)); }
+
+/* Unterteilung als Baum: Linien verbinden die eingerückten Zeilen mit ihrer Kostenstelle */
+.budgettabelle tr.unter th { position: relative; padding-left: 2.4rem; }
+.budgettabelle tr.unter th::before { content: ""; position: absolute; left: 1.1rem; top: 0; bottom: 0; border-left: 2px solid var(--linie-stark); }
+.budgettabelle tr.unter th::after { content: ""; position: absolute; left: 1.1rem; top: 50%; width: .8rem; border-top: 2px solid var(--linie-stark); }
+.budgettabelle tr.unter.letzte th::before { bottom: 50%; }
+.budgettabelle tr.unter.letzte th, .budgettabelle tr.unter.letzte td { border-bottom: 2px solid var(--linie-stark); }
+.planbudgettabelle tr.einzel th, .planbudgettabelle tr.einzel td { border-bottom: 1px solid var(--linie); }
+.planbudgettabelle--pn { min-width: 0; }
+:root { --teil-4: var(--ruv-grey-4); }
+:root[data-theme="dunkel"] { --teil-4: var(--ruv-grey-3); }
+.anteil__teil--projekt, .legende__punkt--projekt { background: var(--teil-4); }

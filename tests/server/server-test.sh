@@ -68,7 +68,7 @@ pruefe "ungültiger Betrag 400" "Reise/KfZ" "$(post "$L" budget-speichern '{"jah
 pruefe "negativer Betrag 400" "400" "$(code -b "$L" -H "$H" -H "$J" -d '{"jahr":"2026","art":"ks","nummer":"410","werte":{"pkId":-5}}' "$U?aktion=budget-speichern")"
 pruefe "Planbudget speichern, deutsche Schreibweise" "412000|96000|18000.5|0|9800" "$(post "$L" budget-speichern '{"jahr":"2026","art":"ks","nummer":"410","werte":{"pkId":"412.000,00","pkAd":"96000","werbung":"18000,5","reise":"","sonstiges":9800}}' | py '"|".join(str(d["daten"]["budgets"]["2026"]["ks-410"][k]).rstrip("0").rstrip(".") if "." in str(d["daten"]["budgets"]["2026"]["ks-410"][k]) else str(d["daten"]["budgets"]["2026"]["ks-410"][k]) for k in ["pkId","pkAd","werbung","reise","sonstiges"])')"
 post "$L" budget-speichern '{"jahr":"2026","art":"ks","nummer":"411","werte":{"pkId":1000}}' >/dev/null
-post "$L" budget-speichern '{"jahr":"2025","art":"pn","nummer":"41000101","werte":{"pkAd":"2.500,00"}}' >/dev/null
+pruefe "Planbudget der Projektnummer nur als Betrag" '{"betrag": 2500.0}' "$(post "$L" budget-speichern '{"jahr":"2025","art":"pn","nummer":"41000101","werte":{"betrag":"2.500,00","pkAd":"7"}}' | py 'json.dumps(d["daten"]["budgets"]["2025"]["pn-41000101"])')"
 pruefe "Planbudget für unbekannte Nummer 404" "404" "$(code -b "$L" -H "$H" -H "$J" -d '{"jahr":"2026","art":"ks","nummer":"999","werte":{}}' "$U?aktion=budget-speichern")"
 pruefe "Umbenennen nimmt Planbudget mit" "['ks-411', 'ks-420']" "$(post "$L" nummer-speichern '{"art":"ks","alt":"410","nummer":"420","benutzer":["xv10001","xv10002","xv10004"]}' | py 'str(sorted(d["daten"]["budgets"]["2026"].keys()))')"
 pruefe "Key Account Manager nicht an Kostenstelle" "['xv10001', 'xv10002']" "$(curl -s -b "$L" -H "$H" "$U?aktion=sitzung" | py 'str([n["benutzer"] for n in d["daten"]["kostenstellen"] if n["nummer"]=="420"][0])')"
@@ -126,15 +126,17 @@ post "$L" nummer-speichern '{"art":"ks","alt":"419","nummer":"411","benutzer":["
 # Projektkosten: manuell erfasst, gehen von der zugeordneten Kostenstelle ab
 pruefe "unbekannte Kostenstelle für Projektnummer 400" "999" "$(post "$L" nummer-speichern '{"art":"pn","alt":"41000101","nummer":"41000101","benutzer":["xv10004"],"ks":"999"}')"
 pruefe "Projektnummer einer Kostenstelle zuordnen" "411" "$(post "$L" nummer-speichern '{"art":"pn","alt":"41000101","nummer":"41000101","benutzer":["xv10004"],"ks":"411"}' | py '[n["ks"] for n in d["daten"]["projekte"] if n["nummer"]=="41000101"][0]')"
-KO='{"id":"","pn":"41000101","datum":"2026-03-15","kostenart":"werbung","betrag":"1.250,50","text":"Messestand"}'
+KO='{"id":"","pn":"41000101","datum":"2026-03-15","betrag":"1.250,50","text":"Messestand"}'
 pruefe "Gruppenleitung darf keine Projektkosten erfassen 403" "403" "$(code -b "$G" -H "$H" -H "$J" -d "$KO" "$U?aktion=kosten-speichern")"
-pruefe "Projektkosten ohne Kostenart 400" "Kostenart" "$(post "$L" kosten-speichern "${KO/werbung/}")"
 pruefe "Projektkosten mit Betrag 0 400" "größer als 0" "$(post "$L" kosten-speichern "${KO/1.250,50/0}")"
 pruefe "Projektkosten mit falschem Datum 400" "Datum" "$(post "$L" kosten-speichern "${KO/2026-03-15/2026-02-30}")"
 pruefe "Projektkosten für unbekannte Projektnummer 404" "404" "$(code -b "$L" -H "$H" -H "$J" -d "${KO/41000101/41009999}" "$U?aktion=kosten-speichern")"
-pruefe "Projektkosten erfassen" "1|1250.5|werbung|xv10001" "$(post "$L" kosten-speichern "$KO" | py 'str(len(d["daten"]["kosten"]))+"|"+str(d["daten"]["kosten"][0]["betrag"])+"|"+d["daten"]["kosten"][0]["kostenart"]+"|"+d["daten"]["kosten"][0]["von"]')"
+pruefe "Projektkosten erfassen ohne Kostenart" "1|1250.5|False|xv10001" "$(post "$L" kosten-speichern "$KO" | py 'str(len(d["daten"]["kosten"]))+"|"+str(d["daten"]["kosten"][0]["betrag"])+"|"+str("kostenart" in d["daten"]["kosten"][0])+"|"+d["daten"]["kosten"][0]["von"]')"
+KK="$(post "$K" kosten-speichern "${KO/1.250,50/10}" | py '[x["id"] for x in d["daten"]["kosten"] if x["von"]=="xv10004"][0]')"
+pruefe "Key Account Manager erfasst Kosten seiner Projektnummer" "k" "${KK:0:1}"
+pruefe "Key Account Manager löscht seinen Eintrag" "1" "$(post "$K" kosten-loeschen "{\"id\":\"$KK\"}" | py 'str(len(d["daten"]["kosten"]))')"
 KID="$(curl -s -b "$L" -H "$H" "$U?aktion=sitzung" | py 'd["daten"]["kosten"][0]["id"]')"
-pruefe "Projektkosten ändern" "1|99|reise" "$(post "$L" kosten-speichern "{\"id\":\"$KID\",\"pn\":\"41000101\",\"datum\":\"2026-04-01\",\"kostenart\":\"reise\",\"betrag\":99,\"text\":\"\"}" | py 'str(len(d["daten"]["kosten"]))+"|"+str(d["daten"]["kosten"][0]["betrag"])+"|"+d["daten"]["kosten"][0]["kostenart"]')"
+pruefe "Projektkosten ändern" "1|99" "$(post "$L" kosten-speichern "{\"id\":\"$KID\",\"pn\":\"41000101\",\"datum\":\"2026-04-01\",\"betrag\":99,\"text\":\"\"}" | py 'str(len(d["daten"]["kosten"]))+"|"+str(d["daten"]["kosten"][0]["betrag"])')"
 post "$L" kosten-speichern "$KO" >/dev/null
 pruefe "Gruppenleitung sieht Projektnummer ihrer Kostenstelle ohne Zuweisung und deren Kosten" "['41000101']|[]|411|2" "$(curl -s -b "$G" -H "$H" "$U?aktion=sitzung" | py 'str([n["nummer"] for n in d["daten"]["projekte"]])+"|"+str(d["daten"]["projekte"][0]["benutzer"])+"|"+d["daten"]["projekte"][0]["ks"]+"|"+str(len(d["daten"]["kosten"]))')"
 pruefe "Key Account Manager sieht Kosten seiner Projektnummer" "2" "$(curl -s -b "$K" -H "$H" "$U?aktion=sitzung" | py 'str(len(d["daten"]["kosten"]))')"
@@ -146,6 +148,7 @@ pruefe "gelöschten Eintrag nochmals löschen 404" "404" "$(code -b "$L" -H "$H"
 post "$L" nummer-speichern '{"art":"ks","alt":"","nummer":"499","benutzer":[]}' >/dev/null
 post "$L" nummer-speichern '{"art":"pn","alt":"","nummer":"41000199","benutzer":[],"ks":"499"}' >/dev/null
 post "$L" kosten-speichern "${KO/41000101/41000199}" >/dev/null
+pruefe "Key Account Manager nicht für fremde Projektnummer 403" "403" "$(code -b "$K" -H "$H" -H "$J" -d "${KO/41000101/41000199}" "$U?aktion=kosten-speichern")"
 pruefe "Kostenstelle löschen hebt Zuordnung auf" "''" "$(post "$L" nummer-loeschen '{"art":"ks","nummer":"499"}' | py 'repr([n["ks"] for n in d["daten"]["projekte"] if n["nummer"]=="41000199"][0])')"
 pruefe "Projektnummer löschen entfernt ihre Kosten" "['41000101']" "$(post "$L" nummer-loeschen '{"art":"pn","nummer":"41000199"}' | py 'str([x["pn"] for x in d["daten"]["kosten"]])')"
 

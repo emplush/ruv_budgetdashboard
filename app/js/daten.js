@@ -231,7 +231,14 @@
     budgets: function (b) { return !!b && b.rolle === "al"; },
     einstellungen: function (b) { return !!b && b.rolle === "admin"; },
     /* Eigene Kostenstellen oder Projektnummern ansehen: alle außer Admin */
-    eigene: function (b) { return !!b && b.rolle !== "admin"; }
+    eigene: function (b) { return !!b && b.rolle !== "admin"; },
+    /* Projektkosten erfassen: Abteilungsleitung für alle Projektnummern, Key Account Manager für ihre eigenen */
+    kosten: function (b, daten, pn) {
+      if (!b) return false;
+      if (b.rolle === "al") return true;
+      var n = b.rolle === "kam" && daten ? findeNummer(daten, "pn", pn) : null;
+      return !!n && n.benutzer.indexOf(b.kennung) >= 0;
+    }
   };
 
   /* Die Abteilungsleitung verwaltet alle Konten außer den Administratoren. */
@@ -457,25 +464,38 @@
 
   function istJahr(jahr) { return /^(20[0-9]{2})$/.test(String(jahr)); }
 
-  /* Planbudget einer Nummer in einem Jahr, mit Sachkosten und Gesamtbudget; fehlt es, sind alle Werte 0. */
+  /* Planbudget einer Nummer in einem Jahr, mit Sachkosten und Gesamtbudget; fehlt es, sind alle Werte 0.
+     Projektnummern haben nur einen Betrag ohne Kostenarten; er steht in „projekt“ (ältere Einträge mit Positionen werden summiert). */
   function budgetVon(daten, jahr, art, nummer) {
     var j = daten.budgets[String(jahr)] || {};
     var w = j[art + "-" + nummer] || null;
-    var aus = { vorhanden: !!w };
-    POSITIONEN.forEach(function (p) { aus[p.id] = w ? Number(w[p.id]) || 0 : 0; });
-    aus.sachkosten = runde(aus.werbung + aus.reise + aus.sonstiges);
-    aus.personalkosten = runde(aus.pkId + aus.pkAd);
-    aus.gesamt = runde(aus.personalkosten + aus.sachkosten);
+    if (art === "pn") {
+      var b = !w ? 0 : w.betrag !== undefined ? Number(w.betrag) || 0 : mitSummen(w).gesamt;
+      var p = mitSummen({ projekt: b });
+      p.vorhanden = !!w;
+      return p;
+    }
+    var aus = mitSummen(w);
+    aus.vorhanden = !!w;
     return aus;
   }
 
   function runde(z) { return Math.round(z * 100) / 100; }
 
-  /* werte: {pkId, pkAd, werbung, reise, sonstiges} als Zahl oder Text. Liefert Fehlertext oder "". */
+  /* werte: bei Kostenstellen {pkId, pkAd, werbung, reise, sonstiges}, bei Projektnummern {betrag}, als Zahl oder Text.
+     Liefert Fehlertext oder "". */
   function setzeBudget(daten, jahr, art, nummer, werte) {
     if (!istJahr(jahr)) return "Wähle bitte ein Kalenderjahr.";
     if (!findeNummer(daten, art, nummer)) return "Die " + (ARTEN[art] ? ARTEN[art].name : "Nummer") + " " + nummer + " gibt es nicht mehr.";
+    werte = werte || {};
     var neu = {};
+    if (art === "pn") {
+      var b = leseBetrag(werte.betrag);
+      if (b === null) return "Prüfe bitte den Betrag. Erlaubt sind Beträge ab 0 €, zum Beispiel 12.500,00.";
+      neu.betrag = b;
+      (daten.budgets[String(jahr)] || (daten.budgets[String(jahr)] = {}))[art + "-" + nummer] = neu;
+      return "";
+    }
     for (var i = 0; i < POSITIONEN.length; i++) {
       var z = leseBetrag(werte[POSITIONEN[i].id]);
       if (z === null) return "Prüfe bitte den Betrag bei „" + POSITIONEN[i].name + "“. Erlaubt sind Beträge ab 0 €, zum Beispiel 12.500,00.";
@@ -526,7 +546,7 @@
 
   /* Summe über mehrere Planbudgets */
   function summe(budgets) {
-    var s = { pkId: 0, pkAd: 0, werbung: 0, reise: 0, sonstiges: 0, sachkosten: 0, personalkosten: 0, gesamt: 0 };
+    var s = { pkId: 0, pkAd: 0, werbung: 0, reise: 0, sonstiges: 0, sachkosten: 0, personalkosten: 0, projekt: 0, gesamt: 0 };
     budgets.forEach(function (b) { Object.keys(s).forEach(function (k) { s[k] = runde(s[k] + (b[k] || 0)); }); });
     return s;
   }
@@ -687,7 +707,9 @@
     POSITIONEN.forEach(function (p) { aus[p.id] = w ? Number(w[p.id]) || 0 : 0; });
     aus.sachkosten = runde(aus.werbung + aus.reise + aus.sonstiges);
     aus.personalkosten = runde(aus.pkId + aus.pkAd);
-    aus.gesamt = runde(aus.personalkosten + aus.sachkosten);
+    /* projekt: Beträge von Projektnummern (ohne Kostenarten); beim Einzelbudget einer Kostenstelle negativ (abgezogen) */
+    aus.projekt = w ? Number(w.projekt) || 0 : 0;
+    aus.gesamt = runde(aus.personalkosten + aus.sachkosten + aus.projekt);
     return aus;
   }
 
@@ -720,13 +742,12 @@
     return d.getUTCMonth() === +m[2] - 1 && d.getUTCDate() === +m[3];
   }
 
-  /* felder: {pn, datum (JJJJ-MM-TT), kostenart (Position), betrag, text}. id leer = neu. Liefert Fehlertext oder "". */
+  /* felder: {pn, datum (JJJJ-MM-TT), betrag, text}. Projektkosten haben keine Kostenart. id leer = neu. Liefert Fehlertext oder "". */
   function speichereKosten(daten, id, felder, kennung, jetztZeit) {
     felder = felder || {};
     var pn = String(felder.pn || "");
     if (!findeNummer(daten, "pn", pn)) return "Die Projektnummer " + pn + " gibt es nicht.";
     if (!istDatum(felder.datum)) return "Gib bitte ein gültiges Datum ein.";
-    if (!POSITIONEN.some(function (p) { return p.id === felder.kostenart; })) return "Wähle bitte die Kostenart.";
     var betrag = leseBetrag(felder.betrag);
     if (betrag === null || betrag === 0) return "Gib bitte einen Betrag größer als 0 € ein, zum Beispiel 1.250,00.";
     var text = String(felder.text || "").trim();
@@ -735,7 +756,8 @@
     var e = id ? daten.kosten.filter(function (x) { return x.id === id; })[0] : null;
     if (id && !e) return "Diesen Eintrag gibt es nicht mehr.";
     if (!e) { e = { id: "k" + Date.parse(zeit).toString(36) + Math.random().toString(36).slice(2, 7), erfasst: zeit, von: kennung || "" }; daten.kosten.push(e); }
-    e.pn = pn; e.datum = felder.datum; e.kostenart = felder.kostenart; e.betrag = betrag; e.text = text;
+    e.pn = pn; e.datum = felder.datum; e.betrag = betrag; e.text = text;
+    delete e.kostenart;
     e.geaendert = zeit; e.geaendertVon = kennung || "";
     daten.kosten.sort(function (a, b) { return a.datum < b.datum ? 1 : a.datum > b.datum ? -1 : 0; });
     return "";
@@ -753,9 +775,9 @@
 
   /* IST einer Projektnummer aus den erfassten Kosten. bisMonat: nur Kosten bis zu diesem Monat (für den Vorjahresvergleich). */
   function projektIstVon(daten, jahr, pn, bisMonat) {
-    var w = {};
+    var w = { projekt: 0 };
     var liste = kostenVon(daten, jahr, pn).filter(function (x) { return !bisMonat || Number(x.datum.slice(5, 7)) <= bisMonat; });
-    liste.forEach(function (x) { w[x.kostenart] = runde((w[x.kostenart] || 0) + x.betrag); });
+    liste.forEach(function (x) { w.projekt = runde(w.projekt + x.betrag); });
     var aus = mitSummen(w);
     aus.vorhanden = liste.length > 0;
     var heute = new Date();

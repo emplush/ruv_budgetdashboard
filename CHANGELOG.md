@@ -1,5 +1,12 @@
 # Änderungen
 
+## 0.7.0 (29.10.2026)
+- Detailseite je Kostenstelle für die Abteilungsleitung (Klick auf die Nummer bei IST-Werten oder Einzelbudgets): Plan und IST je Position mit zeitanteiligem Plan und Abweichung, Hochrechnung und Vorjahr je Position, IST je Monat und verfügbares Budget je Restmonat, Diagramm, Zusammensetzung aus Einzelbudget, Unterkostenstellen und Projektnummern.
+- Planbudget-Tabelle mit mehr Luft: Spalten gruppiert nach Personalkosten und Sachkosten, Verantwortliche unter der Nummer. Eine Kostenstelle mit Unterkostenstellen oder Projektnummern steht oben mit dem Gesamtbudget und eingerückt mit ihrem Einzelbudget.
+- Die Unterteilung zeigen Baumlinien statt der Texte „übergreifend“ und „Gesamtbudget“, in allen Tabellen gleich.
+- Projektnummern haben nur noch ein Budget als Summe, ohne Kostenarten. Projektkosten bestehen aus Datum, Betrag und Beschreibung. Bestehende Einträge mit Kostenarten zählen als Summe weiter.
+- Projektkosten erfassen die Abteilungsleitung und die Key Account Manager für ihre eigenen Projektnummern. Gruppenleitungen sehen sie nur.
+
 ## 0.6.3 (29.10.2026)
 - Diagramm: Die Vorjahresreihe heißt jetzt so wie der Zeitraum, z. B. „IST 2025 bis September“. Die Werte kommen aus der Spalte „Ist Vorjahr bis Abrechnungsmonat“ des KST-Berichts.
 

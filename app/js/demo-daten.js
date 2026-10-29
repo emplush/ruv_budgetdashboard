@@ -48,16 +48,21 @@
       "ks-410": werte(124000, 0, 18000, 14500, 9800),
       "ks-411": werte(286500, 154000, 12000, 31000, 6500),
       "ks-412": werte(198000, 212500, 8500, 42000, 11200),
-      "pn-41000101": werte(64000, 38000, 22000, 15500, 4000),
-      "pn-41000102": werte(52000, 61000, 9000, 18000, 2500)
+      "pn-41000101": { betrag: 143500 },
+      "pn-41000102": { betrag: 142500 }
     };
     daten.budgets[String(jahr - 1)] = {
       "ks-410": werte(118000, 0, 16500, 13000, 9000),
       "ks-411": werte(275000, 149000, 11000, 29500, 6000),
       "ks-412": werte(190000, 205000, 8000, 39000, 10500),
-      "pn-41000101": werte(60000, 35000, 20000, 14000, 3500)
+      "pn-41000101": { betrag: 132500 }
     };
-    /* Erfundene Projektkosten, manuell erfasst */
+    /* Im Gesamtbudget der 410 stecken die Projektnummern in diesen Kostenarten (nur für die Beispielsummen) */
+    var pnAnteile = {
+      "pn-41000101": [werte(64000, 38000, 22000, 15500, 4000), werte(60000, 35000, 20000, 14000, 3500)],
+      "pn-41000102": [werte(52000, 61000, 9000, 18000, 2500), null]
+    };
+    /* Erfundene Projektkosten, manuell erfasst (ohne Kostenart; die Art dient nur den Beispielsummen im KST-Bericht) */
     var tag = function (monat, t) { return jahr + "-" + ("0" + monat).slice(-2) + "-" + ("0" + t).slice(-2); };
     var bisMonat = Math.max(1, new Date().getMonth() + 1);
     daten.kosten = [
@@ -66,7 +71,7 @@
       ["41000102", 3, 11, "werbung", 6200, "Kampagne Vertriebsstart"], ["41000102", 5, 22, "reise", 3140.75, "Workshops Regionen"],
       ["41000102", 7, 1, "pkId", 15500, "Projektleitung Innendienst"]
     ].filter(function (x) { return x[1] <= bisMonat; }).map(function (x, i) {
-      return { id: "kdemo" + i, pn: x[0], datum: tag(x[1], x[2]), kostenart: x[3], betrag: x[4], text: x[5], erfasst: new Date().toISOString(), von: "xv10001", geaendert: new Date().toISOString(), geaendertVon: "xv10001" };
+      return { id: "kdemo" + i, pn: x[0], datum: tag(x[1], x[2]), art: x[3], betrag: x[4], text: x[5], erfasst: new Date().toISOString(), von: "xv10001", geaendert: new Date().toISOString(), geaendertVon: "xv10001" };
     });
     var heute = new Date(), m = heute.getMonth(), istJahr = m === 0 ? jahr - 1 : jahr, monat = m === 0 ? 12 : m;
     var stand = new Date(heute.getTime() - 3 * 864e5).toISOString().slice(0, 10);
@@ -95,14 +100,19 @@
       });
       daten.kosten.forEach(function (x) {
         if (x.datum.slice(0, 4) !== String(istJahr) || Number(x.datum.slice(5, 7)) > monat) return;
-        oben.aktuell.werte[x.kostenart] = Math.round((oben.aktuell.werte[x.kostenart] + x.betrag) * 100) / 100;
+        oben.aktuell.werte[x.art] = Math.round((oben.aktuell.werte[x.art] + x.betrag) * 100) / 100;
       });
     }
+    daten.kosten.forEach(function (x) { delete x.art; });
     /* Bei der übergreifenden 410 steht das Gesamtplanbudget inklusive 411, 412 und ihrer Projektnummern */
     Object.keys(daten.budgets).forEach(function (j) {
       var b = daten.budgets[j];
       if (!b["ks-410"]) return;
-      ["ks-411", "ks-412", "pn-41000101", "pn-41000102"].forEach(function (u) { if (b[u]) Object.keys(b[u]).forEach(function (k) { b["ks-410"][k] += b[u][k]; }); });
+      var vorjahr = Number(j) !== jahr ? 1 : 0;
+      ["ks-411", "ks-412", "pn-41000101", "pn-41000102"].forEach(function (u) {
+        var teile = u.slice(0, 3) === "pn-" ? b[u] && pnAnteile[u][vorjahr] : b[u];
+        if (teile) Object.keys(teile).forEach(function (k) { b["ks-410"][k] += teile[k]; });
+      });
     });
   }
 

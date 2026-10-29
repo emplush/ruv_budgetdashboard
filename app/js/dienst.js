@@ -202,10 +202,16 @@
       return aendern(function (ich) { return recht(D.Rechte.budgets(ich)) || D.setzeIst(speicher, nummer, eintrag, ich.kennung); });
     },
     kostenSpeichern: function (daten, b, id, felder) {
-      return aendern(function (ich) { return recht(D.Rechte.budgets(ich)) || D.speichereKosten(speicher, id, felder, ich.kennung); });
+      return aendern(function (ich) {
+        var alt = id ? speicher.kosten.filter(function (x) { return x.id === id; })[0] : null;
+        return recht(D.Rechte.kosten(ich, speicher, (felder || {}).pn) && (!alt || D.Rechte.kosten(ich, speicher, alt.pn))) || D.speichereKosten(speicher, id, felder, ich.kennung);
+      });
     },
     kostenLoeschen: function (daten, b, id) {
-      return aendern(function (ich) { return recht(D.Rechte.budgets(ich)) || D.loescheKosten(speicher, id); });
+      return aendern(function (ich) {
+        var alt = speicher.kosten.filter(function (x) { return x.id === id; })[0];
+        return (alt ? recht(D.Rechte.kosten(ich, speicher, alt.pn)) : "") || D.loescheKosten(speicher, id);
+      });
     },
     istWiederherstellen: function (daten, b, id) {
       return aendern(function (ich) { return recht(D.Rechte.nummern(ich)) || D.stelleIstWiederHer(speicher, id, ich.kennung); });
@@ -308,7 +314,7 @@
       return anfrage("ist-importieren", { nummer: nummer, eintrag: eintrag }).then(uebernehmen);
     },
     kostenSpeichern: function (daten, b, id, felder) {
-      return anfrage("kosten-speichern", { id: id || "", pn: felder.pn, datum: felder.datum, kostenart: felder.kostenart, betrag: felder.betrag, text: felder.text || "" }).then(uebernehmen);
+      return anfrage("kosten-speichern", { id: id || "", pn: felder.pn, datum: felder.datum, betrag: felder.betrag, text: felder.text || "" }).then(uebernehmen);
     },
     kostenLoeschen: function (daten, b, id) { return anfrage("kosten-loeschen", { id: id }).then(uebernehmen); },
     istWiederherstellen: function (daten, b, id) { return anfrage("ist-wiederherstellen", { id: id }).then(uebernehmen); }

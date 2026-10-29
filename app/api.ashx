@@ -26,10 +26,10 @@
  *   POST nummer-loeschen         <- {art,nummer}                                        (Administrator, Abteilungsleitung)
  *   POST ist-importieren         <- {nummer,eintrag:{stand,monat,aktuell:{jahr,werte},vorjahrZeitraum,vorjahr,datei}} (Abteilungsleitung;
  *                                   ersetzt die IST-Daten der Kostenstelle, sichert vorher den bisherigen Stand in istSicherungen)
- *   POST kosten-speichern        <- {id,pn,datum,kostenart,betrag,text}                (Abteilungsleitung; Projektkosten, id leer = neu)
- *   POST kosten-loeschen         <- {id}                                               (Abteilungsleitung)
+ *   POST kosten-speichern        <- {id,pn,datum,betrag,text}                (Abteilungsleitung, Key Account Manager ihrer Projektnummer; id leer = neu)
+ *   POST kosten-loeschen         <- {id}                                     (ebenso)
  *   POST ist-wiederherstellen    <- {id}                                               (Administrator, Abteilungsleitung)
- *   POST budget-speichern        <- {jahr,art,nummer,werte:{pkId,pkAd,werbung,reise,sonstiges}} (Abteilungsleitung)
+ *   POST budget-speichern        <- {jahr,art,nummer,werte:{pkId,pkAd,werbung,reise,sonstiges} oder bei pn {betrag}} (Abteilungsleitung)
  *
  * Jede Änderung antwortet mit der neuen Sicht = {"ich":kennung,"daten":{...}}, gleiche Regeln wie sicht() in js/daten.js:
  * Administrator und Abteilungsleitung sehen alle Benutzer, Kostenstellen und Projektnummern; Planbudgets sieht nur
@@ -108,7 +108,7 @@ public class BdErgebnis
 
 public static class BdKern
 {
-    public const string Version = "0.6.3";
+    public const string Version = "0.7.0";
     public const string CookieName = "budgetdashboard_sitzung";
     public const int MaxBytes = 2 * 1024 * 1024;
     private const int AnzahlSicherungen = 50;
@@ -308,16 +308,20 @@ public static class BdKern
                 }
             case "kosten-speichern":
                 {
-                    if (rolle != "al") throw new Fehler(403, "Projektkosten erfasst nur die Abteilungsleitung.");
-                    KostenSpeichern(daten, (S(k, "id") ?? "").Trim(), k, S(ich, "kennung"));
+                    string kid = (S(k, "id") ?? "").Trim();
+                    var altK = kid != "" ? L(daten["kosten"]).Select(x => D(x)).FirstOrDefault(x => S(x, "id") == kid) : null;
+                    if (!DarfKosten(daten, ich, S(k, "pn") ?? "") || (altK != null && !DarfKosten(daten, ich, S(altK, "pn"))))
+                        throw new Fehler(403, "Projektkosten erfassen die Abteilungsleitung und die Key Account Manager ihrer Projektnummern.");
+                    KostenSpeichern(daten, kid, k, S(ich, "kennung"));
                     break;
                 }
             case "kosten-loeschen":
                 {
-                    if (rolle != "al") throw new Fehler(403, "Projektkosten erfasst nur die Abteilungsleitung.");
                     string id = S(k, "id") ?? "";
                     var liste = L(daten["kosten"]).ToList();
-                    if (!liste.Any(x => S(D(x), "id") == id)) throw new Fehler(404, "Diesen Eintrag gibt es nicht mehr.");
+                    var altL = liste.Select(x => D(x)).FirstOrDefault(x => S(x, "id") == id);
+                    if (altL == null) throw new Fehler(404, "Diesen Eintrag gibt es nicht mehr.");
+                    if (!DarfKosten(daten, ich, S(altL, "pn"))) throw new Fehler(403, "Projektkosten erfassen die Abteilungsleitung und die Key Account Manager ihrer Projektnummern.");
                     daten["kosten"] = liste.Where(x => S(D(x), "id") != id).ToList();
                     break;
                 }
@@ -684,7 +688,14 @@ public static class BdKern
         if (art != "ks" && art != "pn") throw new Fehler(400, "Unbekannte Art.");
         if (FindeNummer(daten, art, nummer) == null) throw new Fehler(404, "Die " + ArtName(art) + " " + nummer + " gibt es nicht mehr.");
         var neu = new Dictionary<string, object>();
-        foreach (var p in Positionen)
+        if (werte == null) werte = new Dictionary<string, object>();
+        if (art == "pn")
+        {
+            var b = LeseBetrag(G(werte, "betrag"));
+            if (b == null) throw new Fehler(400, "Prüfe bitte den Betrag. Erlaubt sind Beträge ab 0 €, zum Beispiel 12.500,00.");
+            neu["betrag"] = b.Value;
+        }
+        else foreach (var p in Positionen)
         {
             var z = LeseBetrag(G(werte, p));
             if (z == null) throw new Fehler(400, "Prüfe bitte den Betrag bei „" + PositionsNamen[p] + "“. Erlaubt sind Beträge ab 0 €, zum Beispiel 12.500,00.");
@@ -760,16 +771,25 @@ public static class BdKern
         else ist.Remove("ks-" + nummer);
     }
 
-    // ---------- Projektkosten (gleiche Regeln wie speichereKosten in js/daten.js) ----------
+    // ---------- Projektkosten (gleiche Regeln wie speichereKosten und Rechte.kosten in js/daten.js) ----------
+
+    /// <summary>Abteilungsleitung für alle Projektnummern, Key Account Manager für ihre eigenen, sonst niemand.</summary>
+    private static bool DarfKosten(Dictionary<string, object> daten, Dictionary<string, object> ich, string pn)
+    {
+        string rolle = S(ich, "rolle");
+        if (rolle == "al") return true;
+        if (rolle != "kam") return false;
+        var n = FindeNummer(daten, "pn", pn ?? "");
+        return n != null && L(G(n, "benutzer")).Select(x => x as string).Contains(S(ich, "kennung"));
+    }
 
     private static void KostenSpeichern(Dictionary<string, object> daten, string id, Dictionary<string, object> f, string kennung)
     {
-        string pn = S(f, "pn") ?? "", datum = S(f, "datum") ?? "", art = S(f, "kostenart") ?? "", text = (S(f, "text") ?? "").Trim();
+        string pn = S(f, "pn") ?? "", datum = S(f, "datum") ?? "", text = (S(f, "text") ?? "").Trim();
         if (FindeNummer(daten, "pn", pn) == null) throw new Fehler(404, "Die Projektnummer " + pn + " gibt es nicht.");
         DateTime d;
         if (!Regex.IsMatch(datum, "^20[0-9]{2}-[0-9]{2}-[0-9]{2}$") || !DateTime.TryParseExact(datum, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out d))
             throw new Fehler(400, "Gib bitte ein gültiges Datum ein.");
-        if (!Positionen.Contains(art)) throw new Fehler(400, "Wähle bitte die Kostenart.");
         var betrag = LeseBetrag(G(f, "betrag"));
         if (betrag == null || betrag.Value == 0m) throw new Fehler(400, "Gib bitte einen Betrag größer als 0 € ein, zum Beispiel 1.250,00.");
         if (text.Length > 120) throw new Fehler(400, "Die Beschreibung hat höchstens 120 Zeichen.");
@@ -785,7 +805,7 @@ public static class BdKern
             e = new Dictionary<string, object> { { "id", "k" + Guid.NewGuid().ToString("N").Substring(0, 12) }, { "erfasst", Jetzt() }, { "von", kennung ?? "" } };
             liste.Add(e);
         }
-        e["pn"] = pn; e["datum"] = datum; e["kostenart"] = art; e["betrag"] = betrag.Value; e["text"] = text;
+        e["pn"] = pn; e["datum"] = datum; e.Remove("kostenart"); e["betrag"] = betrag.Value; e["text"] = text;
         e["geaendert"] = Jetzt(); e["geaendertVon"] = kennung ?? "";
         daten["kosten"] = liste.OrderByDescending(x => S(D(x), "datum"), StringComparer.Ordinal).ToList();
     }
