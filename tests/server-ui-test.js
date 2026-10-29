@@ -68,10 +68,10 @@ function pruefe(bedingung, text) {
   await page.fill("#w-sonstiges", "1500");
   await page.click("dialog button[type=submit]");
   await page.waitForSelector("text=Das Planbudget");
-  pruefe(await page.isVisible("tr:has(th:has-text('411')) >> text=251.500,00 €"), "Planbudget auf dem Server speichern");
+  pruefe(await page.isVisible("tr:has(th:has-text('411')) >> text=251.500,00 EUR"), "Planbudget auf dem Server speichern");
   await page.reload();
   await page.waitForSelector("text=Summe Kostenstellen");
-  pruefe(await page.isVisible("tr:has(th:has-text('411')) >> text=251.500,00 €"), "Planbudget bleibt nach dem Neuladen");
+  pruefe(await page.isVisible("tr:has(th:has-text('411')) >> text=251.500,00 EUR"), "Planbudget bleibt nach dem Neuladen");
 
   await page.goto(url + "#/profil");
   await page.click(".farbwahl__option:has-text('Rheingau')");

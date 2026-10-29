@@ -40,6 +40,12 @@ test("Beträge lesen", () => {
   assert.strictEqual(D.leseBetrag("1234,5"), 1234.5);
   assert.strictEqual(D.leseBetrag("1234.5"), 1234.5);
   assert.strictEqual(D.leseBetrag("12.500 €"), 12500);
+  assert.strictEqual(D.betragText(100), "100,00 EUR");
+  assert.strictEqual(D.betragText(1000), "1.000,00 EUR");
+  assert.strictEqual(D.betragText(1000000.5), "1.000.000,50 EUR");
+  assert.strictEqual(D.betragText(-12345.678), "-12.345,68 EUR");
+  assert.strictEqual(D.zahlText(10000, 0), "10.000");
+  assert.strictEqual(D.leseBetrag("1.000.000,00 EUR"), 1000000);
   assert.strictEqual(D.leseBetrag(""), 0);
   assert.strictEqual(D.leseBetrag(9800), 9800);
   assert.strictEqual(D.leseBetrag("-3"), null);

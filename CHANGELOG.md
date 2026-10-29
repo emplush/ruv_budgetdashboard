@@ -1,5 +1,13 @@
 # Änderungen
 
+## 0.8.0 (29.10.2026)
+- Neue Ansicht für die Gruppenleitung je Kostenstelle: Kennzahlen (Planbudget, IST, Restbudget mit Betrag je Restmonat, Hochrechnung zum Jahresende, Vorjahr), großer Verbrauchsbalken mit gebuchtem Anteil des Jahres und „Auf einen Blick“ mit Auffälligkeiten (überschritten, Monat, in dem das Budget aufgebraucht ist, IST ohne Plan, Kostenarten über dem zeitanteiligen Plan, starke Veränderung zum Vorjahr).
+- Prognose bis Dezember als Diagramm: IST bis zum gebuchten Monat, danach gleichmäßig fortgeschrieben, dazu zeitanteiliger Plan und Vorjahr.
+- IST je Kostenart mit Restbudget in EUR und Prozent, Hochrechnung und „Prognose Rest“ (Plan minus Hochrechnung).
+- Darstellung über die ganze Breite. Wird es schmal, steht erst das IST, dann der Plan.
+- Zahlen überall mit Tausenderpunkt und zwei Nachkommastellen, Einheit EUR (zum Beispiel 1.000.000,00 EUR). Auch Eingabefelder setzen die Tausenderpunkte schon beim Tippen.
+- Farbdesigns moderner: helle Seiten mit dezenter Abtönung statt kräftiger Flächen, Kopfleiste mit Farbverlauf, neutrale Fußleiste, rundere Karten mit weicheren Schatten.
+
 ## 0.7.0 (29.10.2026)
 - Detailseite je Kostenstelle für die Abteilungsleitung (Klick auf die Nummer bei IST-Werten oder Einzelbudgets): Plan und IST je Position mit zeitanteiligem Plan und Abweichung, Hochrechnung und Vorjahr je Position, IST je Monat und verfügbares Budget je Restmonat, Diagramm, Zusammensetzung aus Einzelbudget, Unterkostenstellen und Projektnummern.
 - Planbudget-Tabelle mit mehr Luft: Spalten gruppiert nach Personalkosten und Sachkosten, Verantwortliche unter der Nummer. Eine Kostenstelle mit Unterkostenstellen oder Projektnummern steht oben mit dem Gesamtbudget und eingerückt mit ihrem Einzelbudget.

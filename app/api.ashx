@@ -108,7 +108,7 @@ public class BdErgebnis
 
 public static class BdKern
 {
-    public const string Version = "0.7.0";
+    public const string Version = "0.8.0";
     public const string CookieName = "budgetdashboard_sitzung";
     public const int MaxBytes = 2 * 1024 * 1024;
     private const int AnzahlSicherungen = 50;
@@ -692,13 +692,13 @@ public static class BdKern
         if (art == "pn")
         {
             var b = LeseBetrag(G(werte, "betrag"));
-            if (b == null) throw new Fehler(400, "Prüfe bitte den Betrag. Erlaubt sind Beträge ab 0 €, zum Beispiel 12.500,00.");
+            if (b == null) throw new Fehler(400, "Prüfe bitte den Betrag. Erlaubt sind Beträge ab 0,00 EUR, zum Beispiel 12.500,00 EUR.");
             neu["betrag"] = b.Value;
         }
         else foreach (var p in Positionen)
         {
             var z = LeseBetrag(G(werte, p));
-            if (z == null) throw new Fehler(400, "Prüfe bitte den Betrag bei „" + PositionsNamen[p] + "“. Erlaubt sind Beträge ab 0 €, zum Beispiel 12.500,00.");
+            if (z == null) throw new Fehler(400, "Prüfe bitte den Betrag bei „" + PositionsNamen[p] + "“. Erlaubt sind Beträge ab 0,00 EUR, zum Beispiel 12.500,00 EUR.");
             neu[p] = z.Value;
         }
         var budgets = D(daten["budgets"]);
@@ -791,7 +791,7 @@ public static class BdKern
         if (!Regex.IsMatch(datum, "^20[0-9]{2}-[0-9]{2}-[0-9]{2}$") || !DateTime.TryParseExact(datum, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out d))
             throw new Fehler(400, "Gib bitte ein gültiges Datum ein.");
         var betrag = LeseBetrag(G(f, "betrag"));
-        if (betrag == null || betrag.Value == 0m) throw new Fehler(400, "Gib bitte einen Betrag größer als 0 € ein, zum Beispiel 1.250,00.");
+        if (betrag == null || betrag.Value == 0m) throw new Fehler(400, "Gib bitte einen Betrag größer als 0,00 EUR ein, zum Beispiel 1.250,00 EUR.");
         if (text.Length > 120) throw new Fehler(400, "Die Beschreibung hat höchstens 120 Zeichen.");
         var liste = L(daten["kosten"]).ToList();
         Dictionary<string, object> e = null;

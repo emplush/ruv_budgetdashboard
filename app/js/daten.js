@@ -458,8 +458,16 @@
     return Math.round(z * 100) / 100;
   }
 
+  /* Zahl im deutschen Format mit festen Nachkommastellen und Tausenderpunkt: 1.000.000,00 (unabhängig vom Browser) */
+  function zahlText(zahl, stellen) {
+    var z = Number(zahl) || 0, n = stellen === undefined ? 2 : stellen;
+    var t = Math.abs(z).toFixed(n).split("."), ganz = t[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    var minus = z < 0 && Number(t.join(".")) !== 0;
+    return (minus ? "-" : "") + ganz + (n > 0 ? "," + t[1] : "");
+  }
+
   function betragText(zahl) {
-    return (Number(zahl) || 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+    return zahlText(zahl, 2) + " EUR";
   }
 
   function istJahr(jahr) { return /^(20[0-9]{2})$/.test(String(jahr)); }
@@ -491,14 +499,14 @@
     var neu = {};
     if (art === "pn") {
       var b = leseBetrag(werte.betrag);
-      if (b === null) return "Prüfe bitte den Betrag. Erlaubt sind Beträge ab 0 €, zum Beispiel 12.500,00.";
+      if (b === null) return "Prüfe bitte den Betrag. Erlaubt sind Beträge ab 0,00 EUR, zum Beispiel 12.500,00 EUR.";
       neu.betrag = b;
       (daten.budgets[String(jahr)] || (daten.budgets[String(jahr)] = {}))[art + "-" + nummer] = neu;
       return "";
     }
     for (var i = 0; i < POSITIONEN.length; i++) {
       var z = leseBetrag(werte[POSITIONEN[i].id]);
-      if (z === null) return "Prüfe bitte den Betrag bei „" + POSITIONEN[i].name + "“. Erlaubt sind Beträge ab 0 €, zum Beispiel 12.500,00.";
+      if (z === null) return "Prüfe bitte den Betrag bei „" + POSITIONEN[i].name + "“. Erlaubt sind Beträge ab 0,00 EUR, zum Beispiel 12.500,00 EUR.";
       neu[POSITIONEN[i].id] = z;
     }
     var j = daten.budgets[String(jahr)] || (daten.budgets[String(jahr)] = {});
@@ -749,7 +757,7 @@
     if (!findeNummer(daten, "pn", pn)) return "Die Projektnummer " + pn + " gibt es nicht.";
     if (!istDatum(felder.datum)) return "Gib bitte ein gültiges Datum ein.";
     var betrag = leseBetrag(felder.betrag);
-    if (betrag === null || betrag === 0) return "Gib bitte einen Betrag größer als 0 € ein, zum Beispiel 1.250,00.";
+    if (betrag === null || betrag === 0) return "Gib bitte einen Betrag größer als 0,00 EUR ein, zum Beispiel 1.250,00 EUR.";
     var text = String(felder.text || "").trim();
     if (text.length > 120) return "Die Beschreibung hat höchstens 120 Zeichen.";
     var zeit = jetztZeit || jetzt();
@@ -866,7 +874,7 @@
 
   function prozentText(q, mitVorzeichen) {
     if (q === null || q === undefined || !isFinite(q)) return "–";
-    var t = (q * 100).toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " %";
+    var t = zahlText(q * 100, 1) + " %";
     return mitVorzeichen && q > 0 ? "+" + t : t;
   }
 
@@ -1041,6 +1049,7 @@
     setzeNummernFuer: setzeNummernFuer,
     leseBetrag: leseBetrag,
     betragText: betragText,
+    zahlText: zahlText,
     istJahr: istJahr,
     budgetVon: budgetVon,
     setzeBudget: setzeBudget,
