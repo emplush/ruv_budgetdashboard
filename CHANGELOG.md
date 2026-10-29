@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.8.2 (29.10.2026)
+- Planbudgets, IST-Werte, Berichte und Detailseiten nutzen die ganze Breite des Fensters. Die Planbudget-Tabelle ist etwas kompakter und passt so auch auf kleinere Bildschirme.
+- Zahlen in den Kacheln stehen immer in einer Zeile; die Schrift passt sich der Kachelbreite an. Betrag und EUR werden nie getrennt.
+- Detailseite einer übergreifenden Kostenstelle mit Umschalter „Gesamt mit Unterkostenstellen“ und „Nur … selbst“: Einzelbudget und eigenes IST ohne Unterkostenstellen und Projektnummern.
+- Detailseiten von Kostenstellen und Projektnummern sowie der Bericht haben „Zurück zur Übersicht“.
+
 ## 0.8.1 (29.10.2026)
 - Übergreifende Kostenstelle: Du trägst jetzt ihr Einzelbudget ein. Das Gesamtbudget rechnet das Tool aus: Einzelbudget plus die Planbudgets der Unterkostenstellen. Die Unterkostenstellen zählen nur einmal, im Gesamtbudget der übergreifenden.
 - In der Planbudget-Tabelle sitzt der Stift deshalb in der eingerückten Zeile mit dem Einzelbudget. Projektnummern einer Kostenstelle bleiben in ihrem Budget enthalten.

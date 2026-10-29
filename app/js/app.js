@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "0.8.1";
+  var VERSION = "0.8.2";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -54,7 +54,7 @@
   function route() {
     var h = (location.hash || "").replace(/^#\/?/, "");
     var teile = h.split("/");
-    return { seite: teile[0] || "start", unter: teile[1] || "" };
+    return { seite: teile[0] || "start", unter: teile[1] || "", zusatz: teile[2] || "" };
   }
 
   function gehe(ziel) {
@@ -865,7 +865,7 @@
         return zeile("teilsumme", '<th scope="row"><strong>' + ksLink(nr) + "</strong></th>", wer,
             D.gesamtBudgetVon(daten, jahr, "ks", nr).gesamt, gi.gesamt,
             '<a class="icon-btn" href="#/bericht/' + esc(nr) + '" aria-label="Bericht Kostenstelle ' + esc(nr) + '" title="Bericht ansehen">' + icon("diagramBarchart") + "</a>") +
-          zeile("unter", '<th scope="row" title="ohne Unterkostenstellen und Projektnummern">' + ksLink(nr) + "</th>", "", D.gesamtBudgetVon(daten, jahr, "ks", nr).eigen, gi.eigen);
+          zeile("unter", '<th scope="row" title="ohne Unterkostenstellen und Projektnummern"><a href="#/kostenstelle/' + esc(nr) + '/eigen" title="Details nur ' + esc(nr) + ' selbst">' + esc(nr) + "</a></th>", "", D.gesamtBudgetVon(daten, jahr, "ks", nr).eigen, gi.eigen);
       }
       return zeile(r.art === "unter" ? "unter" + (r.letzte ? " letzte" : "") : "", '<th scope="row">' + ksLink(nr) + "</th>", wer, D.budgetVon(daten, jahr, "ks", nr), D.istVon(daten, jahr, nr));
     }).join("");
@@ -1201,7 +1201,7 @@
     ];
     var kz = function (sp) { return sp.i.vorhanden ? D.kennzahlen(sp.w, sp.i) : null; };
     var kg = mitIst ? D.kennzahlen(g.gesamt, gi.gesamt) : null;
-    var html = '<div class="seite__kopf"><div><p class="topline">Bericht übergreifende Kostenstelle</p><h1>Kostenstelle ' + esc(nummer) + " · " + jahr + "</h1></div>" + jahrwahlHtml() + "</div>" +
+    var html = zurueckHtml("#/uebersicht") + '<div class="seite__kopf"><div><p class="topline">Bericht übergreifende Kostenstelle</p><h1>Kostenstelle ' + esc(nummer) + " · " + jahr + "</h1></div>" + jahrwahlHtml() + "</div>" +
       '<div class="kennzahlen">' +
       kennzahl("Planbudget gesamt", euro(g.gesamt.gesamt), "inklusive " + g.unter.length + " Unterkostenstellen") +
       (kg ? kennzahl(istUeberschrift(gi.gesamt), euro(kg.ist), esc(D.standText(gi.gesamt.stand, gi.gesamt.monat))) +
@@ -1245,20 +1245,35 @@
 
   /* ---------- Detailseite einer Kostenstelle (Abteilungsleitung): IST im Detail, bezogen auf das Planbudget ---------- */
 
+  /* Zurück zur Übersicht: dorthin, woher man kam (innerhalb des Tools), sonst zur passenden Übersicht */
+  function merkeHerkunft(alt) {
+    var h = String(alt || "").split("#")[1] || "";
+    var seiteAlt = h.replace(/^\/?/, "").split("/")[0];
+    if (["kostenstelle", "projekt", "bericht"].indexOf(seiteAlt) < 0) zustand.herkunft = "#" + (h.charAt(0) === "/" ? h : "/" + h);
+  }
+  function zurueckHtml(standard) {
+    return '<a class="zurueck" href="' + esc(zustand.herkunft || standard) + '">' + icon("arrow-left") + " Zurück zur Übersicht</a>";
+  }
+
   function ksLink(nr, text) { return '<a href="#/kostenstelle/' + esc(nr) + '" title="Details Kostenstelle ' + esc(nr) + '">' + esc(text || nr) + "</a>"; }
 
-  function zeigeKostenstelle(nummer) {
+  function zeigeKostenstelle(nummer, nurEigen) {
     var daten = zustand.daten, jahr = zustand.jahr;
     var g = D.gesamtBudgetVon(daten, jahr, "ks", nummer), gi = D.gesamtIstVon(daten, jahr, "ks", nummer);
-    var plan = g.gesamt, ist = gi.gesamt, vj = vorjahrGesamt(nummer), vz = ist.vorhanden ? ist.vergleich : null;
+    /* Übergreifende Kostenstelle: wahlweise nur ihr eigener Teil (Einzelbudget und eigenes IST, ohne Unterkostenstellen und Projektnummern) */
+    nurEigen = nurEigen && g.uebergreifend;
+    var plan = nurEigen ? g.eigen : g.gesamt, ist = nurEigen ? gi.eigen : gi.gesamt, vj = nurEigen ? null : vorjahrGesamt(nummer), vz = ist.vorhanden ? ist.vergleich : null;
+    var umschalter = g.uebergreifend ? '<nav class="umschalter" aria-label="Ansicht"><a href="#/kostenstelle/' + esc(nummer) + '"' + (nurEigen ? "" : ' aria-current="page"') + ">Gesamt mit Unterkostenstellen</a>" +
+      '<a href="#/kostenstelle/' + esc(nummer) + '/eigen"' + (nurEigen ? ' aria-current="page"' : "") + ">Nur " + esc(nummer) + " selbst</a></nav>" +
+      (nurEigen ? '<p class="leise klein">Einzelbudget und eigenes IST von ' + esc(nummer) + ": ohne Unterkostenstellen und ohne Projektnummern.</p>" : "") : "";
     var oben = D.uebergeordnete(daten, nummer), n = D.findeNummer(daten, "ks", nummer);
     var wer = namenVon(n.benutzer);
-    var html = '<div class="seite__kopf"><div><p class="topline"><a href="#/ist">IST-Werte</a> · Kostenstelle</p><h1>Kostenstelle ' + esc(nummer) + " · " + jahr + "</h1>" +
+    var html = zurueckHtml("#/ist") + '<div class="seite__kopf"><div><p class="topline"><a href="#/ist">IST-Werte</a> · Kostenstelle</p><h1>Kostenstelle ' + esc(nummer) + " · " + jahr + "</h1>" +
       '<p class="leise klein">' + esc(wer.length ? "Verantwortlich: " + wer.join(", ") : "Noch niemand verantwortlich") +
       (oben ? " · Unterkostenstelle von " : "") + (oben ? ksLink(oben) : "") +
-      (g.uebergreifend ? " · Unterkostenstellen " + g.unter.map(function (u) { return ksLink(u.nummer); }).join(", ") : "") + "</p></div>" + jahrwahlHtml() + "</div>";
+      (g.uebergreifend ? " · Unterkostenstellen " + g.unter.map(function (u) { return ksLink(u.nummer); }).join(", ") : "") + "</p></div>" + jahrwahlHtml() + "</div>" + umschalter;
     if (!ist.vorhanden) {
-      html += '<p class="leer-hinweis">Für ' + jahr + " gibt es noch keine IST-Werte für die Kostenstelle " + esc(nummer) + '. <a href="#/verwaltung/ist">KST-Bericht importieren</a></p>';
+      html += '<p class="leer-hinweis">Für ' + jahr + " gibt es noch keine IST-Werte für die Kostenstelle " + esc(nummer) + (nurEigen ? ". Den eigenen Teil rechnet das Tool aus dem KST-Bericht von " + esc(nummer) + " aus" : "") + '. <a href="#/verwaltung/ist">KST-Bericht importieren</a></p>';
       seite("ist", "Kostenstelle " + nummer, html, true);
       verbindeJahrwahl();
       return;
@@ -1267,7 +1282,7 @@
     var zeitPlan = function (w) { return D.runde ? D.runde(w * mon / 12) : Math.round(w * mon / 12 * 100) / 100; };
     var proMonat = restMonate > 0 && plan.vorhanden ? k.rest / restMonate : null;
     html += '<div class="kennzahlen kennzahlen--sechs">' +
-      kennzahl("Planbudget " + jahr, plan.vorhanden ? euro(plan.gesamt) : "–", g.uebergreifend || g.projektNummern.length ? "Gesamtbudget inklusive " + (g.uebergreifend ? "Unterkostenstellen" : "Projektnummern") : "") +
+      kennzahl(nurEigen ? "Einzelbudget " + jahr : "Planbudget " + jahr, plan.vorhanden ? euro(plan.gesamt) : "–", nurEigen ? "ohne Unterkostenstellen und Projektnummern" : g.uebergreifend || g.projektNummern.length ? "Gesamtbudget inklusive " + (g.uebergreifend ? "Unterkostenstellen" : "Projektnummern") : "") +
       kennzahl(istUeberschrift(ist), euro(k.ist), (plan.vorhanden ? "<strong>" + prozent(k.quote) + "</strong> vom Plan · Rest " + euro(k.rest) + "<br>" : "") + esc(D.standText(ist.stand, ist.monat))) +
       (plan.vorhanden
         ? kennzahl("Zum zeitanteiligen Plan", zzvHtml(k), "Plan bis " + D.monatName(ist.monat) + ": " + euro(zeitPlan(plan.gesamt))) +
@@ -1275,7 +1290,7 @@
         : kennzahl("Planbudget", "–", "noch nicht eingetragen")) +
       kennzahl("Je Monat", euro(k.ist / mon), proMonat !== null ? "IST im Schnitt · verfügbar je Restmonat " + euro(proMonat) : "IST im Schnitt") +
       (k.vorjahr !== null ? kennzahl("Vorjahr gleicher Zeitraum", euro(k.vorjahr), "Veränderung " + prozent(k.vorjahrQuote, true)) : "") + "</div>";
-    if (g.uebergreifend) html += berichtHinweise(nummer, gi, g);
+    if (g.uebergreifend && !nurEigen) html += berichtHinweise(nummer, gi, g);
 
     /* Positionen: Plan, IST, zeitanteiliger Plan, Abweichung, Hochrechnung, Vorjahr */
     function zelle(v, klasse) { return '<td class="zahl' + (klasse ? " " + klasse : "") + '">' + v + "</td>"; }
@@ -1307,7 +1322,7 @@
       "</tr></thead><tbody>" + zeilen2.join("") + "</tbody></table></div></section>";
 
     /* Zusammensetzung: eigener Teil, Unterkostenstellen und Projektnummern */
-    if (g.uebergreifend || g.projektNummern.length) {
+    if (!nurEigen && (g.uebergreifend || g.projektNummern.length)) {
       var teile = [];
       if (g.uebergreifend) teile.push({ name: esc(nummer), hinweis: "ohne Unterkostenstellen und Projektnummern", w: g.eigen, i: gi.eigen });
       g.unter.forEach(function (u, x) { teile.push({ name: ksLink(u.nummer), hinweis: "Unterkostenstelle", w: u.budget, i: gi.unter[x].ist }); });
@@ -1623,7 +1638,7 @@
     var plan = D.budgetVon(daten, jahr, "pn", nummer), ist = D.projektIstVon(daten, jahr, nummer);
     var k = D.kennzahlen(plan, ist);
     var liste = D.kostenVon(daten, jahr, nummer);
-    var html = '<div class="seite__kopf"><div><p class="topline">Projektkosten</p><h1>Projektnummer ' + esc(nummer) + " · " + jahr + "</h1></div>" + jahrwahlHtml() + "</div>" +
+    var html = zurueckHtml("#/start") + '<div class="seite__kopf"><div><p class="topline">Projektkosten</p><h1>Projektnummer ' + esc(nummer) + " · " + jahr + "</h1></div>" + jahrwahlHtml() + "</div>" +
       '<p class="einleitung">' + (n.ks ? "Gehört zur Kostenstelle <strong>" + esc(n.ks) + "</strong>. Die Kosten stecken schon in deren KST-Bericht, hier stehen sie einzeln."
         : "Diese Projektnummer ist noch keiner Kostenstelle zugeordnet. Das legst Du unter Verwaltung → Projektnummern fest.") + "</p>" +
       '<div class="kennzahlen">' +
@@ -1908,7 +1923,7 @@
     if (r.seite === "uebersicht" && D.Rechte.budgets(b)) zeigeUebersicht();
     else if (r.seite === "ist" && D.Rechte.budgets(b)) zeigeIstWerte();
     else if (r.seite === "bericht" && darfBericht(b, r.unter)) zeigeBericht(r.unter);
-    else if (r.seite === "kostenstelle" && D.Rechte.budgets(b) && D.findeNummer(zustand.daten, "ks", r.unter)) zeigeKostenstelle(r.unter);
+    else if (r.seite === "kostenstelle" && D.Rechte.budgets(b) && D.findeNummer(zustand.daten, "ks", r.unter)) zeigeKostenstelle(r.unter, r.zusatz === "eigen");
     else if (r.seite === "projekt" && darfProjekt(b, r.unter)) zeigeProjekt(r.unter);
     else if (r.seite === "verwaltung" && D.Rechte.benutzer(b)) zeigeVerwaltung(r.unter);
     else if (r.seite === "profil") zeigeProfil();
@@ -1926,7 +1941,7 @@
     }).then(function (r) {
       uebernehmen(r);
       if (r.benutzer) setzeDesign(r.benutzer.design || "auto", r.benutzer.farbe || "klassik");
-      window.addEventListener("hashchange", function () { aktuellesJahr(); zeige(); });
+      window.addEventListener("hashchange", function (e) { merkeHerkunft(e.oldURL); aktuellesJahr(); zeige(); });
       document.addEventListener("click", function (e) {
         var liste = app.querySelector(".menue__liste");
         if (liste && !liste.hidden && !liste.contains(e.target)) {

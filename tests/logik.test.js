@@ -40,12 +40,12 @@ test("Beträge lesen", () => {
   assert.strictEqual(D.leseBetrag("1234,5"), 1234.5);
   assert.strictEqual(D.leseBetrag("1234.5"), 1234.5);
   assert.strictEqual(D.leseBetrag("12.500 €"), 12500);
-  assert.strictEqual(D.betragText(100), "100,00 EUR");
-  assert.strictEqual(D.betragText(1000), "1.000,00 EUR");
-  assert.strictEqual(D.betragText(1000000.5), "1.000.000,50 EUR");
-  assert.strictEqual(D.betragText(-12345.678), "-12.345,68 EUR");
+  assert.strictEqual(D.betragText(100), "100,00\u00a0EUR");
+  assert.strictEqual(D.betragText(1000), "1.000,00\u00a0EUR");
+  assert.strictEqual(D.betragText(1000000.5), "1.000.000,50\u00a0EUR");
+  assert.strictEqual(D.betragText(-12345.678), "-12.345,68\u00a0EUR");
   assert.strictEqual(D.zahlText(10000, 0), "10.000");
-  assert.strictEqual(D.leseBetrag("1.000.000,00 EUR"), 1000000);
+  assert.strictEqual(D.leseBetrag("1.000.000,00\u00a0EUR"), 1000000);
   assert.strictEqual(D.leseBetrag(""), 0);
   assert.strictEqual(D.leseBetrag(9800), 9800);
   assert.strictEqual(D.leseBetrag("-3"), null);
@@ -176,7 +176,7 @@ test("IST: KST-Bericht lesen, importieren, sichern, wiederherstellen", async () 
   D.setzeBudget(d, "2026", "ks", "413", { pkId: 800000 });
   const k = D.kennzahlen(D.gesamtBudgetVon(d, 2026, "ks", "410").gesamt, D.gesamtIstVon(d, 2026, "ks", "410").gesamt);
   assert.deepStrictEqual([Math.round(k.quote * 1000), k.rest, k.hochrechnung, k.ampel, k.vorjahr], [708, 233629.15, 755161.13, "gruen", 557750]);
-  assert.strictEqual(D.prozentText(k.quote), "70,8 %");
+  assert.strictEqual(D.prozentText(k.quote), "70,8\u00a0%");
   assert.strictEqual(D.standText("2026-10-22", "2026-09"), "Stand 22.10.2026 · gebucht bis September 2026");
   const gl = D.sicht(d, "xv10002");
   assert.deepStrictEqual([Object.keys(gl.ist), gl.istSicherungen], [["ks-413"], []]);

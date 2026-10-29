@@ -89,6 +89,12 @@ function pruefe(bedingung, text) {
   await page.waitForSelector("h1:has-text('Kostenstelle 410')");
   pruefe(await page.isVisible("text=Plan und IST je Position") && await page.isVisible("text=Hochrechnung und Vorjahr je Position") && await page.isVisible("text=Zusammensetzung") && await page.isVisible("a[href='#/kostenstelle/411']"), "Detailseite der Kostenstelle mit Positionen und Zusammensetzung");
   await bild("03c-kostenstelle");
+  await page.click(".umschalter >> text=Nur 410 selbst");
+  await page.waitForSelector("text=Einzelbudget 2026");
+  pruefe(await page.isVisible("text=166.300,00 EUR") && !(await page.isVisible("text=Zusammensetzung")), "übergreifende Kostenstelle: nur eigener Teil");
+  await page.click("a.zurueck");
+  await page.waitForSelector("h1:has-text('IST-Werte')");
+  pruefe(true, "Zurück zur Übersicht führt zu den IST-Werten");
   await page.goto(url + "#/uebersicht");
   await page.waitForSelector("a[href='#/bericht/410']");
   await page.click("a[href='#/bericht/410']");

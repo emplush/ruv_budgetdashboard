@@ -467,7 +467,7 @@
   }
 
   function betragText(zahl) {
-    return zahlText(zahl, 2) + " EUR";
+    return zahlText(zahl, 2) + "\u00a0EUR"; // geschütztes Leerzeichen: Betrag und Einheit bleiben in einer Zeile
   }
 
   function istJahr(jahr) { return /^(20[0-9]{2})$/.test(String(jahr)); }
@@ -869,7 +869,7 @@
 
   function prozentText(q, mitVorzeichen) {
     if (q === null || q === undefined || !isFinite(q)) return "–";
-    var t = zahlText(q * 100, 1) + " %";
+    var t = zahlText(q * 100, 1) + "\u00a0%";
     return mitVorzeichen && q > 0 ? "+" + t : t;
   }
 

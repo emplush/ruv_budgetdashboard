@@ -408,7 +408,7 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
 .untertitel { margin: 0 0 .2rem; font-size: 1rem; }
 .regeln li.fehlt { color: var(--fehler); }
 .regeln li.hinweis { margin-top: .2rem; }
-.seite--breit { max-width: 92rem; }
+.seite--breit { max-width: none; padding-left: clamp(1rem, 2.5vw, 2.5rem); padding-right: clamp(1rem, 2.5vw, 2.5rem); }
 .karte .budget__nummer { font-size: 2rem; margin-bottom: .8rem; }
 .raster > .karte + .karte { margin-top: 0; }
 .chip { white-space: nowrap; display: inline-block; }
@@ -528,7 +528,8 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
 
 /* Planbudget-Tabelle: Gruppen Personal- und Sachkosten, mehr Luft */
 .planbudgettabelle { min-width: 62rem; }
-.planbudgettabelle th, .planbudgettabelle td { padding: .75rem .9rem; }
+.planbudgettabelle th, .planbudgettabelle td { padding: .7rem .65rem; }
+@media (max-width: 1600px) { .planbudgettabelle th, .planbudgettabelle td { padding: .65rem .45rem; font-size: .86rem; } .planbudgettabelle tbody th { min-width: 8.5rem; } }
 .planbudgettabelle thead th { font-size: .82rem; }
 .planbudgettabelle .gruppenkopf th.gruppe { text-align: center; border-bottom: 2px solid var(--linie-stark); }
 .planbudgettabelle .gruppe { border-left: 1px solid var(--linie); }
@@ -624,3 +625,19 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
   .prognose__label { display: none; }
   .prognose__achse { font-size: 20px; }
 }
+
+/* Zahlen in Kacheln immer in einer Zeile: Schrift passt sich der Kachelbreite an */
+.kennzahl, .kpi { container-type: inline-size; min-width: 0; }
+.kennzahl__wert, .kpi__wert { white-space: nowrap; font-size: clamp(.95rem, 9.5cqi, 1.7rem); line-height: 1.2; }
+.kpi__wert { font-size: clamp(.95rem, 9.5cqi, 1.55rem); }
+
+/* Umschalter Gesamt / nur eigener Teil auf der Detailseite einer übergreifenden Kostenstelle */
+.umschalter { display: inline-flex; flex-wrap: wrap; gap: .25rem; padding: .25rem; margin: 0 0 1rem; border-radius: 999px; background: var(--flaeche-2); border: 1px solid var(--linie); }
+.umschalter a { padding: .45rem 1rem; border-radius: 999px; text-decoration: none; color: var(--text); font-weight: 700; font-size: .92rem; }
+.umschalter a:hover { background: var(--flaeche); }
+.umschalter a[aria-current=page] { background: var(--aktion); color: var(--aktion-text); }
+.umschalter + .leise { margin-top: -.4rem; }
+
+/* Zurück zur Übersicht auf Detailseiten */
+.zurueck { display: inline-flex; align-items: center; gap: .4rem; margin-bottom: .8rem; padding: .4rem .9rem .4rem .7rem; border-radius: 999px; border: 1px solid var(--linie); background: var(--flaeche); color: var(--text); font-weight: 700; font-size: .9rem; text-decoration: none; }
+.zurueck:hover { border-color: var(--linie-stark); background: var(--flaeche-2); }
