@@ -199,6 +199,10 @@ function pruefe(bedingung, text) {
   await page.waitForSelector("text=Meine Kostenstellen");
   pruefe(await page.locator(".budget").count() === 2, "Gruppenleitung sieht zwei Kostenstellen getrennt");
   pruefe(await page.isVisible(".kpis >> nth=0") && await page.isVisible("th:has-text('Rest in %') >> nth=0") && await page.isVisible("th:has-text('Prognose in %') >> nth=0") && await page.isVisible(".prognose__fazit:has-text('vom Planbudget ausgeschöpft') >> nth=0"), "Gruppenleitung: Kennzahlen, Rest und Prognose in Prozent");
+  pruefe(await page.isVisible("[data-pdf]") && !(await page.isVisible(".druckkopf")), "Knopf „Als PDF speichern“, Druckkopf nur im Druck");
+  await page.emulateMedia({ media: "print" });
+  pruefe(await page.isVisible(".druckkopf") && !(await page.isVisible(".kopf")), "Drucklayout ohne Kopfleiste, mit Druckkopf");
+  await page.emulateMedia({ media: "screen" });
   const vorjahr = String(new Date().getFullYear() - 1);
   await page.selectOption("[data-jahr]", vorjahr);
   pruefe(await page.isVisible("text=Planbudget " + vorjahr), "Kalenderjahr wechseln");

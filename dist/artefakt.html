@@ -1394,6 +1394,42 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
 .zurueck { display: inline-flex; align-items: center; gap: .4rem; margin-bottom: .8rem; padding: .4rem .9rem .4rem .7rem; border-radius: 999px; border: 1px solid var(--linie); background: var(--flaeche); color: var(--text); font-weight: 700; font-size: .9rem; text-decoration: none; }
 .zurueck:hover { border-color: var(--linie-stark); background: var(--flaeche-2); }
 
+/* Kalenderjahr und PDF nebeneinander im Seitenkopf */
+.kopfaktionen { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; }
+.druckkopf { display: none; }
+
+/* ---------- Drucken und PDF (A4 quer) ---------- */
+@page { size: A4 landscape; margin: 12mm 10mm 14mm; }
+@media print {
+  html { font-size: 11px; }
+  body { background: #ffffff !important; padding: 0 !important; min-height: 0; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; box-shadow: none !important; transition: none !important; }
+  .kopf, .fuss, .kopfaktionen, .zurueck, .umschalter, .liste__aktionen, .icon-btn, .btn, .meldung, .menue, [data-pdf] { display: none !important; }
+  .seite, .seite--breit { max-width: none; margin: 0; padding: 0 !important; }
+  .druckkopf { display: flex; align-items: center; gap: 1rem; padding-bottom: .6rem; margin-bottom: 1rem; border-bottom: 2px solid var(--ruv-primary); }
+  .druckkopf img { height: 1.8rem; width: auto; }
+  .druckkopf div { display: flex; flex-direction: column; }
+  .druckkopf span { font-size: .85rem; color: var(--text-2); }
+  .seite__kopf { margin-bottom: .8rem; }
+  .seite__kopf h1 { font-size: 1.9rem; }
+  .karte { border: 1px solid var(--linie); padding: 1rem; break-inside: auto; }
+  .tabelle-huelle { overflow: visible !important; }
+  .budgettabelle, .planbudgettabelle { min-width: 0 !important; width: 100%; }
+  .budgettabelle th, .budgettabelle td, .planbudgettabelle th, .planbudgettabelle td { padding: .35rem .4rem !important; font-size: .9rem !important; }
+  tr, .kennzahl, .kpi, .kpis, .verbrauch, .budget__abschnitt, figure, .hinweise__eintrag, .diagramm, .anteil { break-inside: avoid; }
+  h2, h3 { break-after: avoid; }
+  thead { display: table-header-group; }
+  .budget--ks + .budget--ks, .budget + .budget { break-before: page; }
+  .kennzahlen { grid-template-columns: repeat(3, 1fr) !important; gap: .6rem; }
+  .kennzahlen--sechs { grid-template-columns: repeat(6, 1fr) !important; }
+  .kpis { grid-template-columns: repeat(5, 1fr) !important; }
+  .budget__raster, .budget__raster--plan { grid-template-columns: minmax(0, 1fr) !important; }
+  .budget__raster--prognose { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) !important; }
+  .prognose__wert { display: inline; }
+  .prognose__label { display: block; }
+  a { color: inherit; text-decoration: none; }
+}
+
 </style>
 <script>
 /* Design vor dem ersten Zeichnen setzen, damit nichts aufblitzt (eigene Datei wegen Content-Security-Policy).
@@ -3190,7 +3226,7 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
 (function () {
   "use strict";
 
-  var VERSION = "0.8.3";
+  var VERSION = "0.9.0";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -3531,7 +3567,7 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
 
   function seite(aktiv, titel, inhalt, breit) {
     document.title = (titel ? titel + " · " : "") + zustand.daten.einstellungen.titel;
-    app.innerHTML = kopfHtml(aktiv) + '<main class="seite' + (breit ? " seite--breit" : "") + '" id="inhalt">' + inhalt + "</main>" + fussHtml();
+    app.innerHTML = kopfHtml(aktiv) + '<main class="seite' + (breit ? " seite--breit" : "") + '" id="inhalt">' + druckkopfHtml(titel) + inhalt + "</main>" + fussHtml();
     app.querySelectorAll("[data-design]").forEach(function (k) {
       k.addEventListener("click", function () {
         setzeDesign(aktuellesDesign() === "hell" ? "dunkel" : "hell", window.BDFarben.gewaehlt().farbe, true);
@@ -3550,15 +3586,40 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
     liste.addEventListener("keydown", function (e) { if (e.key === "Escape") { liste.hidden = true; menueKnopf.focus(); } });
   }
 
+  /* Im Artefakt (eingebettet) gibt es keinen Druckdialog, dort fehlt der PDF-Knopf */
+  var imRahmen = (function () { try { return window.self !== window.top; } catch (e) { return true; } })();
+
   function jahrwahlHtml() {
-    return '<label class="jahrwahl"><span>Kalenderjahr</span><select data-jahr>' + D.jahre(zustand.daten).map(function (j) {
+    return '<div class="kopfaktionen"><label class="jahrwahl"><span>Kalenderjahr</span><select data-jahr>' + D.jahre(zustand.daten).map(function (j) {
       return '<option value="' + j + '"' + (j === zustand.jahr ? " selected" : "") + ">" + j + "</option>";
-    }).join("") + "</select></label>";
+    }).join("") + "</select></label>" +
+      (imRahmen ? "" : '<button type="button" class="btn btn--rahmen" data-pdf title="Öffnet den Druckdialog. Wähle dort „Als PDF speichern“.">' + icon("documentPdf") + " Als PDF speichern</button>") + "</div>";
   }
 
   function verbindeJahrwahl() {
     var s = app.querySelector("[data-jahr]");
     if (s) s.addEventListener("change", function () { zustand.jahr = Number(s.value); zeige(); });
+    var pdf = app.querySelector("[data-pdf]");
+    if (pdf) pdf.addEventListener("click", function () { window.print(); });
+  }
+
+  /* Drucken und PDF: immer im hellen Standarddesign, danach zurück zum gewählten Design */
+  var vorDruck = null;
+  window.addEventListener("beforeprint", function () {
+    if (vorDruck || !window.BDFarben) return;
+    vorDruck = window.BDFarben.gewaehlt();
+    window.BDFarben.anwenden("hell", "klassik");
+  });
+  window.addEventListener("afterprint", function () {
+    if (!vorDruck) return;
+    window.BDFarben.anwenden(vorDruck.modus, vorDruck.farbe);
+    vorDruck = null;
+  });
+
+  function druckkopfHtml(titel) {
+    var b = zustand.benutzer, jetzt = new Date();
+    return '<div class="druckkopf" aria-hidden="true"><img src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyBpZD0iRWJlbmVfMSIgZGF0YS1uYW1lPSJFYmVuZSAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB2ZXJzaW9uPSIxLjEiIHZpZXdCb3g9IjAgMCAxODkuOTIxMDA1MiAxMjcuNTU5MDA1NyI+CiAgPGRlZnM+CiAgICA8c3R5bGU+CiAgICAgIC5jbHMtMSB7CiAgICAgICAgY2xpcC1wYXRoOiB1cmwoI2NsaXBwYXRoKTsKICAgICAgfQoKICAgICAgLmNscy0yIHsKICAgICAgICBmaWxsOiBub25lOwogICAgICB9CgogICAgICAuY2xzLTIsIC5jbHMtMyB7CiAgICAgICAgc3Ryb2tlLXdpZHRoOiAwcHg7CiAgICAgIH0KCiAgICAgIC5jbHMtMyB7CiAgICAgICAgZmlsbDogIzAwMTk1NzsKICAgICAgfQogICAgPC9zdHlsZT4KICAgIDxjbGlwUGF0aCBpZD0iY2xpcHBhdGgiPgogICAgICA8cmVjdCBjbGFzcz0iY2xzLTIiIHk9Ii4wMDAwMDc2IiB3aWR0aD0iMTg5LjkyMTAwNTIiIGhlaWdodD0iMTI3LjU1ODk5ODEiLz4KICAgIDwvY2xpcFBhdGg+CiAgPC9kZWZzPgogIDxnIGNsYXNzPSJjbHMtMSI+CiAgICA8cGF0aCBjbGFzcz0iY2xzLTMiIGQ9Ik0xNDcuNDAxNTk2MSw0Mi41MTk2MDc1aC0xNC40MTA5OTU1bC0xNC4yMDkwMDczLDIxLjIyNDk5ODV2LTIxLjIyNDk5ODVoLTEzLjY5MTk5MzdsLS4wMDQwMDU0LDE2LjYzMjAwMzhoLTkuNzI3OTk2OHYtMTEuMjQyMDA0NGgtOS41NjA5OTdsLS4wMDEwMDcxLDExLjI0MjAwNDRoLTkuNzkzOTk4N2MuNzUyOTk4NC0xLjUzNTAwMzcsMS4xNzkwMDA5LTMuMjYxMDAxNiwxLjE3OTAwMDktNS4wODcwMDU2LDAtNi4zNzMwMDExLTUuNjg2OTk2NS0xMS41MzkwMDE1LTEyLjA0ODk5Ni0xMS41NDQ5OTgyaC0yMi42MTIwMDcxdjQyLjUyMDAwMDVoMTMuNjU4MDA0OHYtMzEuNjQ5OTk3N2gyLjcyMTAwMDdjMi44Njc5OTYyLDAsNS4xOTIwMDEzLDIuMzI3OTk1Myw1LjE5MjAwMTMsNS4xOTg5OTc1LDAsMi44Njc5OTYyLTIuMzI1MDA0Niw1LjE4NTk5Ny01LjE4ODAwMzUsNS4xOTEwMDE5bDguNjQzOTk3MiwyMS4yNTk5OTgzaDE0LjUyNjAwMWwtNi44MDg5OTgxLTE2LjQ5NDk5ODloMTAuNTMzMDA0OHYxMS4yNDU5OTg0aDkuNTYwOTk3di0xMS4yNDU5OTg0aDkuNzMyMDAyM3YxNi40OTQ5OTg5aDEzLjY5MTk5MzdsMjguNjIwMDAyNy00Mi41MjAwMDA1WiIvPgogIDwvZz4KPC9zdmc+" alt=""><div><strong>' + esc(zustand.daten.einstellungen.titel) + (titel ? " · " + esc(titel) : "") + "</strong>" +
+      "<span>Erstellt am " + esc(jetzt.toLocaleDateString("de-DE")) + ", " + esc(jetzt.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })) + " Uhr" + (b ? " von " + esc(D.anzeigeName(b)) : "") + "</span></div></div>";
   }
 
   /* ---------- Planbudget-Darstellung ---------- */

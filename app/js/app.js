@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "0.8.3";
+  var VERSION = "0.9.0";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -343,7 +343,7 @@
 
   function seite(aktiv, titel, inhalt, breit) {
     document.title = (titel ? titel + " · " : "") + zustand.daten.einstellungen.titel;
-    app.innerHTML = kopfHtml(aktiv) + '<main class="seite' + (breit ? " seite--breit" : "") + '" id="inhalt">' + inhalt + "</main>" + fussHtml();
+    app.innerHTML = kopfHtml(aktiv) + '<main class="seite' + (breit ? " seite--breit" : "") + '" id="inhalt">' + druckkopfHtml(titel) + inhalt + "</main>" + fussHtml();
     app.querySelectorAll("[data-design]").forEach(function (k) {
       k.addEventListener("click", function () {
         setzeDesign(aktuellesDesign() === "hell" ? "dunkel" : "hell", window.BDFarben.gewaehlt().farbe, true);
@@ -362,15 +362,40 @@
     liste.addEventListener("keydown", function (e) { if (e.key === "Escape") { liste.hidden = true; menueKnopf.focus(); } });
   }
 
+  /* Im Artefakt (eingebettet) gibt es keinen Druckdialog, dort fehlt der PDF-Knopf */
+  var imRahmen = (function () { try { return window.self !== window.top; } catch (e) { return true; } })();
+
   function jahrwahlHtml() {
-    return '<label class="jahrwahl"><span>Kalenderjahr</span><select data-jahr>' + D.jahre(zustand.daten).map(function (j) {
+    return '<div class="kopfaktionen"><label class="jahrwahl"><span>Kalenderjahr</span><select data-jahr>' + D.jahre(zustand.daten).map(function (j) {
       return '<option value="' + j + '"' + (j === zustand.jahr ? " selected" : "") + ">" + j + "</option>";
-    }).join("") + "</select></label>";
+    }).join("") + "</select></label>" +
+      (imRahmen ? "" : '<button type="button" class="btn btn--rahmen" data-pdf title="Öffnet den Druckdialog. Wähle dort „Als PDF speichern“.">' + icon("documentPdf") + " Als PDF speichern</button>") + "</div>";
   }
 
   function verbindeJahrwahl() {
     var s = app.querySelector("[data-jahr]");
     if (s) s.addEventListener("change", function () { zustand.jahr = Number(s.value); zeige(); });
+    var pdf = app.querySelector("[data-pdf]");
+    if (pdf) pdf.addEventListener("click", function () { window.print(); });
+  }
+
+  /* Drucken und PDF: immer im hellen Standarddesign, danach zurück zum gewählten Design */
+  var vorDruck = null;
+  window.addEventListener("beforeprint", function () {
+    if (vorDruck || !window.BDFarben) return;
+    vorDruck = window.BDFarben.gewaehlt();
+    window.BDFarben.anwenden("hell", "klassik");
+  });
+  window.addEventListener("afterprint", function () {
+    if (!vorDruck) return;
+    window.BDFarben.anwenden(vorDruck.modus, vorDruck.farbe);
+    vorDruck = null;
+  });
+
+  function druckkopfHtml(titel) {
+    var b = zustand.benutzer, jetzt = new Date();
+    return '<div class="druckkopf" aria-hidden="true"><img src="img/logo-positiv.svg" alt=""><div><strong>' + esc(zustand.daten.einstellungen.titel) + (titel ? " · " + esc(titel) : "") + "</strong>" +
+      "<span>Erstellt am " + esc(jetzt.toLocaleDateString("de-DE")) + ", " + esc(jetzt.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })) + " Uhr" + (b ? " von " + esc(D.anzeigeName(b)) : "") + "</span></div></div>";
   }
 
   /* ---------- Planbudget-Darstellung ---------- */

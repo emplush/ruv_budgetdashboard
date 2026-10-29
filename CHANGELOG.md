@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.9.0 (29.10.2026)
+- Auswertungen als PDF: Auf Startseite, Planbudgets, IST-Werten, Detailseiten, Bericht und Projektkosten gibt es „Als PDF speichern“. Der Knopf öffnet den Druckdialog, dort wählst Du „Als PDF speichern“.
+- Eigenes Drucklayout auf A4 quer: immer hell, ohne Kopf- und Fußleiste und ohne Knöpfe, mit Logo, Titel, Datum und Name oben. Tabellen passen in die Breite, Kacheln, Diagramme und Tabellenzeilen werden nicht zerschnitten, jede Kostenstelle beginnt auf einer neuen Seite.
+- Im Artefakt gibt es keinen Druckdialog, dort fehlt der Knopf.
+
 ## 0.8.3 (29.10.2026)
 - Prognose in Prozent: Wie viel vom Planbudget bis Dezember ausgeschöpft wird, steht jetzt je Kostenart in der Spalte „Prognose in %“, im Prognose-Diagramm und in der Kachel „Hochrechnung Jahresende“.
 
