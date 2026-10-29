@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "0.8.0";
+  var VERSION = "0.8.1";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -1005,28 +1005,33 @@
       var n = r.n;
       if (r.art === "teilsumme") return "";
       var w = D.budgetVon(daten, jahr, art, n.nummer);
+      var gb = art === "ks" ? D.gesamtBudgetVon(daten, jahr, "ks", n.nummer) : null;
       /* Einzelbudget-Zeile bei Unterkostenstellen oder eigenen Projektnummern */
-      var mitEinzel = art === "ks" && r.art !== "unter" && (r.art === "oben" || D.gesamtBudgetVon(daten, jahr, "ks", n.nummer).projektNummern.length > 0);
-      var klassen = [w.vorhanden ? "" : "ohne", r.art === "unter" ? "unter" : "", r.letzte ? "letzte" : "", mitEinzel ? "oben" : ""].filter(Boolean).join(" ");
-      var html = "<tr" + (klassen ? ' class="' + klassen + '"' : "") + ">" + kopf(n) + betraege(w) +
-        '<td><div class="liste__aktionen"><button type="button" class="icon-btn" data-budget="' + esc(art + "-" + n.nummer) + '" aria-label="Planbudget ' + esc(a.name + " " + n.nummer) + (w.vorhanden ? " bearbeiten" : " eintragen") +
-        '" title="' + (w.vorhanden ? "Planbudget bearbeiten" : "Planbudget eintragen") + '">' + icon(w.vorhanden ? "pencil" : "plus") + "</button>" +
-        (art === "pn" ? '<a class="icon-btn" href="#/projekt/' + esc(n.nummer) + '" aria-label="Projektkosten ' + esc(n.nummer) + '" title="Projektkosten">' + icon("money") + "</a>" : "") + "</div></td></tr>";
+      var mitEinzel = art === "ks" && r.art !== "unter" && (r.art === "oben" || gb.projektNummern.length > 0);
+      /* Übergreifend: oben das errechnete Gesamtbudget ohne Stift, eingetragen wird in der Einzelbudget-Zeile */
+      var oben = gb && gb.uebergreifend, zeigen = oben ? gb.gesamt : w;
+      function aktionen(mitBericht) {
+        return '<td><div class="liste__aktionen"><button type="button" class="icon-btn" data-budget="' + esc(art + "-" + n.nummer) + '" aria-label="Planbudget ' + esc(a.name + " " + n.nummer) + (w.vorhanden ? " bearbeiten" : " eintragen") +
+          '" title="' + (w.vorhanden ? "Planbudget bearbeiten" : "Planbudget eintragen") + '">' + icon(w.vorhanden ? "pencil" : "plus") + "</button>" +
+          (art === "pn" ? '<a class="icon-btn" href="#/projekt/' + esc(n.nummer) + '" aria-label="Projektkosten ' + esc(n.nummer) + '" title="Projektkosten">' + icon("money") + "</a>" : "") +
+          (mitBericht ? '<a class="icon-btn" href="#/bericht/' + esc(n.nummer) + '" aria-label="Bericht Kostenstelle ' + esc(n.nummer) + '" title="Bericht ansehen">' + icon("diagramBarchart") + "</a>" : "") + "</div></td>";
+      }
+      var klassen = [zeigen.vorhanden ? "" : "ohne", r.art === "unter" ? "unter" : "", r.letzte ? "letzte" : "", mitEinzel ? "oben" : ""].filter(Boolean).join(" ");
+      var html = "<tr" + (klassen ? ' class="' + klassen + '"' : "") + ">" + kopf(n) + betraege(zeigen) + (oben ? "<td></td>" : aktionen(false)) + "</tr>";
       if (mitEinzel) {
-        var gb = D.gesamtBudgetVon(daten, jahr, "ks", n.nummer), e = gb.eigen;
-        var ek = '<th scope="row" title="Einzelbudget: Gesamtbudget minus Unterkostenstellen und Projektnummern"><strong>' + esc(n.nummer) + "</strong></th>";
-        var bericht = gb.uebergreifend ? '<td><a class="icon-btn" href="#/bericht/' + esc(n.nummer) + '" aria-label="Bericht Kostenstelle ' + esc(n.nummer) + '" title="Bericht ansehen">' + icon("diagramBarchart") + "</a></td>" : "<td></td>";
-        var letzte = gb.uebergreifend ? "" : " letzte";
+        var e = gb.eigen;
+        var ek = '<th scope="row" title="Einzelbudget: eigenes Budget ohne Unterkostenstellen und Projektnummern"><strong>' + esc(n.nummer) + "</strong></th>";
+        var letzte = oben ? "" : " letzte";
         html += gb.eingetragen.vorhanden
-          ? '<tr class="unter einzel' + letzte + (e.gesamt < 0 ? " fehlerzeile" : "") + '">' + ek + betraege(e, true) + bericht + "</tr>"
-          : '<tr class="unter einzel ohne' + letzte + '">' + ek + '<td colspan="' + (mitPn ? 8 : 7) + '" class="leise klein">Trage das Gesamtbudget von ' + esc(n.nummer) + " ein, dann rechnet das Tool das Einzelbudget aus.</td>" + bericht + "</tr>";
+          ? '<tr class="unter einzel' + letzte + (e.gesamt < 0 ? " fehlerzeile" : "") + '">' + ek + betraege(e, true) + (oben ? aktionen(true) : "<td></td>") + "</tr>"
+          : '<tr class="unter einzel ohne' + letzte + '">' + ek + '<td colspan="' + (mitPn ? 8 : 7) + '" class="leise klein">Noch kein Einzelbudget für ' + esc(n.nummer) + " eingetragen.</td>" + (oben ? aktionen(true) : "<td></td>") + "</tr>";
       }
       return html;
     }).join("");
     var s = art === "ks" ? D.abteilungsPlan(daten, jahr).kostenstellen : D.summe(l.map(function (n) { return D.budgetVon(daten, jahr, "pn", n.nummer); }));
     return '<section class="karte bereich-tabelle"><div class="bereich-tabelle__kopf"><h2>' + esc(a.mehrzahl) + "</h2>" +
       '<a class="leise klein" href="#/verwaltung/' + (art === "ks" ? "kostenstellen" : "projekte") + '">' + esc(a.mehrzahl) + " verwalten</a></div>" +
-      (art === "ks" ? '<p class="leise klein">Eine Kostenstelle mit Unterkostenstellen steht zweimal da: oben mit dem Gesamtbudget, wie Du es einträgst, und eingerückt mit ihrem Einzelbudget. Das ist das Gesamtbudget minus Unterkostenstellen und Projektnummern.</p>' : "") +
+      (art === "ks" ? '<p class="leise klein">Eine Kostenstelle mit Unterkostenstellen steht zweimal da: oben mit dem Gesamtbudget und eingerückt mit ihrem Einzelbudget, das Du einträgst. Das Gesamtbudget rechnet das Tool aus: Einzelbudget plus Unterkostenstellen. Projektnummern einer Kostenstelle sind in ihrem Budget enthalten.</p>' : "") +
       (l.length ? '<div class="tabelle-huelle"><table class="budgettabelle planbudgettabelle' + (art === "pn" ? " planbudgettabelle--pn" : "") + '"><thead>' +
         (art === "pn" ? '<tr><th>Projektnummer</th><th>Kostenstelle</th><th class="zahl gruppe">Budget</th><th><span class="sr">Aktion</span></th></tr>'
           : '<tr class="gruppenkopf"><th rowspan="2">' + esc(a.name) + '</th><th colspan="2" class="gruppe">Personalkosten</th><th colspan="4" class="gruppe">Sachkosten</th>' +
@@ -1050,15 +1055,21 @@
     if (g.unter.length) teile.push("die Unterkostenstellen " + g.unter.map(function (u) { return u.nummer; }).join(", "));
     if (g.projektNummern.length) teile.push("die Projektnummern " + g.projektNummern.join(", "));
     if (!teile.length) return "";
-    var abzug = g.unter.reduce(function (x, u) { return x + u.budget.gesamt; }, 0) + g.projekte.gesamt;
-    return '<p class="hinweis-box klein">Trage hier das Gesamtplanbudget ein. Es enthält ' + esc(teile.join(" und ")) + " mit zusammen " + euro(abzug) +
-      ". Das eigene Budget der Kostenstelle rechnet das Tool als Rest aus.</p>";
+    var unterSumme = g.unter.reduce(function (x, u) { return x + u.budget.gesamt; }, 0);
+    return '<p class="hinweis-box klein">' + (g.unter.length ? "Trage hier das Einzelbudget von " + esc(nummer) + " ein. Die Unterkostenstellen " + esc(g.unter.map(function (u) { return u.nummer; }).join(", ")) +
+      " mit zusammen " + euro(unterSumme) + " rechnet das Tool zum Gesamtbudget dazu." : "") +
+      (g.projektNummern.length ? (g.unter.length ? " " : "") + "Das Budget enthält die Projektnummern " + esc(g.projektNummern.join(", ")) + " mit zusammen " + euro(g.projekte.gesamt) + "." : "") + "</p>";
   }
 
   function budgetDialog(art, nummer) {
     var w = D.budgetVon(zustand.daten, zustand.jahr, art, nummer);
     var jahr = zustand.jahr;
     if (art === "pn") return pnBudgetDialog(nummer, w, jahr);
+    /* Übergreifende Kostenstelle: eingetragen wird ihr eigenes Budget, nicht das Gesamtbudget */
+    function summenName() {
+      var g = D.gesamtBudgetVon(zustand.daten, jahr, "ks", nummer);
+      return !g.uebergreifend ? "Planbudget gesamt" : g.projektNummern.length ? "Budget " + esc(nummer) + " mit Projektnummern" : "Einzelbudget " + esc(nummer);
+    }
     function feld(p) {
       return '<div class="feld feld--betrag' + (p.sach ? " feld--unter" : "") + '"><label for="w-' + p.id + '">' + esc(p.name) + "</label>" +
         '<div class="betrag"><input id="w-' + p.id + '" name="' + p.id + '" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" value="' + esc(betragFeld(w[p.id])) + '"><span>EUR</span></div></div>';
@@ -1069,7 +1080,7 @@
       feld(D.POSITIONEN[0]) + feld(D.POSITIONEN[1]) +
       '<fieldset class="sachkosten"><legend>Sachkosten</legend>' + D.POSITIONEN.filter(function (p) { return p.sach; }).map(feld).join("") + "</fieldset>" +
       '<div class="summenzeile"><span>Sachkosten</span><strong data-sach></strong></div>' +
-      '<div class="summenzeile summenzeile--gesamt"><span>Planbudget gesamt</span><strong data-gesamt></strong></div>' +
+      '<div class="summenzeile summenzeile--gesamt"><span>' + summenName() + '</span><strong data-gesamt></strong></div>' +
       '<p class="fehlertext" hidden></p>',
       '<button type="button" class="btn btn--rahmen" data-schliessen>Abbrechen</button><button type="submit" class="btn btn--primaer">Planbudget speichern</button>',
       function (f) {
@@ -1141,8 +1152,8 @@
   /* Hinweise für den Abgleich: fehlende KST-Berichte, unterschiedliche Stände, Rest unter 0 */
   function berichtHinweise(nummer, gi, g) {
     var h = [];
-    if (g.gesamt.ohneEigenenEintrag && g.gesamt.vorhanden) h.push("Für " + nummer + " fehlt noch das Gesamtplanbudget. „Gesamt“ zeigt deshalb nur die Summe der Unterkostenstellen.");
-    if (g.gesamt.widerspruch) h.push("Die Unterkostenstellen und Projektnummern haben zusammen mehr Planbudget als " + nummer + " insgesamt. Bitte prüfe die Planbudgets.");
+    if (g.gesamt.ohneEigenenEintrag && g.gesamt.vorhanden) h.push("Für " + nummer + " fehlt noch das Einzelbudget. „Gesamt“ zeigt deshalb nur die Summe der Unterkostenstellen.");
+    if (g.gesamt.widerspruch) h.push("Die Projektnummern haben zusammen mehr Planbudget als " + nummer + " selbst. Bitte prüfe die Planbudgets.");
     if (gi.gesamt.ohneEigenImport && gi.gesamt.vorhanden) h.push("Der KST-Bericht von " + nummer + " fehlt noch. „Gesamt“ zeigt deshalb nur die Summe der Unterkostenstellen.");
     var ohne = gi.unter.filter(function (u) { return !u.ist.vorhanden; }).map(function (u) { return u.nummer; });
     if (ohne.length && !gi.gesamt.ohneEigenImport) h.push("Für " + ohne.join(", ") + " gibt es noch keine IST-Werte. Ihre Kosten stecken deshalb noch im eigenen Rest von " + nummer + ".");

@@ -133,8 +133,8 @@ test("Übergreifende Kostenstelle: Regeln, Summe, Sicht", () => {
   /* Ohne eigenen Eintrag: Summe der zugeordneten */
   let g = D.gesamtBudgetVon(d, "2026", "ks", "410");
   assert.deepStrictEqual([g.gesamt.ohneEigenenEintrag, g.gesamt.gesamt, g.eigen.vorhanden], [true, 1050, false]);
-  /* Eingetragen wird das Gesamtbudget, eigenes Budget ist der Rest */
-  D.setzeBudget(d, "2026", "ks", "410", { pkId: 1100, reise: 55 });
+  /* Eingetragen wird das Einzelbudget, das Gesamtbudget zählt die Unterkostenstellen dazu */
+  D.setzeBudget(d, "2026", "ks", "410", { pkId: 100, reise: 5 });
   g = D.gesamtBudgetVon(d, "2026", "ks", "410");
   assert.deepStrictEqual([g.uebergreifend, g.eigen.gesamt, g.eigen.pkId, g.eigen.reise, g.gesamt.gesamt, g.gesamt.widerspruch, g.unter.length, g.unter[1].budget.vorhanden], [true, 105, 100, 5, 1155, false, 2, false]);
   const gl = D.sicht(d, "xv10002");
@@ -274,8 +274,8 @@ test("IST der übergreifenden Kostenstelle: KST-Bericht enthält zugeordnete und
   /* 50.000 gesamt, 30.000 auf 101, 5.000 Projektkosten: auf 001 selbst bleiben 15.000 */
   assert.deepStrictEqual([g.gesamt.gesamt, g.unter[0].ist.gesamt, g.projekte.gesamt, g.eigen.gesamt], [50000, 30000, 5000, 15000]);
   assert.deepStrictEqual([g.gesamt.projekte.gesamt, g.eigen.vergleich.gesamt, g.fehlend, g.gesamt.widerspruch, g.gesamt.unterschiedlich], [5000, 10000, 1, false, false]);
-  /* Plan genauso (Beispiel von Michael): 2.000.000 gesamt, 1.500.000 Unterkostenstelle, 200.000 Projektnummer, 300.000 bleiben */
-  D.setzeBudget(d, "2026", "ks", "001", { pkId: 2000000 });
+  /* Plan: 500.000 eingetragen (enthält 200.000 Projektnummer), 1.500.000 Unterkostenstelle, 2.000.000 gesamt, 300.000 Einzelbudget */
+  D.setzeBudget(d, "2026", "ks", "001", { pkId: 500000 });
   D.setzeBudget(d, "2026", "ks", "101", { pkId: 1500000 });
   D.setzeBudget(d, "2026", "pn", "20100000", { betrag: 200000 });
   const p = D.gesamtBudgetVon(d, 2026, "ks", "001");

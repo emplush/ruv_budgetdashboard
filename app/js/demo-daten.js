@@ -104,12 +104,12 @@
       });
     }
     daten.kosten.forEach(function (x) { delete x.art; });
-    /* Bei der übergreifenden 410 steht das Gesamtplanbudget inklusive 411, 412 und ihrer Projektnummern */
+    /* Im Planbudget der 410 stecken ihre Projektnummern (411 und 412 zählen erst im Gesamtbudget dazu) */
     Object.keys(daten.budgets).forEach(function (j) {
       var b = daten.budgets[j];
       if (!b["ks-410"]) return;
       var vorjahr = Number(j) !== jahr ? 1 : 0;
-      ["ks-411", "ks-412", "pn-41000101", "pn-41000102"].forEach(function (u) {
+      ["pn-41000101", "pn-41000102"].forEach(function (u) {
         var teile = u.slice(0, 3) === "pn-" ? b[u] && pnAnteile[u][vorjahr] : b[u];
         if (teile) Object.keys(teile).forEach(function (k) { b["ks-410"][k] += teile[k]; });
       });

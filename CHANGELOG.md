@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.8.1 (29.10.2026)
+- Übergreifende Kostenstelle: Du trägst jetzt ihr Einzelbudget ein. Das Gesamtbudget rechnet das Tool aus: Einzelbudget plus die Planbudgets der Unterkostenstellen. Die Unterkostenstellen zählen nur einmal, im Gesamtbudget der übergreifenden.
+- In der Planbudget-Tabelle sitzt der Stift deshalb in der eingerückten Zeile mit dem Einzelbudget. Projektnummern einer Kostenstelle bleiben in ihrem Budget enthalten.
+- Wichtig beim Update: Bisher eingetragene Gesamtbudgets übergreifender Kostenstellen bitte auf das Einzelbudget ändern.
+
 ## 0.8.0 (29.10.2026)
 - Neue Ansicht für die Gruppenleitung je Kostenstelle: Kennzahlen (Planbudget, IST, Restbudget mit Betrag je Restmonat, Hochrechnung zum Jahresende, Vorjahr), großer Verbrauchsbalken mit gebuchtem Anteil des Jahres und „Auf einen Blick“ mit Auffälligkeiten (überschritten, Monat, in dem das Budget aufgebraucht ist, IST ohne Plan, Kostenarten über dem zeitanteiligen Plan, starke Veränderung zum Vorjahr).
 - Prognose bis Dezember als Diagramm: IST bis zum gebuchten Monat, danach gleichmäßig fortgeschrieben, dazu zeitanteiliger Plan und Vorjahr.

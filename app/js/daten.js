@@ -514,11 +514,10 @@
     return "";
   }
 
-  /* Planbudget einer übergreifenden Kostenstelle: eigenes Budget plus die Planbudgets der zugeordneten Kostenstellen.
-     Bei anderen Nummern ist gesamt gleich eigen. */
-  /* Planbudget einer Kostenstelle: Eingetragen wird immer das Gesamtbudget. Es enthält die zugeordneten Kostenstellen und die
-     Projektnummern dieser Kostenstelle. eigen = Rest, der auf der Kostenstelle selbst liegt; projekte = Plan ihrer Projektnummern.
-     Ohne Eintrag bei einer übergreifenden gilt die Summe der zugeordneten (ohneEigenenEintrag). */
+  /* Planbudget einer Kostenstelle. Eingetragen wird ihr eigenes Budget inklusive ihrer Projektnummern.
+     Bei einer übergreifenden Kostenstelle ist gesamt = eingetragenes Budget plus die Planbudgets der Unterkostenstellen
+     (sie zählen nur hier, nicht doppelt). eigen = Einzelbudget ohne Projektnummern; projekte = Plan der Projektnummern.
+     Ohne Eintrag bei einer übergreifenden gilt die Summe der Unterkostenstellen (ohneEigenenEintrag). */
   function gesamtBudgetVon(daten, jahr, art, nummer) {
     var eingetragen = budgetVon(daten, jahr, art, nummer);
     if (art !== "ks") return { uebergreifend: false, eigen: eingetragen, unter: [], gesamt: eingetragen, eingetragen: eingetragen, projekte: summe([]), projektNummern: [] };
@@ -526,19 +525,15 @@
     var unter = (e && e.unter || []).map(function (u) { return { nummer: u, budget: budgetVon(daten, jahr, "ks", u) }; });
     var pns = (daten.projekte || []).filter(function (n) { return n.ks === nummer; });
     var projekte = summe(pns.map(function (n) { return budgetVon(daten, jahr, "pn", n.nummer); }));
-    var abzug = summe(unter.map(function (u) { return u.budget; }).concat([projekte]));
-    var gesamt, eigen;
-    if (eingetragen.vorhanden || !unter.length) {
-      gesamt = eingetragen;
-      eigen = differenz(eingetragen, abzug);
-      eigen.vorhanden = eingetragen.vorhanden;
-      gesamt.widerspruch = eingetragen.vorhanden && eigen.gesamt < 0;
-    } else {
-      gesamt = abzug;
-      gesamt.vorhanden = unter.some(function (u) { return u.budget.vorhanden; });
-      gesamt.ohneEigenenEintrag = true;
-      eigen = eingetragen;
+    var eigen = differenz(eingetragen, projekte);
+    eigen.vorhanden = eingetragen.vorhanden;
+    var gesamt = eingetragen;
+    if (unter.length) {
+      gesamt = summe([eingetragen].concat(unter.map(function (u) { return u.budget; })));
+      gesamt.vorhanden = eingetragen.vorhanden || unter.some(function (u) { return u.budget.vorhanden; });
+      if (!eingetragen.vorhanden) gesamt.ohneEigenenEintrag = true;
     }
+    gesamt.widerspruch = eingetragen.vorhanden && eigen.gesamt < 0;
     return { uebergreifend: unter.length > 0, eigen: eigen, unter: unter, gesamt: gesamt, eingetragen: eingetragen, projekte: projekte, projektNummern: pns.map(function (n) { return n.nummer; }) };
   }
 
