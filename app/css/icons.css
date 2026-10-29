@@ -1,0 +1,689 @@
+/* Iconfont RuV-Icons v3 (Markenportal). Nutzung: <i class="ruv-i-danger" aria-hidden="true"></i> */
+@font-face {
+  font-family: 'RuV-Icons-v3';
+  src: url('../fonts/RuV-Icons-v3.woff2') format('woff2'),
+    url('../fonts/RuV-Icons-v3.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+
+[class^="ruv-i-"], [class*=" ruv-i-"] {
+  /* use !important to prevent issues with browser extensions that change fonts */
+  font-family: 'RuV-Icons-v3' !important;
+  speak: never;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+
+  /* Better Font Rendering =========== */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.ruv-i-iconCircle:before {
+  content: "\e900";
+}
+.ruv-i-infoCircleFilled:before {
+  content: "\e901";
+}
+.ruv-i-dangerFilled:before {
+  content: "\e902";
+}
+.ruv-i-danger:before {
+  content: "\e903";
+}
+.ruv-i-questionCircle:before {
+  content: "\e904";
+}
+.ruv-i-questionCircleFilled:before {
+  content: "\e905";
+}
+.ruv-i-valueCm3:before {
+  content: "\e906";
+}
+.ruv-i-valueM2:before {
+  content: "\e907";
+}
+.ruv-i-camera:before {
+  content: "\e908";
+}
+.ruv-i-houseCheckmark:before {
+  content: "\e909";
+}
+.ruv-i-phoneCallback:before {
+  content: "\e90a";
+}
+.ruv-i-instagram:before {
+  content: "\e90b";
+}
+.ruv-i-facebook:before {
+  content: "\e90c";
+}
+.ruv-i-x:before {
+  content: "\e90d";
+}
+.ruv-i-grapes:before {
+  content: "\e90e";
+}
+.ruv-i-sportTennis:before {
+  content: "\e90f";
+}
+.ruv-i-documentJpg:before {
+  content: "\e910";
+  color: #585858;
+}
+.ruv-i-phone:before {
+  content: "\e911";
+}
+.ruv-i-bicycle:before {
+  content: "\e912";
+}
+.ruv-i-plane:before {
+  content: "\e913";
+}
+.ruv-i-rocker:before {
+  content: "\e914";
+}
+.ruv-i-accident:before {
+  content: "\e915";
+}
+.ruv-i-plaster:before {
+  content: "\e916";
+}
+.ruv-i-cloverleaf:before {
+  content: "\e917";
+}
+.ruv-i-windmill:before {
+  content: "\e918";
+}
+.ruv-i-quotes:before {
+  content: "\e919";
+}
+.ruv-i-treeRound:before {
+  content: "\e91a";
+}
+.ruv-i-boat:before {
+  content: "\e91b";
+  color: #4a4a4a;
+}
+.ruv-i-tractor:before {
+  content: "\e91c";
+}
+.ruv-i-diagramCircle:before {
+  content: "\e91d";
+}
+.ruv-i-diagramBarchart:before {
+  content: "\e91e";
+}
+.ruv-i-squareMetersMoney:before {
+  content: "\e91f";
+}
+.ruv-i-money:before {
+  content: "\e920";
+  color: #606060;
+}
+.ruv-i-shieldPaw:before {
+  content: "\e921";
+}
+.ruv-i-shield:before {
+  content: "\e922";
+}
+.ruv-i-bank:before {
+  content: "\e923";
+}
+.ruv-i-buildingCorporate:before {
+  content: "\e924";
+}
+.ruv-i-motorbikeChopper:before {
+  content: "\e925";
+}
+.ruv-i-motorbikeMoped:before {
+  content: "\e926";
+}
+.ruv-i-motorbikeScooter:before {
+  content: "\e927";
+}
+.ruv-i-house:before {
+  content: "\e928";
+}
+.ruv-i-peopleTwo:before {
+  content: "\e929";
+}
+.ruv-i-peopleTogether:before {
+  content: "\e92a";
+}
+.ruv-i-personYoungKids:before {
+  content: "\e92b";
+}
+.ruv-i-person:before {
+  content: "\e92c";
+}
+.ruv-i-compass:before {
+  content: "\e92d";
+}
+.ruv-i-globeNet:before {
+  content: "\e92e";
+}
+.ruv-i-smileySad:before {
+  content: "\e92f";
+}
+.ruv-i-smileyHappy:before {
+  content: "\e930";
+}
+.ruv-i-checkmarkCircle:before {
+  content: "\e931";
+}
+.ruv-i-documentDefault:before {
+  content: "\e932";
+}
+.ruv-i-folderOpen:before {
+  content: "\e933";
+}
+.ruv-i-folderDefault:before {
+  content: "\e934";
+}
+.ruv-i-circleLinesDotLarge:before {
+  content: "\e935";
+}
+.ruv-i-documentPdf:before {
+  content: "\e936";
+}
+.ruv-i-valueDollar:before {
+  content: "\e937";
+}
+.ruv-i-valueEur:before {
+  content: "\e938";
+}
+.ruv-i-dangerVoltage:before {
+  content: "\e939";
+}
+.ruv-i-weatherStormyWater:before {
+  content: "\e93a";
+}
+.ruv-i-weatherStormy:before {
+  content: "\e93b";
+}
+.ruv-i-location:before {
+  content: "\e93c";
+}
+.ruv-i-toothBroken:before {
+  content: "\e93d";
+}
+.ruv-i-toothPlus:before {
+  content: "\e93e";
+}
+.ruv-i-toothStar:before {
+  content: "\e93f";
+}
+.ruv-i-tooth:before {
+  content: "\e940";
+}
+.ruv-i-checkmark:before {
+  content: "\e941";
+}
+.ruv-i-alarmClock:before {
+  content: "\e942";
+}
+.ruv-i-stroller:before {
+  content: "\e943";
+}
+.ruv-i-baby:before {
+  content: "\e944";
+}
+.ruv-i-weatherCloudy:before {
+  content: "\e945";
+}
+.ruv-i-trademark:before {
+  content: "\e946";
+}
+.ruv-i-registered:before {
+  content: "\e947";
+  color: #565656;
+}
+.ruv-i-valueKw:before {
+  content: "\e948";
+}
+.ruv-i-valuePs:before {
+  content: "\e949";
+}
+.ruv-i-valueKm:before {
+  content: "\e94a";
+}
+.ruv-i-block:before {
+  content: "\e94b";
+}
+.ruv-i-documentXls:before {
+  content: "\e94c";
+}
+.ruv-i-documentDoc:before {
+  content: "\e94d";
+}
+.ruv-i-calendar:before {
+  content: "\e94e";
+}
+.ruv-i-folded:before {
+  content: "\e94f";
+}
+.ruv-i-documentBadge:before {
+  content: "\e950";
+}
+.ruv-i-paragraph:before {
+  content: "\e951";
+}
+.ruv-i-window:before {
+  content: "\e952";
+}
+.ruv-i-documentZip:before {
+  content: "\e953";
+  color: #4d4d4d;
+}
+.ruv-i-smartphone:before {
+  content: "\e954";
+}
+.ruv-i-calculator:before {
+  content: "\e955";
+}
+.ruv-i-lockClosed:before {
+  content: "\e956";
+}
+.ruv-i-lockOpen:before {
+  content: "\e957";
+}
+.ruv-i-briefcase:before {
+  content: "\e958";
+}
+.ruv-i-briefcaseCross:before {
+  content: "\e959";
+}
+.ruv-i-envelope:before {
+  content: "\e95a";
+}
+.ruv-i-envelopeArrow:before {
+  content: "\e95b";
+}
+.ruv-i-speechbubbles:before {
+  content: "\e95c";
+}
+.ruv-i-caretRight:before {
+  content: "\e95d";
+}
+.ruv-i-pinRoute:before {
+  content: "\e95e";
+}
+.ruv-i-audioMiddle:before {
+  content: "\e95f";
+}
+.ruv-i-horse:before {
+  content: "\e960";
+}
+.ruv-i-rabbit:before {
+  content: "\e961";
+}
+.ruv-i-pig:before {
+  content: "\e962";
+}
+.ruv-i-cat:before {
+  content: "\e963";
+}
+.ruv-i-dog:before {
+  content: "\e964";
+}
+.ruv-i-hammer:before {
+  content: "\e965";
+}
+.ruv-i-audioOff:before {
+  content: "\e966";
+}
+.ruv-i-fullscreen:before {
+  content: "\e967";
+}
+.ruv-i-shrink:before {
+  content: "\e968";
+}
+.ruv-i-menuMeatballs:before {
+  content: "\e969";
+}
+.ruv-i-pause:before {
+  content: "\e96a";
+}
+.ruv-i-menuHamburger:before {
+  content: "\e96b";
+}
+.ruv-i-minus:before {
+  content: "\e96c";
+}
+.ruv-i-reload:before {
+  content: "\e96d";
+}
+.ruv-i-arrowUpLine:before {
+  content: "\e96e";
+}
+.ruv-i-arrowDownLine:before {
+  content: "\e96f";
+}
+.ruv-i-sofaDouble:before {
+  content: "\e970";
+}
+.ruv-i-thumbsUp:before {
+  content: "\e971";
+}
+.ruv-i-search:before {
+  content: "\e972";
+}
+.ruv-i-arrowRightUp:before {
+  content: "\e973";
+}
+.ruv-i-arrow-full-right:before {
+  content: "\e974";
+}
+.ruv-i-triangle-down:before {
+  content: "\e975";
+}
+.ruv-i-triangle-right:before {
+  content: "\e976";
+}
+.ruv-i-arrow-up:before {
+  content: "\e977";
+}
+.ruv-i-arrow-down:before {
+  content: "\e978";
+}
+.ruv-i-arrow-left:before {
+  content: "\e979";
+}
+.ruv-i-arrow-right:before {
+  content: "\e97a";
+}
+.ruv-i-cross:before {
+  content: "\e97b";
+}
+.ruv-i-plus:before {
+  content: "\e97c";
+}
+.ruv-i-rv:before {
+  content: "\e97d";
+}
+.ruv-i-car:before {
+  content: "\e97e";
+}
+.ruv-i-umbrella:before {
+  content: "\e97f";
+}
+.ruv-i-ppt:before {
+  content: "\e980";
+}
+.ruv-i-diagramm-graph:before {
+  content: "\e983";
+}
+.ruv-i-pencil:before {
+  content: "\e981";
+}
+.ruv-i-pencil-sign:before {
+  content: "\e982";
+}
+.ruv-i-checkmarkFilled:before {
+  content: "\e984";
+}
+.ruv-i-cross-circle-filled:before {
+  content: "\e985";
+}
+.ruv-i-arrow-right-circle:before {
+  content: "\e986";
+}
+.ruv-i-arrow-lef-circle:before {
+  content: "\e987";
+}
+.ruv-i-stethoscope:before {
+  content: "\e988";
+}
+.ruv-i-printer:before {
+  content: "\e989";
+}
+.ruv-i-arrows-clockwise:before {
+  content: "\e98a";
+}
+.ruv-i-arrows-crossed:before {
+  content: "\e98b";
+}
+.ruv-i-hourglass:before {
+  content: "\e98c";
+}
+.ruv-i-login:before {
+  content: "\e98d";
+}
+.ruv-i-logout:before {
+  content: "\e98e";
+}
+.ruv-i-arrows-sorting:before {
+  content: "\e98f";
+}
+.ruv-i-arrows-sorting-top:before {
+  content: "\e990";
+}
+.ruv-i-arrows-sorting-bottom:before {
+  content: "\e991";
+}
+.ruv-i-bin:before {
+  content: "\e992";
+}
+.ruv-i-moon-star:before {
+  content: "\e993";
+}
+.ruv-i-eye-open:before {
+  content: "\e994";
+}
+.ruv-i-bell:before {
+  content: "\e995";
+}
+.ruv-i-image-placeholder:before {
+  content: "\e996";
+}
+.ruv-i-creditcard:before {
+  content: "\e998";
+}
+.ruv-i-target1:before {
+  content: "\e999";
+}
+.ruv-i-bullet-1st-level:before {
+  content: "\e99a";
+}
+.ruv-i-bullet-2nd-level:before {
+  content: "\e997";
+}
+.ruv-i-thumbs-down:before {
+  content: "\e99b";
+}
+.ruv-i-play-circle:before {
+  content: "\e99c";
+}
+.ruv-i-menu-dots-vertical:before {
+  content: "\e99d";
+}
+.ruv-i-dots-connected:before {
+  content: "\e99e";
+}
+.ruv-i-antler:before {
+  content: "\e99f";
+}
+.ruv-i-soc-xing:before {
+  content: "\e9a2";
+}
+.ruv-i-soc-ruv-newsroom:before {
+  content: "\e9a4";
+  color: #474747;
+}
+.ruv-i-soc-ruv-blog:before {
+  content: "\e9a5";
+}
+.ruv-i-eye-closed:before {
+  content: "\e9a0";
+}
+.ruv-i-youtube:before {
+  content: "\e9a1";
+}
+.ruv-i-linkedin:before {
+  content: "\e9a3";
+}
+.ruv-i-settings:before {
+  content: "\e9a6";
+}
+.ruv-i-filter:before {
+  content: "\e9a7";
+}
+.ruv-i-arrow-double-up:before {
+  content: "\e9a8";
+}
+.ruv-i-arrow-double-right:before {
+  content: "\e9a9";
+}
+.ruv-i-arrow-double-down:before {
+  content: "\e9b6";
+}
+.ruv-i-arrow-double-left:before {
+  content: "\e9ab";
+}
+.ruv-i-whatsapp:before {
+  content: "\e9ac";
+}
+.ruv-i-link:before {
+  content: "\e9ad";
+}
+.ruv-i-star:before {
+  content: "\e9ae";
+}
+.ruv-i-star-filled:before {
+  content: "\e9af";
+}
+.ruv-i-bookmark:before {
+  content: "\e9b0";
+}
+.ruv-i-bookmark-filled:before {
+  content: "\e9b1";
+}
+.ruv-i-arrows-up-down:before {
+  content: "\e9b2";
+}
+.ruv-i-self-services:before {
+  content: "\e9b3";
+}
+.ruv-i-fax:before {
+  content: "\e9b5";
+}
+.ruv-i-magnifier-plus:before {
+  content: "\e9aa";
+}
+.ruv-i-magnifier-minus:before {
+  content: "\e9b4";
+}
+.ruv-i-truck-sideview:before {
+  content: "\e9b7";
+}
+.ruv-i-lock-locked:before {
+  content: "\e9b8";
+}
+.ruv-i-location-pin:before {
+  content: "\e9b9";
+}
+.ruv-i-phone-default:before {
+  content: "\e9ba";
+}
+.ruv-i-handshake-heart:before {
+  content: "\e9bb";
+}
+.ruv-i-calendar-default:before {
+  content: "\e9bc";
+}
+.ruv-i-lupe:before {
+  content: "\e9bd";
+}
+.ruv-i-dart-circles:before {
+  content: "\e9be";
+}
+.ruv-i-building-business:before {
+  content: "\e9bf";
+}
+.ruv-i-hundred-years:before {
+  content: "\e9c0";
+}
+.ruv-i-news-newspaper:before {
+  content: "\e9c1";
+}
+.ruv-i-people-shape:before {
+  content: "\e9c2";
+}
+.ruv-i-people-headset:before {
+  content: "\e9c3";
+}
+.ruv-i-warning-sign:before {
+  content: "\e9c4";
+}
+.ruv-i-people-business:before {
+  content: "\e9c5";
+}
+.ruv-i-people-together:before {
+  content: "\e9c6";
+}
+.ruv-i-speechbubbles-overlapped:before {
+  content: "\e9c7";
+}
+.ruv-i-prevention:before {
+  content: "\e9c8";
+}
+.ruv-i-health-heart:before {
+  content: "\e9c9";
+}
+.ruv-i-house-new:before {
+  content: "\e9ca";
+}
+.ruv-i-camera1:before {
+  content: "\e9cb";
+}
+.ruv-i-cameraVideoOff:before {
+  content: "\e9cc";
+}
+.ruv-i-cart:before {
+  content: "\e9cd";
+}
+.ruv-i-copy:before {
+  content: "\e9ce";
+}
+.ruv-i-female:before {
+  content: "\e9cf";
+}
+.ruv-i-male:before {
+  content: "\e9d0";
+}
+.ruv-i-microphone:before {
+  content: "\e9d1";
+}
+.ruv-i-microphoneOff:before {
+  content: "\e9d2";
+}
+.ruv-i-pauseCircle:before {
+  content: "\e9d3";
+}
+.ruv-i-personId:before {
+  content: "\e9d4";
+}
+.ruv-i-pin:before {
+  content: "\e9d5";
+}
+.ruv-i-tiktok:before {
+  content: "\e9d6";
+}
+.ruv-i-threads:before {
+  content: "\e9d7";
+}
+.ruv-i-wcag:before {
+  content: "\e9d8";
+}
+.ruv-i-floppyDisk:before {
+  content: "\e9d9";
+}
+.ruv-i-bookOpen:before {
+  content: "\e9da";
+  color: #646464;
+}

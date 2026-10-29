@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Budgetdashboard: Installation auf dem IIS</title>
+<style>
+  :root { --blau: #001957; --orange: #eb6504; --text: #1e1e1e; --grau: #5a5a5a; --linie: #d7d7d7; --flaeche: #f5f5f5; }
+  body { margin: 0; background: #fff; color: var(--text); font: 16px/1.6 "Segoe UI", Arial, sans-serif; }
+  main { max-width: 820px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { color: var(--blau); font-size: 30px; line-height: 1.2; margin: 0 0 4px; }
+  h2 { color: var(--blau); font-size: 21px; margin: 36px 0 8px; border-bottom: 2px solid var(--orange); padding-bottom: 4px; }
+  h3 { font-size: 17px; margin: 24px 0 4px; color: var(--blau); }
+  .unter { color: var(--grau); margin: 0 0 24px; }
+  code { font-family: Consolas, monospace; font-size: 14px; background: var(--flaeche); padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--flaeche); padding: 12px 16px; border-radius: 6px; overflow-x: auto; font-size: 14px; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--linie); }
+  th { background: var(--flaeche); }
+  .hinweis { border-left: 4px solid var(--orange); background: var(--flaeche); padding: 10px 14px; margin: 16px 0; }
+  ol li, ul li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<main>
+<h1>Budgetdashboard</h1>
+<p class="unter">Installation und Update auf dem IIS · Version 0.1.0</p>
+
+<p>Das Budgetdashboard läuft auf einem IIS mit ASP.NET, ohne Datenbank, ohne PHP und ohne HTTPS. Alle Daten liegen als JSON-Datei im Ordner <code>App_Data</code> der Website. Anmeldung, Passwörter und Rechte prüft der Server.</p>
+
+<h2>Die Pakete</h2>
+<table>
+  <tr><th>Datei</th><th>Wofür</th></tr>
+  <tr><td><code>Budgetdashboard_IIS_0.1.0.zip</code></td><td>Neuinstallation. Enthält alle Dateien und den leeren Ordner <code>App_Data</code>.</td></tr>
+  <tr><td><code>Budgetdashboard_Update_0.1.0.zip</code></td><td>Update einer bestehenden Installation. Ohne <code>App_Data</code>, Deine Daten bleiben also unverändert.</td></tr>
+</table>
+<p>Beide ZIPs haben keinen Unterordner: Die Dateien liegen direkt auf der obersten Ebene und gehören direkt in den Ordner der Website. Die aktuellen Pakete liegen immer im GitHub-Repository im Ordner <code>Aktuelle_Version</code>.</p>
+
+<h2>Voraussetzungen</h2>
+<ul>
+  <li>Windows Server mit IIS 8.5 oder neuer.</li>
+  <li>.NET Framework 4.7.2 oder neuer und die IIS-Rolle <strong>ASP.NET 4.x</strong> (Windows-Feature „ASP.NET 4.8“ bzw. „ASP.NET 4.7“).</li>
+  <li>Ein Anwendungspool mit <strong>.NET CLR v4.0</strong> und <strong>integrierter</strong> Pipeline.</li>
+  <li>Keine Datenbank, kein PHP, kein Zertifikat, keine weiteren Komponenten.</li>
+</ul>
+
+<h2>Neuinstallation</h2>
+<ol>
+  <li>Lege einen Ordner für die Website an, zum Beispiel <code>D:\Web\budget</code>.</li>
+  <li>Prüfe die Dateieigenschaften des ZIPs. Steht dort „Zulassen“, setze den Haken. Sonst blockiert der IIS die entpackten Dateien.</li>
+  <li>Entpacke <code>Budgetdashboard_IIS_0.1.0.zip</code> direkt in diesen Ordner. Danach liegen dort unter anderem <code>index.html</code>, <code>api.ashx</code>, <code>web.config</code> und der Ordner <code>App_Data</code>.</li>
+  <li>Lege im IIS-Manager eine Website oder eine Anwendung an, die auf den Ordner zeigt. Wähle den Anwendungspool mit .NET CLR v4.0, integriert.</li>
+  <li>Gib der Identität des Anwendungspools <strong>Schreibrechte auf <code>App_Data</code></strong> (Ändern), zum Beispiel für <code>IIS AppPool\budget</code>. Auf alle anderen Ordner reicht Lesen.</li>
+  <li>Stelle unter <strong>Authentifizierung</strong> die <strong>anonyme Authentifizierung</strong> auf „Aktiviert“ (Identität des Anwendungspools) und die <strong>Windows-Authentifizierung</strong> auf „Deaktiviert“. Das Tool hat eine eigene Anmeldung.</li>
+  <li>Öffne die Adresse im Browser, zum Beispiel <code>http://server/budget/</code>. Beim ersten Aufruf legt der Server <code>App_Data\daten.json</code> an.</li>
+</ol>
+
+<h3>Erste Anmeldung</h3>
+<p>Melde Dich mit dem Standard-Administrator an:</p>
+<pre>XV-Nummer: xv00000
+Passwort:  RuV-Plan#2026!</pre>
+<div class="hinweis">Ändere das Passwort direkt danach unter <strong>Mein Profil › Passwort ändern</strong>. Das Standardpasswort steht in dieser Anleitung und im Quelltext, es ist also kein Geheimnis.</div>
+<p>Danach legst Du unter <strong>Verwaltung</strong> die Abteilungsleitung, die Gruppenleitungen und Key Account Manager, die Kostenstellen (3 Ziffern) und Projektnummern (8 Ziffern) an. Neue Benutzer bekommen ein Einmalpasswort. Es bleibt in der Benutzerliste sichtbar, bis die Person bei der ersten Anmeldung ein eigenes Passwort festlegt. Planbudgets trägt die Abteilungsleitung unter <strong>Übersicht</strong> ein.</p>
+
+<h3>Rollen</h3>
+<table>
+  <tr><th>Rolle</th><th>Darf</th></tr>
+  <tr><td>Administrator</td><td>Titel der Anwendung, Benutzer, Kostenstellen und Projektnummern. Sieht keine Planbudgets.</td></tr>
+  <tr><td>Abteilungsleitung</td><td>Benutzer (außer Administratoren), Kostenstellen und Projektnummern, Planbudgets eintragen, Übersicht aller Planbudgets je Kalenderjahr. Kann selbst Kostenstellen haben.</td></tr>
+  <tr><td>Gruppenleitung</td><td>Sieht die Planbudgets ihrer Kostenstellen, jede für sich.</td></tr>
+  <tr><td>Key Account Manager</td><td>Sieht die Planbudgets ihrer Projektnummern, jede für sich.</td></tr>
+</table>
+
+<h3>Prüfen, ob alles läuft</h3>
+<ul>
+  <li><code>http://&lt;adresse&gt;/api.ashx?aktion=ping</code> antwortet mit „Aufruf nicht erlaubt“. Das ist richtig: Nur das Tool selbst sendet den nötigen Header. Im Tool steht dann unten kein Hinweis „Browserbetrieb“.</li>
+  <li>Unter Verwaltung › Einstellungen gibt es keine Karte „Beispieldaten“. Sie erscheint nur in der Demo.</li>
+  <li>Nach der ersten Änderung gibt es den Ordner <code>App_Data\sicherungen</code>.</li>
+</ul>
+
+<h2>Update</h2>
+<ol>
+  <li>Sichere zur Vorsicht den Ordner <code>App_Data</code>.</li>
+  <li>Entpacke <code>Budgetdashboard_Update_&lt;version&gt;.zip</code> in den Ordner der Website und überschreibe die vorhandenen Dateien.</li>
+  <li>Fertig. <code>App_Data</code> ist im Update-Paket nicht enthalten und bleibt unverändert. Hast Du die <code>web.config</code> angepasst, übernimm Deine Änderungen in die neue Datei.</li>
+</ol>
+<p>Die Browser laden die neuen Dateien automatisch, weil jede Version eigene Dateiadressen hat.</p>
+
+<h2>Gut zu wissen</h2>
+<h3>Ohne HTTPS</h3>
+<p>Das Tool läuft über HTTP. Die Passwörter prüft und speichert der Server, der Browser braucht dafür keine sichere Verbindung. Bei der Anmeldung gehen XV-Nummer und Passwort allerdings unverschlüsselt durchs Netz. Mach die Website deshalb nur im internen Netz erreichbar. Kommt später ein Zertifikat dazu, musst Du am Tool nichts ändern: Das Sitzungs-Cookie bekommt bei HTTPS automatisch das Merkmal <code>Secure</code>.</p>
+
+<h3>Passwörter</h3>
+<ul>
+  <li>Mindestens 12 Zeichen mit Klein- und Großbuchstaben, Ziffer und Sonderzeichen.</li>
+  <li>Nicht erlaubt sind die eigene XV-Nummer, der eigene Name, gängige Wörter wie „Passwort“ oder Zahlenfolgen wie „123456“ und ein Zeichen viermal hintereinander.</li>
+  <li>Der Server speichert Passwörter nur als Hash (PBKDF2-SHA256, 100.000 Runden, eigenes Salz je Konto). Nur das Einmalpasswort steht bis zur ersten Anmeldung lesbar in <code>daten.json</code>, damit es in der Benutzerverwaltung sichtbar bleibt.</li>
+  <li>Nach 5 falschen Passwörtern ist die Anmeldung für 15 Minuten gesperrt.</li>
+</ul>
+
+<h3>Anmeldung und Sitzungen</h3>
+<ul>
+  <li>Eine Anmeldung gilt 7 Tage, bis man sich selbst abmeldet.</li>
+  <li>Die Anmeldungen liegen in <code>App_Data\sitzungen.json</code> und überstehen einen Neustart. Die Datei enthält nur Prüfwerte, keine gültigen Cookies.</li>
+  <li>Bekommt jemand ein neues Einmalpasswort oder wird gelöscht, endet jede Anmeldung dieses Kontos.</li>
+  <li>Betreibe die Website mit nur einem Arbeitsprozess (Standard).</li>
+</ul>
+
+<h3>Daten und Sicherungen</h3>
+<table>
+  <tr><th>Datei</th><th>Inhalt</th></tr>
+  <tr><td><code>App_Data\daten.json</code></td><td>Einstellungen, Benutzer mit Passwort-Hash, Kostenstellen, Projektnummern und Planbudgets.</td></tr>
+  <tr><td><code>App_Data\sitzungen.json</code></td><td>Die aktuellen Anmeldungen, als Prüfwert gespeichert.</td></tr>
+  <tr><td><code>App_Data\sicherungen\</code></td><td>Vor jeder Änderung sichert der Server den alten Stand. Die letzten 50 Sicherungen bleiben.</td></tr>
+</table>
+<p>Der IIS liefert <code>App_Data</code> nie aus. Für eine Wiederherstellung ersetzt Du <code>daten.json</code> durch eine Datei aus <code>sicherungen</code>. Nimm <code>App_Data</code> in die normale Serversicherung auf.</p>
+
+<h2>Wenn etwas nicht klappt</h2>
+<table>
+  <tr><th>Was Du siehst</th><th>Was hilft</th></tr>
+  <tr><td>Windows fragt nach einer Anmeldung</td><td>Im IIS ist die Windows-Authentifizierung aktiv. Aktiviere die anonyme Authentifizierung und deaktiviere die Windows-Authentifizierung.</td></tr>
+  <tr><td>Hinweis „Browserbetrieb“ unten auf der Seite</td><td><code>api.ashx</code> antwortet nicht. Prüfe, ob ASP.NET 4.x installiert ist und der Anwendungspool .NET CLR v4.0 nutzt.</td></tr>
+  <tr><td>Fehler beim Speichern</td><td>Meist fehlen die Schreibrechte des Anwendungspools auf <code>App_Data</code>.</td></tr>
+  <tr><td>Fehler 500.19</td><td>Die <code>web.config</code> passt nicht zur Serverkonfiguration, oft weil ein Abschnitt gesperrt ist.</td></tr>
+  <tr><td>Umlaute falsch dargestellt</td><td><code>api.ashx</code> wurde ohne UTF-8-BOM gespeichert. Nimm die Datei unverändert aus dem ZIP.</td></tr>
+</table>
+</main>
+</body>
+</html>

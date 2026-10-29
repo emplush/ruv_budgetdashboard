@@ -1,0 +1,7 @@
+/* RuV Sans und RuV Slab aus emplush/ruv_design (web/base.css), nur die genutzten Schnitte */
+@font-face{font-family:"RuV Sans";src:url("../fonts/RuVSans-Light.woff2") format("woff2");font-weight:300;font-style:normal;font-display:swap}
+@font-face{font-family:"RuV Sans";src:url("../fonts/RuVSans-Regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"RuV Sans";src:url("../fonts/RuVSans-Bold.woff2") format("woff2");font-weight:700;font-style:normal;font-display:swap}
+@font-face{font-family:"RuV Sans";src:url("../fonts/RuVSans-Black.woff2") format("woff2");font-weight:900;font-style:normal;font-display:swap}
+@font-face{font-family:"RuV Slab";src:url("../fonts/RuVSlab-Regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"RuV Slab";src:url("../fonts/RuVSlab-Bold.woff2") format("woff2");font-weight:700;font-style:normal;font-display:swap}

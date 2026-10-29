@@ -1,0 +1,41 @@
+/* GENERIERT aus tokens/tokens.json - nicht von Hand aendern */
+:root {
+  --ruv-primary: #001957;
+  --ruv-white: #ffffff;
+  --ruv-orange-light: #f79506;
+  --ruv-orange-dark: #eb6504;
+  --ruv-mint-light: #00dcdc;
+  --ruv-mint-dark: #109da8;
+  --ruv-sand: #fff4e0;
+  --ruv-brown-1: #fbe5c7;
+  --ruv-brown-2: #eabe8d;
+  --ruv-brown-3: #c47d47;
+  --ruv-brown-4: #a45f33;
+  --ruv-brown-5: #583720;
+  --ruv-green: #f0f8e3;
+  --ruv-green-1: #daf1ab;
+  --ruv-green-2: #c5e878;
+  --ruv-green-3: #a7d54c;
+  --ruv-green-4: #759a03;
+  --ruv-green-5: #5b7a03;
+  --ruv-blue-1: #bee0f5;
+  --ruv-blue-2: #7db5d7;
+  --ruv-blue-3: #3875a6;
+  --ruv-blue-4: #155784;
+  --ruv-grey-1: #f5f5f5;
+  --ruv-grey-2: #ececec;
+  --ruv-grey-3: #c7c7c7;
+  --ruv-grey-4: #888888;
+  --ruv-grey-5: #707070;
+  --ruv-error: #ff4c4c;
+  --ruv-error-soft: #ff8484;
+  --ruv-success: #759a03;
+  --ruv-success-soft: #8ebc27;
+  --ruv-interactive-hover: #138c99;
+  --ruv-interactive-light-hover: #2ee6e6;
+  --ruv-link: #167b8a;
+  --ruv-link-light: #5befef;
+  --ruv-font-sans: "RuV Sans", Arial, Helvetica, sans-serif;
+  --ruv-font-slab: "RuV Slab", Georgia, serif;
+  --ruv-radius: 4px;
+}
