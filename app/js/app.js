@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "0.1.0";
+  var VERSION = "0.2.0";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -378,14 +378,27 @@
 
   /* Eine Karte je Kostenstelle oder Projektnummer, nie gemischt */
   function budgetKarte(art, nummer) {
-    var w = D.budgetVon(zustand.daten, zustand.jahr, art, nummer);
+    var g = D.gesamtBudgetVon(zustand.daten, zustand.jahr, art, nummer), w = g.gesamt;
+    var oben = art === "ks" ? D.uebergeordnete(zustand.daten, nummer) : "";
     return '<article class="karte budget" data-nummer="' + esc(art + "-" + nummer) + '">' +
-      '<p class="topline">' + esc(D.ARTEN[art].name) + "</p>" +
+      '<p class="topline">' + (g.uebergreifend ? "Übergreifende Kostenstelle" : esc(D.ARTEN[art].name)) + "</p>" +
       '<h2 class="budget__nummer">' + esc(nummer) + "</h2>" +
+      (oben ? '<p class="leise klein">Gehört zur übergreifenden Kostenstelle ' + esc(oben) + ".</p>" : "") +
       (w.vorhanden
-        ? '<p class="budget__gesamt"><span class="leise klein">Planbudget ' + zustand.jahr + "</span><strong>" + euro(w.gesamt) + "</strong></p>" + anteilHtml(w) + positionenHtml(w)
+        ? '<p class="budget__gesamt"><span class="leise klein">Planbudget ' + zustand.jahr + (g.uebergreifend ? " inklusive zugeordneter Kostenstellen" : "") + "</span><strong>" + euro(w.gesamt) + "</strong></p>" +
+          anteilHtml(w) + positionenHtml(w) + (g.uebergreifend ? zusammensetzungHtml(g) : "")
         : '<p class="leer-hinweis">Für ' + zustand.jahr + " ist noch kein Planbudget eingetragen.</p>") +
+      (g.uebergreifend ? '<p class="budget__link"><a class="btn btn--rahmen" href="#/bericht/' + esc(nummer) + '">' + icon("diagramBarchart") + " Bericht ansehen</a></p>" : "") +
       "</article>";
+  }
+
+  /* Woraus sich das Planbudget einer übergreifenden Kostenstelle zusammensetzt */
+  function zusammensetzungHtml(g) {
+    return '<table class="positionen positionen--zusammensetzung"><caption>Zusammensetzung</caption><tbody>' +
+      '<tr><th scope="row">Eigenes Budget</th><td class="zahl">' + euro(g.eigen.gesamt) + "</td></tr>" +
+      g.unter.map(function (u) {
+        return '<tr><th scope="row">Kostenstelle ' + esc(u.nummer) + '</th><td class="zahl">' + (u.budget.vorhanden ? euro(u.budget.gesamt) : '<span class="leise">–</span>') + "</td></tr>";
+      }).join("") + "</tbody></table>";
   }
 
   function eigeneBereiche(b) {
@@ -482,10 +495,29 @@
 
   function tabelleHtml(art) {
     var a = D.ARTEN[art], l = D.liste(zustand.daten, art);
-    var zeilen = l.map(function (n) {
+    /* Übergreifende Kostenstellen stehen mit ihren zugeordneten Kostenstellen und einer Zwischensumme zusammen */
+    var reihe = [];
+    l.forEach(function (n) {
+      if (art === "ks" && D.uebergeordnete(zustand.daten, n.nummer)) return;
+      var unter = art === "ks" ? (n.unter || []) : [];
+      reihe.push({ n: n, art: unter.length ? "oben" : "" });
+      unter.forEach(function (u) { var e = D.findeNummer(zustand.daten, "ks", u); if (e) reihe.push({ n: e, art: "unter" }); });
+      if (unter.length) reihe.push({ n: n, art: "teilsumme" });
+    });
+    var zeilen = reihe.map(function (r) {
+      var n = r.n;
+      if (r.art === "teilsumme") {
+        var g = D.gesamtBudgetVon(zustand.daten, zustand.jahr, "ks", n.nummer).gesamt;
+        return '<tr class="teilsumme"><th scope="row" colspan="2">Gesamt übergreifende Kostenstelle ' + esc(n.nummer) + "</th>" +
+          D.POSITIONEN.map(function (p) { return '<td class="zahl">' + euro(g[p.id]) + "</td>"; }).join("") +
+          '<td class="zahl summe">' + euro(g.sachkosten) + '</td><td class="zahl summe"><strong>' + euro(g.gesamt) + "</strong></td>" +
+          '<td><a class="icon-btn" href="#/bericht/' + esc(n.nummer) + '" aria-label="Bericht übergreifende Kostenstelle ' + esc(n.nummer) + '" title="Bericht ansehen">' + icon("diagramBarchart") + "</a></td></tr>";
+      }
       var w = D.budgetVon(zustand.daten, zustand.jahr, art, n.nummer);
       var namen = namenVon(n.benutzer);
-      return "<tr" + (w.vorhanden ? "" : ' class="ohne"') + '><th scope="row"><strong>' + esc(n.nummer) + "</strong></th>" +
+      var klassen = [w.vorhanden ? "" : "ohne", r.art === "unter" ? "unter" : ""].filter(Boolean).join(" ");
+      return "<tr" + (klassen ? ' class="' + klassen + '"' : "") + '><th scope="row"><strong>' + esc(n.nummer) + "</strong>" +
+        (r.art === "oben" ? ' <span class="chip chip--akzent" title="Fasst Kostenstellen zusammen">übergreifend</span><br><span class="leise klein">eigenes Budget</span>' : "") + "</th>" +
         '<td class="klein">' + (namen.length ? esc(namen.join(", ")) : '<span class="leise">niemand</span>') + "</td>" +
         D.POSITIONEN.map(function (p) { return '<td class="zahl">' + (w.vorhanden ? euro(w[p.id]) : "–") + "</td>"; }).join("") +
         '<td class="zahl summe">' + (w.vorhanden ? euro(w.sachkosten) : "–") + '</td><td class="zahl summe"><strong>' + (w.vorhanden ? euro(w.gesamt) : "–") + "</strong></td>" +
@@ -514,6 +546,9 @@
     }
     var form = oeffneDialog("Planbudget " + D.ARTEN[art].name + " " + nummer + " · " + jahr,
       '<p class="leise klein">Gib die Beträge in Euro ein, zum Beispiel 12.500,00. Leere Felder zählen als 0 €.</p>' +
+      (art === "ks" && (D.findeNummer(zustand.daten, "ks", nummer).unter || []).length
+        ? '<p class="hinweis-box klein">Das ist das eigene Budget der übergreifenden Kostenstelle. Die Planbudgets der Kostenstellen ' +
+          esc(D.findeNummer(zustand.daten, "ks", nummer).unter.join(", ")) + " kommen in der Summe dazu.</p>" : "") +
       feld(D.POSITIONEN[0]) + feld(D.POSITIONEN[1]) +
       '<fieldset class="sachkosten"><legend>Sachkosten</legend>' + D.POSITIONEN.filter(function (p) { return p.sach; }).map(feld).join("") + "</fieldset>" +
       '<div class="summenzeile"><span>Sachkosten</span><strong data-sach></strong></div>' +
@@ -549,6 +584,50 @@
       i.addEventListener("blur", function () { var z = D.leseBetrag(i.value); if (z !== null && i.value.trim()) i.value = betragFeld(z) || "0,00"; });
     });
     rechne();
+  }
+
+  /* ---------- Bericht übergreifende Kostenstelle ---------- */
+
+  /* Den Bericht sehen die Abteilungsleitung und alle, denen die übergreifende Kostenstelle zugewiesen ist */
+  function darfBericht(b, nummer) {
+    var e = D.findeNummer(zustand.daten, "ks", nummer);
+    if (!e || !(e.unter || []).length || b.rolle === "admin") return false;
+    return D.Rechte.budgets(b) || D.nummernVon(zustand.daten, b.kennung, "ks").indexOf(nummer) >= 0;
+  }
+
+  var BERICHT_ZEILEN = [
+    { id: "pkId", name: "Personalkosten ID" }, { id: "pkAd", name: "Personalkosten AD" }, { id: "personalkosten", name: "Personalkosten", summe: true },
+    { id: "werbung", name: "Werbung" }, { id: "reise", name: "Reise/KfZ" }, { id: "sonstiges", name: "Sonstiges" }, { id: "sachkosten", name: "Sachkosten", summe: true },
+    { id: "gesamt", name: "Planbudget gesamt", gesamt: true }
+  ];
+
+  function zeigeBericht(nummer) {
+    var g = D.gesamtBudgetVon(zustand.daten, zustand.jahr, "ks", nummer);
+    var spalten = [{ name: "Eigenes Budget", w: g.eigen }].concat(g.unter.map(function (u) { return { name: "Kostenstelle " + u.nummer, w: u.budget }; }));
+    spalten.push({ name: "Gesamt", w: g.gesamt, gesamt: true });
+    var html = '<div class="seite__kopf"><div><p class="topline">Bericht übergreifende Kostenstelle</p><h1>Kostenstelle ' + esc(nummer) + " · " + zustand.jahr + "</h1></div>" + jahrwahlHtml() + "</div>" +
+      '<div class="kennzahlen">' +
+      kennzahl("Planbudget gesamt", euro(g.gesamt.gesamt), "eigenes Budget und " + g.unter.length + " zugeordnete Kostenstellen") +
+      kennzahl("Eigenes Budget", euro(g.eigen.gesamt), "Kostenstelle " + esc(nummer)) +
+      kennzahl("Zugeordnete Kostenstellen", euro(D.summe(g.unter.map(function (u) { return u.budget; })).gesamt), esc(g.unter.map(function (u) { return u.nummer; }).join(", "))) +
+      kennzahl("Ohne Planbudget", String(spalten.slice(0, -1).filter(function (x) { return !x.w.vorhanden; }).length), "von " + (spalten.length - 1) + " Teilen") + "</div>" +
+      '<section class="karte bereich-tabelle"><div class="bereich-tabelle__kopf"><h2>Planbudget nach Positionen</h2>' +
+      '<button type="button" class="btn btn--rahmen" data-kopieren>' + icon("copy") + " Tabelle kopieren</button></div>" +
+      '<p class="leise klein">Mit „Tabelle kopieren“ fügst Du die Werte direkt in Excel ein und kannst sie dort mit Deinem Dokument abgleichen. Die IST-Werte kommen mit dem IST-Import dazu.</p>' +
+      '<div class="tabelle-huelle"><table class="budgettabelle berichtstabelle"><thead><tr><th>Position</th>' +
+      spalten.map(function (sp) { return '<th class="zahl' + (sp.gesamt ? " summe" : "") + '">' + esc(sp.name) + "</th>"; }).join("") + "</tr></thead><tbody>" +
+      BERICHT_ZEILEN.map(function (z) {
+        return "<tr" + (z.summe ? ' class="teilsumme"' : z.gesamt ? ' class="gesamtzeile"' : "") + '><th scope="row">' + esc(z.name) + "</th>" +
+          spalten.map(function (sp) { return '<td class="zahl' + (sp.gesamt ? " summe" : "") + '">' + (z.gesamt ? "<strong>" + euro(sp.w[z.id]) + "</strong>" : euro(sp.w[z.id])) + "</td>"; }).join("") + "</tr>";
+      }).join("") + "</tbody></table></div></section>";
+    seite("bericht", "Bericht " + nummer, html, true);
+    verbindeJahrwahl();
+    app.querySelector("[data-kopieren]").addEventListener("click", function () {
+      var zahl = function (z) { return (Number(z) || 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false }); };
+      var text = ["Kostenstelle " + nummer + " " + zustand.jahr].concat(spalten.map(function (sp) { return sp.name; })).join("\t") + "\n" +
+        BERICHT_ZEILEN.map(function (z) { return [z.name].concat(spalten.map(function (sp) { return zahl(sp.w[z.id]); })).join("\t"); }).join("\n");
+      kopiere(text).then(function () { meldung("Die Tabelle ist kopiert. Füge sie in Excel mit Strg+V ein."); }, function () { meldung("Das Kopieren hat nicht geklappt. Markiere die Tabelle bitte von Hand.", true); });
+    });
   }
 
   /* ---------- Verwaltung ---------- */
@@ -721,13 +800,14 @@
     var jahr = new Date().getFullYear();
     ziel.innerHTML = '<div class="karte"><p class="leise klein">' + esc(a.mehrzahl) + " haben genau " + a.stellen + " Ziffern. Zuweisen kannst Du sie " +
       (art === "ks" ? "Gruppenleitungen und Abteilungsleitungen" : "Key Account Managern") + ", gern auch mehreren Personen.</p>" +
-      (l.length ? '<div class="tabelle-huelle"><table><thead><tr><th>' + esc(a.name) + "</th><th>Zugewiesen</th>" +
+      (l.length ? '<div class="tabelle-huelle"><table><thead><tr><th>' + esc(a.name) + "</th><th>Zugewiesen</th>" + (art === "ks" ? "<th>Übergreifend</th>" : "") +
         (D.Rechte.budgets(ich) ? '<th class="zahl">Planbudget ' + jahr + "</th>" : "") + '<th><span class="sr">Aktionen</span></th></tr></thead><tbody>' +
         l.map(function (n) {
           var namen = namenVon(n.benutzer);
           var w = D.budgetVon(daten, jahr, art, n.nummer);
           return '<tr data-zeile="' + esc(n.nummer) + '"><th scope="row"><strong>' + esc(n.nummer) + "</strong></th>" +
             '<td><div class="chips">' + (namen.length ? namen.map(function (x) { return '<span class="chip">' + esc(x) + "</span>"; }).join("") : '<span class="leise">niemand</span>') + "</div></td>" +
+            (art === "ks" ? "<td>" + uebergreifendText(daten, n) + "</td>" : "") +
             (D.Rechte.budgets(ich) ? '<td class="zahl">' + (w.vorhanden ? euro(w.gesamt) : '<span class="leise">–</span>') + "</td>" : "") +
             '<td><div class="liste__aktionen">' +
             '<button type="button" class="icon-btn" data-bearbeiten="' + esc(n.nummer) + '" aria-label="' + esc(a.name + " " + n.nummer) + ' bearbeiten" title="Bearbeiten">' + icon("pencil") + "</button>" +
@@ -745,6 +825,30 @@
     });
   }
 
+  function uebergreifendText(daten, n) {
+    var oben = D.uebergeordnete(daten, n.nummer);
+    if ((n.unter || []).length) return '<span class="klein">fasst ' + esc(n.unter.join(", ")) + " zusammen</span>";
+    if (oben) return '<span class="klein">gehört zu ' + esc(oben) + "</span>";
+    return '<span class="leise">–</span>';
+  }
+
+  /* Auswahl der zugeordneten Kostenstellen für eine übergreifende Kostenstelle */
+  function unterHtml(daten, eintrag) {
+    var selbst = eintrag ? eintrag.nummer : "";
+    var oben = selbst ? D.uebergeordnete(daten, selbst) : "";
+    var kopf = '<fieldset class="zuweisung" data-unter><legend>Übergreifende Kostenstelle</legend>';
+    if (oben) return kopf + '<p class="leise klein">Diese Kostenstelle gehört zur übergreifenden Kostenstelle ' + esc(oben) + " und kann deshalb keine weiteren zusammenfassen.</p></fieldset>";
+    var andere = daten.kostenstellen.filter(function (n) { return n.nummer !== selbst; });
+    if (!andere.length) return kopf + '<p class="leise klein">Lege zuerst weitere Kostenstellen an, um sie hier zuzuordnen.</p></fieldset>';
+    return kopf + '<p class="hilfe" style="margin-top:0">Wähle die Kostenstellen, die diese Kostenstelle zusammenfasst. Ihr Planbudget ergibt sich dann aus dem eigenen Budget plus den Planbudgets der zugeordneten Kostenstellen.</p>' +
+      '<div class="zuweisung__liste">' + andere.map(function (n) {
+        var gehoert = D.uebergeordnete(daten, n.nummer);
+        var gesperrt = (n.unter || []).length ? "selbst übergreifend" : gehoert && gehoert !== selbst ? "gehört zu " + gehoert : "";
+        return '<label class="check"><input type="checkbox" name="unter" value="' + esc(n.nummer) + '"' + (gehoert && gehoert === selbst ? " checked" : "") + (gesperrt ? " disabled" : "") + "> " +
+          esc(n.nummer) + (gesperrt ? ' <span class="leise klein">' + esc(gesperrt) + "</span>" : "") + "</label>";
+      }).join("") + "</div></fieldset>";
+  }
+
   function nummerDialog(art, eintrag) {
     var daten = zustand.daten, ich = zustand.benutzer, a = D.ARTEN[art];
     var personen = daten.benutzer.filter(function (b) { return D.passtZurArt(b, art); })
@@ -758,14 +862,15 @@
         return '<label class="check"><input type="checkbox" name="person" value="' + esc(b.kennung) + '"' + (eintrag && eintrag.benutzer.indexOf(b.kennung) >= 0 ? " checked" : "") + "> " +
           esc(D.anzeigeName(b)) + ' <span class="leise klein">' + esc(b.kennung) + " · " + esc(D.rollenName(b.rolle)) + "</span></label>";
       }).join("") + "</div>" : '<p class="leise klein">Es gibt noch keine ' + (art === "ks" ? "Gruppenleitung oder Abteilungsleitung" : "Key Account Manager") + ". Lege sie unter Benutzer an.</p>") +
-      '<p class="hilfe">Optional. Mehrere Personen sind möglich.</p></fieldset><p class="fehlertext" hidden></p>',
+      '<p class="hilfe">Optional. Mehrere Personen sind möglich.</p></fieldset>' + (art === "ks" ? unterHtml(daten, eintrag) : "") + '<p class="fehlertext" hidden></p>',
       '<button type="button" class="btn btn--rahmen" data-schliessen>Abbrechen</button><button type="submit" class="btn btn--primaer">' + (eintrag ? "Änderungen speichern" : a.name + " anlegen") + "</button>",
       function (f) {
         var nummer = f.nummer.value.trim();
         if (!D.istGueltigeNummer(art, nummer)) { zeigeFehler(f, "Eine " + a.name + " besteht aus genau " + a.stellen + " Ziffern."); f.nummer.focus(); return; }
         if ((!eintrag || eintrag.nummer !== nummer) && D.findeNummer(daten, art, nummer)) { zeigeFehler(f, "Die " + a.name + " " + nummer + " gibt es schon."); return; }
         var kennungen = Array.prototype.slice.call(f.querySelectorAll("[name=person]:checked")).map(function (c) { return c.value; });
-        Dienst.nummerSpeichern(daten, ich, art, eintrag ? eintrag.nummer : "", nummer, kennungen)
+        var unter = art === "ks" && f.querySelector("[name=unter]") ? Array.prototype.slice.call(f.querySelectorAll("[name=unter]:checked")).map(function (c) { return c.value; }) : undefined;
+        Dienst.nummerSpeichern(daten, ich, art, eintrag ? eintrag.nummer : "", nummer, kennungen, unter)
           .then(nachAenderung("Die " + a.name + " " + nummer + " ist gespeichert."), function (x) { serverFehler(x, f); });
       });
   }
@@ -881,6 +986,7 @@
     if (zustand.benutzer.mussPasswortAendern) { zeigePasswortFestlegen(); return; }
     var r = route(), b = zustand.benutzer;
     if (r.seite === "uebersicht" && D.Rechte.budgets(b)) zeigeUebersicht();
+    else if (r.seite === "bericht" && darfBericht(b, r.unter)) zeigeBericht(r.unter);
     else if (r.seite === "verwaltung" && D.Rechte.benutzer(b)) zeigeVerwaltung(r.unter);
     else if (r.seite === "profil") zeigeProfil();
     else zeigeStart();

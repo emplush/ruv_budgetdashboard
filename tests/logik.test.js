@@ -88,6 +88,34 @@ test("Planbudget: Sachkosten und Gesamt, Umbenennen und Löschen", () => {
   assert.deepStrictEqual(d.budgets, {});
 });
 
+test("Übergreifende Kostenstelle: Regeln, Summe, Sicht", () => {
+  const d = daten();
+  ["410", "411", "412", "413"].forEach((n) => D.speichereNummer(d, "ks", "", n, []));
+  D.speichereNummer(d, "ks", "410", "410", ["xv10002"], ["412", "411", "411"]);
+  assert.deepStrictEqual(D.findeNummer(d, "ks", "410").unter, ["411", "412"]);
+  assert.strictEqual(D.uebergeordnete(d, "411"), "410");
+  assert.match(D.speichereNummer(d, "ks", "413", "413", [], ["410"]), /selbst übergreifend/);
+  assert.match(D.speichereNummer(d, "ks", "411", "411", [], ["413"]), /gehört schon/);
+  assert.match(D.speichereNummer(d, "ks", "413", "413", [], ["412"]), /übergreifenden Kostenstelle 410/);
+  assert.match(D.speichereNummer(d, "ks", "413", "413", [], ["413"]), /nicht selbst/);
+  D.speichereNummer(d, "ks", "410", "410", ["xv10002"]);
+  assert.deepStrictEqual(D.findeNummer(d, "ks", "410").unter, ["411", "412"]);
+  D.setzeBudget(d, "2026", "ks", "410", { pkId: 100, werbung: 5 });
+  D.setzeBudget(d, "2026", "ks", "411", { pkId: 1000, reise: 50 });
+  const g = D.gesamtBudgetVon(d, "2026", "ks", "410");
+  assert.deepStrictEqual([g.uebergreifend, g.eigen.gesamt, g.gesamt.gesamt, g.gesamt.pkId, g.gesamt.sachkosten, g.unter.length, g.unter[1].budget.vorhanden], [true, 105, 1155, 1100, 55, 2, false]);
+  const gl = D.sicht(d, "xv10002");
+  assert.deepStrictEqual(gl.kostenstellen.map((n) => n.nummer + ":" + n.benutzer.join(",")), ["410:xv10002", "411:", "412:"]);
+  assert.deepStrictEqual(Object.keys(gl.budgets["2026"]).sort(), ["ks-410", "ks-411"]);
+  assert.deepStrictEqual(D.nummernVon(gl, "xv10002", "ks"), ["410"]);
+  D.speichereNummer(d, "ks", "411", "421", []);
+  assert.deepStrictEqual(D.findeNummer(d, "ks", "410").unter, ["412", "421"]);
+  D.loescheNummer(d, "ks", "412");
+  assert.deepStrictEqual(D.findeNummer(d, "ks", "410").unter, ["421"]);
+  D.speichereNummer(d, "ks", "410", "410", [], []);
+  assert.strictEqual(D.gesamtBudgetVon(d, "2026", "ks", "410").uebergreifend, false);
+});
+
 test("Rechte der Rollen", () => {
   const d = daten();
   const [admin, al, gl, kam] = d.benutzer;
@@ -117,7 +145,7 @@ test("Sicht je Rolle wie im Server", () => {
   assert.deepStrictEqual(gl.benutzer.map((b) => b.kennung), ["xv10002"]);
   assert.strictEqual(gl.benutzer[0].einmalpasswort, "");
   assert.ok(!("hash" in gl.benutzer[0]));
-  assert.deepStrictEqual(gl.kostenstellen, [{ nummer: "411", benutzer: ["xv10002"] }]);
+  assert.deepStrictEqual(gl.kostenstellen, [{ nummer: "411", benutzer: ["xv10002"], unter: [] }]);
   assert.deepStrictEqual(Object.keys(gl.budgets["2026"]), ["ks-411"]);
   const kam = D.sicht(d, "xv10004");
   assert.deepStrictEqual(Object.keys(kam.budgets["2026"]), ["pn-41000101"]);

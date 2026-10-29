@@ -27,10 +27,10 @@
       person("xv10005", "Laura", "Fischer", "kam", "Kq7#mPz2-wHte")
     );
     daten.kostenstellen = [
-      { nummer: "410", benutzer: ["xv10001"] },
-      { nummer: "411", benutzer: ["xv10002"] },
-      { nummer: "412", benutzer: ["xv10002", "xv10003"] },
-      { nummer: "413", benutzer: [] }
+      { nummer: "410", benutzer: ["xv10001"], unter: ["411", "412"] },
+      { nummer: "411", benutzer: ["xv10002"], unter: [] },
+      { nummer: "412", benutzer: ["xv10002", "xv10003"], unter: [] },
+      { nummer: "413", benutzer: [], unter: [] }
     ];
     daten.projekte = [
       { nummer: "41000101", benutzer: ["xv10004"] },
@@ -38,14 +38,14 @@
       { nummer: "41000103", benutzer: [] }
     ];
     daten.budgets[String(jahr)] = {
-      "ks-410": werte(412000, 96000, 18000, 24500, 9800),
+      "ks-410": werte(124000, 0, 18000, 14500, 9800),
       "ks-411": werte(286500, 154000, 12000, 31000, 6500),
       "ks-412": werte(198000, 212500, 8500, 42000, 11200),
       "pn-41000101": werte(64000, 38000, 22000, 15500, 4000),
       "pn-41000102": werte(52000, 61000, 9000, 18000, 2500)
     };
     daten.budgets[String(jahr - 1)] = {
-      "ks-410": werte(398000, 91000, 16500, 22000, 9000),
+      "ks-410": werte(118000, 0, 16500, 13000, 9000),
       "ks-411": werte(275000, 149000, 11000, 29500, 6000),
       "ks-412": werte(190000, 205000, 8000, 39000, 10500),
       "pn-41000101": werte(60000, 35000, 20000, 14000, 3500)

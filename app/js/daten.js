@@ -184,6 +184,7 @@
       Object.keys(muster).forEach(function (k) { if (b[k] === undefined) b[k] = muster[k]; });
     });
     daten.kostenstellen.concat(daten.projekte).forEach(function (n) { if (!Array.isArray(n.benutzer)) n.benutzer = []; });
+    daten.kostenstellen.forEach(function (n) { if (!Array.isArray(n.unter)) n.unter = []; });
     return daten;
   }
 
@@ -290,9 +291,33 @@
   /* Wer darf einer Kostenstelle oder Projektnummer zugewiesen werden? */
   function passtZurArt(b, art) { return !!b && ARTEN[art].rollen.indexOf(b.rolle) >= 0; }
 
+  /* Übergreifende Kostenstelle: fasst die Kostenstellen in „unter“ zusammen und hat zusätzlich ein eigenes Planbudget.
+     Nur eine Ebene: Eine zugeordnete Kostenstelle ist selbst nicht übergreifend und gehört zu genau einer übergreifenden. */
+  function uebergeordnete(daten, nummer) {
+    for (var i = 0; i < daten.kostenstellen.length; i++) if ((daten.kostenstellen[i].unter || []).indexOf(nummer) >= 0) return daten.kostenstellen[i].nummer;
+    return "";
+  }
+
+  /* Prüft die zugeordneten Kostenstellen für die Kostenstelle nummer (bisher alt). Liefert Fehlertext oder "". */
+  function pruefeUnter(daten, alt, nummer, unter) {
+    if (!unter.length) return "";
+    var oben = alt ? uebergeordnete(daten, alt) : "";
+    if (oben) return "Die Kostenstelle " + (alt || nummer) + " gehört schon zur übergreifenden Kostenstelle " + oben + " und kann deshalb keine Kostenstellen zusammenfassen.";
+    for (var i = 0; i < unter.length; i++) {
+      var u = unter[i], e = findeNummer(daten, "ks", u);
+      if (u === nummer || u === alt) return "Eine Kostenstelle kann sich nicht selbst zugeordnet werden.";
+      if (!e) return "Die Kostenstelle " + u + " gibt es nicht.";
+      if ((e.unter || []).length) return "Die Kostenstelle " + u + " ist selbst übergreifend und kann nicht zugeordnet werden.";
+      var andere = uebergeordnete(daten, u);
+      if (andere && andere !== alt) return "Die Kostenstelle " + u + " gehört schon zur übergreifenden Kostenstelle " + andere + ".";
+    }
+    return "";
+  }
+
   /* Legt eine Nummer an oder ändert sie. alt: bisherige Nummer ("" für neu). kennungen: zugewiesene Benutzer.
-     Eine geänderte Nummer nimmt ihre Planbudgets mit. Liefert Fehlertext oder "". */
-  function speichereNummer(daten, art, alt, nummer, kennungen) {
+     unter: zugeordnete Kostenstellen (nur bei Kostenstellen; fehlt es, bleibt die Zuordnung).
+     Eine geänderte Nummer nimmt ihre Planbudgets und Zuordnungen mit. Liefert Fehlertext oder "". */
+  function speichereNummer(daten, art, alt, nummer, kennungen, unter) {
     var a = ARTEN[art];
     if (!a) return "Unbekannte Art.";
     nummer = String(nummer || "").trim();
@@ -300,21 +325,34 @@
     var eintrag = alt ? findeNummer(daten, art, alt) : null;
     if (alt && !eintrag) return "Die " + a.name + " " + alt + " gibt es nicht mehr.";
     if (nummer !== alt && findeNummer(daten, art, nummer)) return "Die " + a.name + " " + nummer + " gibt es schon.";
+    var neuUnter = null;
+    if (art === "ks" && Array.isArray(unter)) {
+      neuUnter = [];
+      unter.forEach(function (u) { u = String(u || "").trim(); if (u && neuUnter.indexOf(u) < 0) neuUnter.push(u); });
+      neuUnter.sort();
+      var fehler = pruefeUnter(daten, alt, nummer, neuUnter);
+      if (fehler) return fehler;
+    }
     var zugewiesen = [];
     (kennungen || []).forEach(function (k) {
       var b = findeBenutzer(daten, k);
       if (passtZurArt(b, art) && zugewiesen.indexOf(b.kennung) < 0) zugewiesen.push(b.kennung);
     });
     zugewiesen.sort();
-    if (!eintrag) { eintrag = { nummer: nummer, benutzer: [] }; liste(daten, art).push(eintrag); }
+    if (!eintrag) { eintrag = art === "ks" ? { nummer: nummer, benutzer: [], unter: [] } : { nummer: nummer, benutzer: [] }; liste(daten, art).push(eintrag); }
     if (alt && nummer !== alt) {
       Object.keys(daten.budgets).forEach(function (jahr) {
         var j = daten.budgets[jahr];
         if (j[art + "-" + alt]) { j[art + "-" + nummer] = j[art + "-" + alt]; delete j[art + "-" + alt]; }
       });
+      if (art === "ks") daten.kostenstellen.forEach(function (n) {
+        var i = (n.unter || []).indexOf(alt);
+        if (i >= 0) { n.unter[i] = nummer; n.unter.sort(); }
+      });
     }
     eintrag.nummer = nummer;
     eintrag.benutzer = zugewiesen;
+    if (neuUnter) eintrag.unter = neuUnter;
     sortiereNummern(liste(daten, art));
     return "";
   }
@@ -322,7 +360,10 @@
   /* Löscht eine Nummer samt ihrer Planbudgets */
   function loescheNummer(daten, art, nummer) {
     if (art === "pn") daten.projekte = daten.projekte.filter(function (n) { return n.nummer !== nummer; });
-    else daten.kostenstellen = daten.kostenstellen.filter(function (n) { return n.nummer !== nummer; });
+    else {
+      daten.kostenstellen = daten.kostenstellen.filter(function (n) { return n.nummer !== nummer; });
+      daten.kostenstellen.forEach(function (n) { n.unter = (n.unter || []).filter(function (u) { return u !== nummer; }); });
+    }
     Object.keys(daten.budgets).forEach(function (jahr) {
       delete daten.budgets[jahr][art + "-" + nummer];
       if (!Object.keys(daten.budgets[jahr]).length) delete daten.budgets[jahr];
@@ -398,6 +439,17 @@
     return "";
   }
 
+  /* Planbudget einer übergreifenden Kostenstelle: eigenes Budget plus die Planbudgets der zugeordneten Kostenstellen.
+     Bei anderen Nummern ist gesamt gleich eigen. */
+  function gesamtBudgetVon(daten, jahr, art, nummer) {
+    var eigen = budgetVon(daten, jahr, art, nummer);
+    var e = art === "ks" ? findeNummer(daten, "ks", nummer) : null;
+    var unter = (e && e.unter || []).map(function (u) { return { nummer: u, budget: budgetVon(daten, jahr, "ks", u) }; });
+    var gesamt = summe([eigen].concat(unter.map(function (u) { return u.budget; })));
+    gesamt.vorhanden = eigen.vorhanden || unter.some(function (u) { return u.budget.vorhanden; });
+    return { uebergreifend: unter.length > 0, eigen: eigen, unter: unter, gesamt: gesamt };
+  }
+
   /* Summe über mehrere Planbudgets */
   function summe(budgets) {
     var s = { pkId: 0, pkAd: 0, werbung: 0, reise: 0, sonstiges: 0, sachkosten: 0, personalkosten: 0, gesamt: 0 };
@@ -438,12 +490,25 @@
       if (!verwaltet) k.einmalpasswort = "";
       return k;
     });
-    function nummern(l) {
+    function nummern(l, art) {
       return l.filter(function (n) { return Rechte.nummern(ich) || n.benutzer.indexOf(ich.kennung) >= 0; })
-        .map(function (n) { return { nummer: n.nummer, benutzer: Rechte.nummern(ich) ? n.benutzer.slice() : [ich.kennung] }; });
+        .map(function (n) {
+          var k = { nummer: n.nummer, benutzer: Rechte.nummern(ich) ? n.benutzer.slice() : [ich.kennung] };
+          if (art === "ks") k.unter = (n.unter || []).slice();
+          return k;
+        });
     }
-    d.kostenstellen = nummern(daten.kostenstellen);
-    d.projekte = nummern(daten.projekte);
+    d.kostenstellen = nummern(daten.kostenstellen, "ks");
+    d.projekte = nummern(daten.projekte, "pn");
+    /* Zu eigenen übergreifenden Kostenstellen kommen die zugeordneten dazu (ohne Zuweisung), damit die Summe stimmt */
+    if (!Rechte.nummern(ich)) {
+      var da = {};
+      d.kostenstellen.forEach(function (n) { da[n.nummer] = 1; });
+      d.kostenstellen.slice().forEach(function (n) {
+        n.unter.forEach(function (u) { if (!da[u] && findeNummer(daten, "ks", u)) { da[u] = 1; d.kostenstellen.push({ nummer: u, benutzer: [], unter: [] }); } });
+      });
+      sortiereNummern(d.kostenstellen);
+    }
     d.budgets = {};
     if (ich.rolle !== "admin") {
       var erlaubt = {};
@@ -532,6 +597,9 @@
     passtZurArt: passtZurArt,
     speichereNummer: speichereNummer,
     loescheNummer: loescheNummer,
+    uebergeordnete: uebergeordnete,
+    pruefeUnter: pruefeUnter,
+    gesamtBudgetVon: gesamtBudgetVon,
     nummernVon: nummernVon,
     setzeNummernFuer: setzeNummernFuer,
     leseBetrag: leseBetrag,

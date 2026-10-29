@@ -21,7 +21,8 @@
  *   POST benutzer-aendern        <- {kennung,vorname,nachname,rolle,nummern:{ks,pn}}   (Administrator, Abteilungsleitung)
  *   POST benutzer-loeschen       <- {kennung}                                           (Administrator, Abteilungsleitung)
  *   POST passwort-zuruecksetzen  <- {kennung,passwort}  setzt ein Einmalpasswort       (Administrator, Abteilungsleitung)
- *   POST nummer-speichern        <- {art:"ks"|"pn",alt,nummer,benutzer:[kennung]}       (Administrator, Abteilungsleitung)
+ *   POST nummer-speichern        <- {art:"ks"|"pn",alt,nummer,benutzer:[kennung],unter?:[nummer]} (Administrator, Abteilungsleitung;
+ *                                   unter nur bei Kostenstellen: zugeordnete Kostenstellen einer übergreifenden Kostenstelle, fehlt es, bleibt die Zuordnung)
  *   POST nummer-loeschen         <- {art,nummer}                                        (Administrator, Abteilungsleitung)
  *   POST budget-speichern        <- {jahr,art,nummer,werte:{pkId,pkAd,werbung,reise,sonstiges}} (Abteilungsleitung)
  *
@@ -102,7 +103,7 @@ public class BdErgebnis
 
 public static class BdKern
 {
-    public const string Version = "0.1.0";
+    public const string Version = "0.2.0";
     public const string CookieName = "budgetdashboard_sitzung";
     public const int MaxBytes = 2 * 1024 * 1024;
     private const int AnzahlSicherungen = 50;
@@ -265,7 +266,8 @@ public static class BdKern
             case "nummer-speichern":
                 {
                     if (!verwaltet) throw new Fehler(403, "Dafür fehlen Dir die Rechte.");
-                    NummerSpeichern(daten, S(k, "art") ?? "", (S(k, "alt") ?? "").Trim(), (S(k, "nummer") ?? "").Trim(), L(G(k, "benutzer")).Select(x => x as string).Where(x => x != null).ToList());
+                    var unter = k.ContainsKey("unter") && k["unter"] != null ? L(k["unter"]).Select(x => x as string).Where(x => x != null).ToList() : null;
+                    NummerSpeichern(daten, S(k, "art") ?? "", (S(k, "alt") ?? "").Trim(), (S(k, "nummer") ?? "").Trim(), L(G(k, "benutzer")).Select(x => x as string).Where(x => x != null).ToList(), unter);
                     break;
                 }
             case "nummer-loeschen":
@@ -275,6 +277,9 @@ public static class BdKern
                     var eintrag = FindeNummer(daten, art, nummer);
                     if (eintrag == null) throw new Fehler(404, "Diese Nummer gibt es nicht mehr.");
                     Liste(daten, art).Remove(eintrag);
+                    if (art == "ks")
+                        foreach (var n in Liste(daten, "ks").Select(x => D(x)))
+                            n["unter"] = Unter(n).Where(u => u != nummer).Cast<object>().ToList();
                     var budgets = D(daten["budgets"]);
                     foreach (var jahr in budgets.Keys.ToList())
                     {
@@ -488,8 +493,34 @@ public static class BdKern
 
     private static List<string> Kennungen(Dictionary<string, object> n) { return L(G(n, "benutzer")).Select(x => x as string).Where(x => x != null).ToList(); }
 
-    /// <summary>Gleiche Regeln wie speichereNummer in js/daten.js. Eine geänderte Nummer nimmt ihre Planbudgets mit.</summary>
-    private static void NummerSpeichern(Dictionary<string, object> daten, string art, string alt, string nummer, List<string> kennungen)
+    private static List<string> Unter(Dictionary<string, object> n) { return L(G(n, "unter")).Select(x => x as string).Where(x => x != null).ToList(); }
+
+    /// <summary>Übergreifende Kostenstelle, zu der nummer gehört, sonst "" (gleich wie uebergeordnete in js/daten.js)</summary>
+    private static string Uebergeordnete(Dictionary<string, object> daten, string nummer)
+    {
+        foreach (var n in Liste(daten, "ks").Select(x => D(x))) if (Unter(n).Contains(nummer)) return S(n, "nummer");
+        return "";
+    }
+
+    /// <summary>Gleiche Regeln wie pruefeUnter in js/daten.js: nur eine Ebene, jede Kostenstelle gehört zu höchstens einer übergreifenden.</summary>
+    private static void PruefeUnter(Dictionary<string, object> daten, string alt, string nummer, List<string> unter)
+    {
+        if (unter.Count == 0) return;
+        string oben = alt != "" ? Uebergeordnete(daten, alt) : "";
+        if (oben != "") throw new Fehler(400, "Die Kostenstelle " + (alt != "" ? alt : nummer) + " gehört schon zur übergreifenden Kostenstelle " + oben + " und kann deshalb keine Kostenstellen zusammenfassen.");
+        foreach (var u in unter)
+        {
+            var e = FindeNummer(daten, "ks", u);
+            if (u == nummer || u == alt) throw new Fehler(400, "Eine Kostenstelle kann sich nicht selbst zugeordnet werden.");
+            if (e == null) throw new Fehler(400, "Die Kostenstelle " + u + " gibt es nicht.");
+            if (Unter(e).Count > 0) throw new Fehler(400, "Die Kostenstelle " + u + " ist selbst übergreifend und kann nicht zugeordnet werden.");
+            string andere = Uebergeordnete(daten, u);
+            if (andere != "" && andere != alt) throw new Fehler(400, "Die Kostenstelle " + u + " gehört schon zur übergreifenden Kostenstelle " + andere + ".");
+        }
+    }
+
+    /// <summary>Gleiche Regeln wie speichereNummer in js/daten.js. Eine geänderte Nummer nimmt ihre Planbudgets und Zuordnungen mit.</summary>
+    private static void NummerSpeichern(Dictionary<string, object> daten, string art, string alt, string nummer, List<string> kennungen, List<string> unter)
     {
         var liste = Liste(daten, art);
         string name = ArtName(art);
@@ -497,6 +528,13 @@ public static class BdKern
         var eintrag = alt != "" ? FindeNummer(daten, art, alt) : null;
         if (alt != "" && eintrag == null) throw new Fehler(404, "Die " + name + " " + alt + " gibt es nicht mehr.");
         if (nummer != alt && FindeNummer(daten, art, nummer) != null) throw new Fehler(400, "Die " + name + " " + nummer + " gibt es schon.");
+        List<string> neuUnter = null;
+        if (art == "ks" && unter != null)
+        {
+            neuUnter = unter.Select(u => u.Trim()).Where(u => u != "").Distinct().ToList();
+            neuUnter.Sort(string.CompareOrdinal);
+            PruefeUnter(daten, alt, nummer, neuUnter);
+        }
         var zugewiesen = new List<string>();
         foreach (var k in kennungen)
         {
@@ -504,14 +542,30 @@ public static class BdKern
             if (b != null && PasstZurArt(b, art) && !zugewiesen.Contains(S(b, "kennung"))) zugewiesen.Add(S(b, "kennung"));
         }
         zugewiesen.Sort(string.CompareOrdinal);
-        if (eintrag == null) { eintrag = new Dictionary<string, object>(); liste.Add(eintrag); }
+        if (eintrag == null)
+        {
+            eintrag = new Dictionary<string, object>();
+            if (art == "ks") eintrag["unter"] = new List<object>();
+            liste.Add(eintrag);
+        }
         if (alt != "" && nummer != alt)
         {
             foreach (var j in D(daten["budgets"]).Values.Select(x => D(x)))
                 if (j.ContainsKey(art + "-" + alt)) { j[art + "-" + nummer] = j[art + "-" + alt]; j.Remove(art + "-" + alt); }
+            if (art == "ks")
+                foreach (var n in liste.Select(x => D(x)))
+                {
+                    var u = Unter(n);
+                    if (!u.Contains(alt)) continue;
+                    u = u.Select(x => x == alt ? nummer : x).ToList();
+                    u.Sort(string.CompareOrdinal);
+                    n["unter"] = u.Cast<object>().ToList();
+                }
         }
         eintrag["nummer"] = nummer;
         eintrag["benutzer"] = zugewiesen.Cast<object>().ToList();
+        if (neuUnter != null) eintrag["unter"] = neuUnter.Cast<object>().ToList();
+        else if (art == "ks" && !eintrag.ContainsKey("unter")) eintrag["unter"] = new List<object>();
         var sortiert = liste.OrderBy(x => S(D(x), "nummer"), StringComparer.Ordinal).ToList();
         liste.Clear();
         foreach (var x in sortiert) liste.Add(x);
@@ -586,8 +640,24 @@ public static class BdKern
             {
                 var k = Kennungen(n);
                 if (!verwaltet && !k.Contains(kennung)) continue;
-                liste.Add(new Dictionary<string, object> { { "nummer", S(n, "nummer") }, { "benutzer", verwaltet ? k : new List<string> { kennung } } });
+                var kopie = new Dictionary<string, object> { { "nummer", S(n, "nummer") }, { "benutzer", verwaltet ? k : new List<string> { kennung } } };
+                if (art == "ks") kopie["unter"] = Unter(n);
+                liste.Add(kopie);
                 erlaubt.Add(art + "-" + S(n, "nummer"));
+            }
+            // Zu eigenen übergreifenden Kostenstellen kommen die zugeordneten dazu (ohne Zuweisung), damit die Summe stimmt
+            if (art == "ks" && !verwaltet)
+            {
+                var da = new HashSet<string>(liste.Select(x => S(D(x), "nummer")));
+                foreach (var x in liste.ToList())
+                    foreach (var u in (List<string>)D(x)["unter"])
+                        if (!da.Contains(u) && FindeNummer(daten, "ks", u) != null)
+                        {
+                            da.Add(u);
+                            liste.Add(new Dictionary<string, object> { { "nummer", u }, { "benutzer", new List<string>() }, { "unter", new List<string>() } });
+                            erlaubt.Add("ks-" + u);
+                        }
+                liste = liste.OrderBy(x => S(D(x), "nummer"), StringComparer.Ordinal).ToList();
             }
             d[art == "ks" ? "kostenstellen" : "projekte"] = liste;
         }

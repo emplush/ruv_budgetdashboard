@@ -74,12 +74,23 @@ pruefe "Umbenennen nimmt Planbudget mit" "['ks-411', 'ks-420']" "$(post "$L" num
 pruefe "Key Account Manager nicht an Kostenstelle" "['xv10001', 'xv10002']" "$(curl -s -b "$L" -H "$H" "$U?aktion=sitzung" | py 'str([n["benutzer"] for n in d["daten"]["kostenstellen"] if n["nummer"]=="420"][0])')"
 pruefe "Admin sieht keine Planbudgets" "{}" "$(curl -s -b "$A" -H "$H" "$U?aktion=sitzung" | py 'json.dumps(d["daten"]["budgets"])')"
 
+# Übergreifende Kostenstelle
+post "$L" nummer-speichern '{"art":"ks","alt":"","nummer":"413","benutzer":[]}' >/dev/null
+post "$L" budget-speichern '{"jahr":"2026","art":"ks","nummer":"413","werte":{"werbung":500}}' >/dev/null
+pruefe "übergreifende Kostenstelle anlegen" "['413']|[]" "$(post "$L" nummer-speichern '{"art":"ks","alt":"420","nummer":"420","benutzer":["xv10001","xv10002"],"unter":["413"]}' | py 'str([n["unter"] for n in d["daten"]["kostenstellen"] if n["nummer"]=="420"][0])+"|"+str([n["unter"] for n in d["daten"]["kostenstellen"] if n["nummer"]=="413"][0])')"
+pruefe "Zuordnung bleibt ohne unter" "['413']" "$(post "$L" nummer-speichern '{"art":"ks","alt":"420","nummer":"420","benutzer":["xv10001","xv10002"]}' | py 'str([n["unter"] for n in d["daten"]["kostenstellen"] if n["nummer"]=="420"][0])')"
+pruefe "nur eine Ebene" "selbst übergreifend" "$(post "$L" nummer-speichern '{"art":"ks","alt":"411","nummer":"411","benutzer":["xv10002"],"unter":["420"]}')"
+pruefe "zugeordnete Kostenstelle fasst nichts zusammen" "gehört schon" "$(post "$L" nummer-speichern '{"art":"ks","alt":"413","nummer":"413","benutzer":[],"unter":["411"]}')"
+pruefe "nur zu einer übergreifenden" "gehört schon zur übergreifenden Kostenstelle 420" "$(post "$L" nummer-speichern '{"art":"ks","alt":"","nummer":"430","benutzer":[],"unter":["413"]}')"
+pruefe "nicht sich selbst" "nicht selbst" "$(post "$L" nummer-speichern '{"art":"ks","alt":"420","nummer":"420","benutzer":[],"unter":["420"]}')"
+
 # Gruppenleitung und Key Account Manager
 curl -s -c "$G" -H "$H" -H "$J" -d '{"kennung":"xv10002","passwort":"Tq8#nPz3-wJte"}' "$U?aktion=anmelden" >/dev/null
 post "$G" passwort '{"alt":null,"neu":"Gruppen-Leitung#7"}' >/dev/null
 S="$(curl -s -b "$G" -H "$H" "$U?aktion=sitzung")"
-pruefe "Gruppenleitung sieht nur sich, ihre Kostenstellen und deren Budgets" "1|['411', '420']|[]|['ks-411', 'ks-420']|" "$(echo "$S" | py 'str(len(d["daten"]["benutzer"]))+"|"+str([n["nummer"] for n in d["daten"]["kostenstellen"]])+"|"+str(d["daten"]["projekte"])+"|"+str(sorted(d["daten"]["budgets"]["2026"].keys()))+"|"+d["daten"]["benutzer"][0]["einmalpasswort"]')"
+pruefe "Gruppenleitung sieht nur sich, ihre Kostenstellen und deren Budgets" "1|['411', '413', '420']|[]|['ks-411', 'ks-413', 'ks-420']|" "$(echo "$S" | py 'str(len(d["daten"]["benutzer"]))+"|"+str([n["nummer"] for n in d["daten"]["kostenstellen"]])+"|"+str(d["daten"]["projekte"])+"|"+str(sorted(d["daten"]["budgets"]["2026"].keys()))+"|"+d["daten"]["benutzer"][0]["einmalpasswort"]')"
 pruefe "Gruppenleitung sieht keine anderen Zuweisungen" "['xv10002']" "$(echo "$S" | py 'str([n["benutzer"] for n in d["daten"]["kostenstellen"] if n["nummer"]=="420"][0])')"
+pruefe "zugeordnete Kostenstelle ohne Zuweisung dabei" "[]|['413']" "$(echo "$S" | py 'str([n["benutzer"] for n in d["daten"]["kostenstellen"] if n["nummer"]=="413"][0])+"|"+str([n["unter"] for n in d["daten"]["kostenstellen"] if n["nummer"]=="420"][0])')"
 pruefe "Gruppenleitung darf keine Benutzer 403" "403" "$(code -b "$G" -H "$H" -H "$J" -d '{"kennung":"xv10009"}' "$U?aktion=benutzer-loeschen")"
 pruefe "Gruppenleitung darf kein Planbudget 403" "403" "$(code -b "$G" -H "$H" -H "$J" -d '{"jahr":"2026","art":"ks","nummer":"411","werte":{}}' "$U?aktion=budget-speichern")"
 pruefe "Design und Farbe speichern, unbekannte ignorieren" "dunkel|taunus" "$(post "$G" design '{"design":"dunkel","farbe":"taunus"}' >/dev/null; post "$G" design '{"design":"bunt","farbe":"<x>"}' >/dev/null; curl -s -b "$G" -H "$H" "$U?aktion=sitzung" | py 'd["daten"]["benutzer"][0]["design"]+"|"+d["daten"]["benutzer"][0]["farbe"]')"
@@ -93,6 +104,8 @@ pruefe "Key Account Manager sieht nur Projektnummern" "[]|['41000101']|['2025']"
 pruefe "neues Einmalpasswort beendet Sitzungen" "401" "$(post "$A" passwort-zuruecksetzen '{"kennung":"xv10004","passwort":"Neu-Start#2026x"}' >/dev/null; code -b "$K" -H "$H" "$U?aktion=sitzung")"
 pruefe "Rollenwechsel nimmt Kostenstellen" "['xv10001']" "$(post "$L" benutzer-aendern '{"kennung":"xv10002","vorname":"Tom","nachname":"Becker","rolle":"kam","nummern":{"ks":["420"],"pn":[]}}' | py 'str([n["benutzer"] for n in d["daten"]["kostenstellen"] if n["nummer"]=="420"][0])')"
 pruefe "eigene Adminrolle nicht abgeben" "nicht selbst nehmen" "$(post "$A" benutzer-aendern '{"kennung":"xv00000","vorname":"A","nachname":"B","rolle":"al"}')"
+pruefe "Umbenennen nimmt Zuordnung mit" "['414']" "$(post "$L" nummer-speichern '{"art":"ks","alt":"413","nummer":"414","benutzer":[]}' | py 'str([n["unter"] for n in d["daten"]["kostenstellen"] if n["nummer"]=="420"][0])')"
+pruefe "Löschen entfernt Zuordnung" "[]" "$(post "$L" nummer-loeschen '{"art":"ks","nummer":"414"}' | py 'str([n["unter"] for n in d["daten"]["kostenstellen"] if n["nummer"]=="420"][0])')"
 pruefe "Nummer löschen entfernt Planbudgets" "['ks-411']" "$(post "$L" nummer-loeschen '{"art":"ks","nummer":"420"}' | py 'str(sorted(d["daten"]["budgets"]["2026"].keys()))')"
 pruefe "Benutzer löschen entfernt Zuweisungen" "[]" "$(post "$L" benutzer-loeschen '{"kennung":"xv10004"}' | py 'str(d["daten"]["projekte"][0]["benutzer"])')"
 pruefe "eigenes Konto nicht löschen" "eigenes Konto" "$(post "$L" benutzer-loeschen '{"kennung":"xv10001"}')"

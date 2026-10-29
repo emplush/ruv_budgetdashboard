@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.2.0 (29.10.2026)
+- Übergreifende Kostenstellen: Eine Kostenstelle fasst andere zusammen. Ihr Planbudget ergibt sich aus dem eigenen Budget plus den Planbudgets der zugeordneten Kostenstellen. Nur eine Ebene, jede Kostenstelle gehört zu höchstens einer übergreifenden.
+- Zuordnung im Dialog der Kostenstelle, Anzeige in der Verwaltung, Zwischensumme in der Übersicht und Zusammensetzung auf der Karte.
+- Bericht je übergreifender Kostenstelle mit allen Positionen je Teil und gesamt; „Tabelle kopieren“ für den Abgleich in Excel.
+- Wer einer übergreifenden Kostenstelle zugewiesen ist, sieht auch die Planbudgets der zugeordneten Kostenstellen.
+
 ## 0.1.0 (29.10.2026)
 Erste Version nach dem Neubeginn.
 - Anmeldung mit XV-Nummer und Passwort, Begrüßung nach Tageszeit, keine Registrierung.

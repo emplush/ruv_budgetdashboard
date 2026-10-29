@@ -78,6 +78,16 @@ function pruefe(bedingung, text) {
   await page.waitForSelector("text=Das Planbudget");
   pruefe(await page.isVisible("tr:has(th:has-text('413')) >> text=126.000,50 €"), "Planbudget erscheint in der Übersicht");
   await bild("03-uebersicht");
+  pruefe(await page.isVisible("tr.teilsumme >> text=Gesamt übergreifende Kostenstelle 410"), "übergreifende Kostenstelle mit Zwischensumme");
+  await page.click("a[href='#/bericht/410']");
+  await page.waitForSelector("h1:has-text('Kostenstelle 410')");
+  pruefe(await page.isVisible("th:has-text('Kostenstelle 411')") && await page.isVisible("th:has-text('Eigenes Budget')") && await page.isVisible("[data-kopieren]"), "Bericht der übergreifenden Kostenstelle");
+  await bild("03b-bericht");
+  await page.goto(url + "#/verwaltung/kostenstellen");
+  await page.waitForSelector("text=fasst 411, 412 zusammen");
+  await page.click("[data-bearbeiten='413']");
+  pruefe(await page.locator("dialog input[name=unter][value='411']").isDisabled() && await page.isVisible("dialog >> text=gehört zu 410"), "zugeordnete Kostenstellen sind gesperrt");
+  await page.click("dialog [data-schliessen]");
 
   // Benutzer anlegen mit Einmalpasswort
   await page.goto(url + "#/verwaltung/benutzer");

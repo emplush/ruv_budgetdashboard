@@ -410,3 +410,13 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
 .chip { white-space: nowrap; display: inline-block; }
 .budgettabelle th, .budgettabelle td { padding: .6rem .45rem; font-size: .92rem; }
 .budgettabelle td.klein { font-size: .85rem; }
+
+/* Übergreifende Kostenstellen */
+.hinweis-box { padding: .6rem .8rem; border-left: 3px solid var(--akzent); background: var(--flaeche-2); border-radius: 4px; }
+.positionen--zusammensetzung { margin-top: 1rem; }
+.positionen--zusammensetzung caption { text-align: left; font-weight: 700; font-size: .85rem; padding-bottom: .3rem; color: var(--text-2); }
+.budgettabelle tr.unter th { padding-left: 1.4rem; }
+.budgettabelle tr.unter th strong { font-weight: 400; }
+.budgettabelle tr.teilsumme th, .budgettabelle tr.teilsumme td { font-weight: 700; background: var(--flaeche-2); border-bottom: 2px solid var(--linie-stark); }
+.budget__link { margin-top: 1rem; }
+.berichtstabelle tr.gesamtzeile th, .berichtstabelle tr.gesamtzeile td { border-top: 2px solid var(--text); font-weight: 700; }
