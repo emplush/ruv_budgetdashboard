@@ -1,5 +1,14 @@
 # Änderungen
 
+## 0.5.0 (29.10.2026)
+- Planbudget wie IST: Bei jeder Kostenstelle trägst Du das Gesamtplanbudget ein. Bei übergreifenden Kostenstellen enthält es die zugeordneten Kostenstellen, bei jeder Kostenstelle auch ihre Projektnummern. Das eigene Budget rechnet das Tool als Rest aus (Beispiel: 2.000.000 € gesamt, 1.500.000 € Unterkostenstelle, 200.000 € Projektnummer, 300.000 € eigenes Budget). Beim IST gilt dasselbe.
+- Karten der Kostenstellen und Projektnummern mit zwei getrennten Bereichen: links Planbudget, rechts IST. Oben steht der Status: Prognose, ausgegeben in Prozent und Restbudget. IST je Position mit Anteil vom Plan, über 100 % in Rot.
+- Wer mehrere Kostenstellen oder Projektnummern hat, sieht zuerst eine Tabelle „auf einen Blick“ mit Sprung zur jeweiligen Karte.
+- Startseite der Abteilungsleitung: Abteilungsbudget mit Planbudget und IST in getrennten Bereichen, darunter die Einzelbudgets aller Kostenstellen und Projektnummern mit Balken und Prognose.
+- Navigation der Abteilungsleitung: Start, Planbudgets, IST-Werte, Verwaltung. Planbudgets und IST-Werte sind eigene Seiten.
+- Bericht der übergreifenden Kostenstelle mit eigener Spalte für die Projektnummern; Hinweise, wenn die Planbudgets nicht zusammenpassen.
+- Am Handy keine waagerechte Verschiebung mehr durch Tabellen.
+
 ## 0.4.2 (29.10.2026)
 - Jede Ansicht startet mit dem aktuellen Kalenderjahr, auch nach der Anmeldung. Ein anderes Jahr gilt nur in der Ansicht, in der Du es gewählt hast.
 

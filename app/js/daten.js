@@ -465,13 +465,40 @@
 
   /* Planbudget einer übergreifenden Kostenstelle: eigenes Budget plus die Planbudgets der zugeordneten Kostenstellen.
      Bei anderen Nummern ist gesamt gleich eigen. */
+  /* Planbudget einer Kostenstelle: Eingetragen wird immer das Gesamtbudget. Es enthält die zugeordneten Kostenstellen und die
+     Projektnummern dieser Kostenstelle. eigen = Rest, der auf der Kostenstelle selbst liegt; projekte = Plan ihrer Projektnummern.
+     Ohne Eintrag bei einer übergreifenden gilt die Summe der zugeordneten (ohneEigenenEintrag). */
   function gesamtBudgetVon(daten, jahr, art, nummer) {
-    var eigen = budgetVon(daten, jahr, art, nummer);
-    var e = art === "ks" ? findeNummer(daten, "ks", nummer) : null;
+    var eingetragen = budgetVon(daten, jahr, art, nummer);
+    if (art !== "ks") return { uebergreifend: false, eigen: eingetragen, unter: [], gesamt: eingetragen, eingetragen: eingetragen, projekte: summe([]), projektNummern: [] };
+    var e = findeNummer(daten, "ks", nummer);
     var unter = (e && e.unter || []).map(function (u) { return { nummer: u, budget: budgetVon(daten, jahr, "ks", u) }; });
-    var gesamt = summe([eigen].concat(unter.map(function (u) { return u.budget; })));
-    gesamt.vorhanden = eigen.vorhanden || unter.some(function (u) { return u.budget.vorhanden; });
-    return { uebergreifend: unter.length > 0, eigen: eigen, unter: unter, gesamt: gesamt };
+    var pns = (daten.projekte || []).filter(function (n) { return n.ks === nummer; });
+    var projekte = summe(pns.map(function (n) { return budgetVon(daten, jahr, "pn", n.nummer); }));
+    var abzug = summe(unter.map(function (u) { return u.budget; }).concat([projekte]));
+    var gesamt, eigen;
+    if (eingetragen.vorhanden || !unter.length) {
+      gesamt = eingetragen;
+      eigen = differenz(eingetragen, abzug);
+      eigen.vorhanden = eingetragen.vorhanden;
+      gesamt.widerspruch = eingetragen.vorhanden && eigen.gesamt < 0;
+    } else {
+      gesamt = abzug;
+      gesamt.vorhanden = unter.some(function (u) { return u.budget.vorhanden; });
+      gesamt.ohneEigenenEintrag = true;
+      eigen = eingetragen;
+    }
+    return { uebergreifend: unter.length > 0, eigen: eigen, unter: unter, gesamt: gesamt, eingetragen: eingetragen, projekte: projekte, projektNummern: pns.map(function (n) { return n.nummer; }) };
+  }
+
+  /* Abteilungsbudget: oberste Kostenstellen mit ihrem Gesamtbudget plus Projektnummern ohne Kostenstelle */
+  function abteilungsPlan(daten, jahr) {
+    var ks = (daten.kostenstellen || []).filter(function (n) { return !uebergeordnete(daten, n.nummer); })
+      .map(function (n) { return gesamtBudgetVon(daten, jahr, "ks", n.nummer).gesamt; });
+    var frei = (daten.projekte || []).filter(function (n) { return !n.ks || !findeNummer(daten, "ks", n.ks); })
+      .map(function (n) { return budgetVon(daten, jahr, "pn", n.nummer); });
+    var k = summe(ks), p = summe(frei);
+    return { kostenstellen: k, projekteOhneKs: p, gesamt: summe([k, p]) };
   }
 
   /* Summe über mehrere Planbudgets */
@@ -748,11 +775,12 @@
     if (bericht.vorhanden) {
       g = bericht;
       g.unterschiedlich = da.some(function (t) { return t.stand !== g.stand || t.monat !== g.monat; });
-      eigen = differenz(bericht, summe(da));
+      eigen = differenz(bericht, summe(da.concat([bericht.projekte])));
       eigen.vorhanden = true; eigen.bisMonat = bericht.bisMonat; eigen.stand = bericht.stand; eigen.monat = bericht.monat;
       eigen.unterschiedlich = g.unterschiedlich;
-      eigen.vergleich = bericht.vergleich && da.every(function (t) { return t.vergleich; }) ? differenz(bericht.vergleich, summe(da.map(function (t) { return t.vergleich; }))) : null;
-      eigen.projekte = bericht.projekte; eigen.projektNummern = bericht.projektNummern;
+      eigen.vergleich = bericht.vergleich && da.every(function (t) { return t.vergleich; })
+        ? differenz(bericht.vergleich, summe(da.map(function (t) { return t.vergleich; }).concat(bericht.projektNummern.map(function (n) { return projektIstVon(daten, Number(jahr) - 1, n, bericht.bisMonat); })))) : null;
+      eigen.projekte = summe([]); eigen.projektNummern = [];
       g.widerspruch = eigen.gesamt < 0;
     } else {
       eigen = bericht;
@@ -767,7 +795,8 @@
       g.widerspruch = false;
     }
     g.projekte = projekte;
-    return { uebergreifend: true, eigen: eigen, unter: unter, gesamt: g, fehlend: (bericht.vorhanden ? 0 : 1) + unter.length - da.length };
+    var pIst = bericht.projekte; pIst.vorhanden = bericht.projektNummern.length > 0; pIst.stand = bericht.stand; pIst.monat = bericht.monat; pIst.bisMonat = bericht.bisMonat; pIst.vergleich = null;
+    return { uebergreifend: true, eigen: eigen, unter: unter, projekte: pIst, gesamt: g, fehlend: (bericht.vorhanden ? 0 : 1) + unter.length - da.length };
   }
 
   /* Kennzahlen IST gegen Plan */
@@ -947,6 +976,7 @@
     uebergeordnete: uebergeordnete,
     pruefeUnter: pruefeUnter,
     gesamtBudgetVon: gesamtBudgetVon,
+    abteilungsPlan: abteilungsPlan,
     MONATE: MONATE,
     istAuslesen: istAuslesen,
     monatName: monatName,

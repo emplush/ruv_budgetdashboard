@@ -100,10 +100,14 @@ test("Übergreifende Kostenstelle: Regeln, Summe, Sicht", () => {
   assert.match(D.speichereNummer(d, "ks", "413", "413", [], ["413"]), /nicht selbst/);
   D.speichereNummer(d, "ks", "410", "410", ["xv10002"]);
   assert.deepStrictEqual(D.findeNummer(d, "ks", "410").unter, ["411", "412"]);
-  D.setzeBudget(d, "2026", "ks", "410", { pkId: 100, werbung: 5 });
   D.setzeBudget(d, "2026", "ks", "411", { pkId: 1000, reise: 50 });
-  const g = D.gesamtBudgetVon(d, "2026", "ks", "410");
-  assert.deepStrictEqual([g.uebergreifend, g.eigen.gesamt, g.gesamt.gesamt, g.gesamt.pkId, g.gesamt.sachkosten, g.unter.length, g.unter[1].budget.vorhanden], [true, 105, 1155, 1100, 55, 2, false]);
+  /* Ohne eigenen Eintrag: Summe der zugeordneten */
+  let g = D.gesamtBudgetVon(d, "2026", "ks", "410");
+  assert.deepStrictEqual([g.gesamt.ohneEigenenEintrag, g.gesamt.gesamt, g.eigen.vorhanden], [true, 1050, false]);
+  /* Eingetragen wird das Gesamtbudget, eigenes Budget ist der Rest */
+  D.setzeBudget(d, "2026", "ks", "410", { pkId: 1100, reise: 55 });
+  g = D.gesamtBudgetVon(d, "2026", "ks", "410");
+  assert.deepStrictEqual([g.uebergreifend, g.eigen.gesamt, g.eigen.pkId, g.eigen.reise, g.gesamt.gesamt, g.gesamt.widerspruch, g.unter.length, g.unter[1].budget.vorhanden], [true, 105, 100, 5, 1155, false, 2, false]);
   const gl = D.sicht(d, "xv10002");
   assert.deepStrictEqual(gl.kostenstellen.map((n) => n.nummer + ":" + n.benutzer.join(",")), ["410:xv10002", "411:", "412:"]);
   assert.deepStrictEqual(Object.keys(gl.budgets["2026"]).sort(), ["ks-410", "ks-411"]);
@@ -225,11 +229,18 @@ test("IST der übergreifenden Kostenstelle: KST-Bericht enthält zugeordnete und
   D.setzeIst(d, "001", bericht(50000), "xv10001");
   g = D.gesamtIstVon(d, 2026, "ks", "001");
   /* 50.000 gesamt, 30.000 auf 101, 5.000 Projektkosten: auf 001 selbst bleiben 15.000 */
-  assert.deepStrictEqual([g.gesamt.gesamt, g.unter[0].ist.gesamt, g.eigen.gesamt, g.eigen.projekte.gesamt, g.eigen.gesamt - g.eigen.projekte.gesamt], [50000, 30000, 20000, 5000, 15000]);
+  assert.deepStrictEqual([g.gesamt.gesamt, g.unter[0].ist.gesamt, g.projekte.gesamt, g.eigen.gesamt], [50000, 30000, 5000, 15000]);
   assert.deepStrictEqual([g.gesamt.projekte.gesamt, g.eigen.vergleich.gesamt, g.fehlend, g.gesamt.widerspruch, g.gesamt.unterschiedlich], [5000, 10000, 1, false, false]);
+  /* Plan genauso (Beispiel von Michael): 2.000.000 gesamt, 1.500.000 Unterkostenstelle, 200.000 Projektnummer, 300.000 bleiben */
+  D.setzeBudget(d, "2026", "ks", "001", { pkId: 2000000 });
+  D.setzeBudget(d, "2026", "ks", "101", { pkId: 1500000 });
+  D.setzeBudget(d, "2026", "pn", "20100000", { pkId: 200000 });
+  const p = D.gesamtBudgetVon(d, 2026, "ks", "001");
+  assert.deepStrictEqual([p.gesamt.gesamt, p.projekte.gesamt, p.eigen.gesamt], [2000000, 200000, 300000]);
+  assert.strictEqual(D.abteilungsPlan(d, 2026).gesamt.gesamt, 2000000);
   D.setzeIst(d, "102", bericht(25000, "2026-08"), "xv10001");
   g = D.gesamtIstVon(d, 2026, "ks", "001");
-  assert.deepStrictEqual([g.eigen.gesamt, g.gesamt.widerspruch, g.gesamt.unterschiedlich], [-5000, true, true]);
+  assert.deepStrictEqual([g.eigen.gesamt, g.gesamt.widerspruch, g.gesamt.unterschiedlich], [-10000, true, true]);
 });
 
 test("Rechte der Rollen", () => {

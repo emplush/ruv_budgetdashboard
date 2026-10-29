@@ -98,6 +98,12 @@
         oben.aktuell.werte[x.kostenart] = Math.round((oben.aktuell.werte[x.kostenart] + x.betrag) * 100) / 100;
       });
     }
+    /* Bei der übergreifenden 410 steht das Gesamtplanbudget inklusive 411, 412 und ihrer Projektnummern */
+    Object.keys(daten.budgets).forEach(function (j) {
+      var b = daten.budgets[j];
+      if (!b["ks-410"]) return;
+      ["ks-411", "ks-412", "pn-41000101", "pn-41000102"].forEach(function (u) { if (b[u]) Object.keys(b[u]).forEach(function (k) { b["ks-410"][k] += b[u][k]; }); });
+    });
   }
 
   wurzel.BDDemo = { fuelle: fuelle, PASSWORT: PASSWORT };

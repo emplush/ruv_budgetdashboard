@@ -59,7 +59,7 @@ function pruefe(bedingung, text) {
   await page.fill("#neu", "Garten-Laube#26");
   await page.fill("#wdh", "Garten-Laube#26");
   await page.click("button[type=submit]");
-  await page.waitForSelector("text=Meine Kostenstellen");
+  await page.waitForSelector("text=Abteilungsbudget");
   pruefe(true, "eigenes Passwort festlegen");
 
   await page.goto(url + "#/uebersicht");
@@ -78,7 +78,7 @@ function pruefe(bedingung, text) {
   await page.waitForTimeout(300);
   await abmelden();
   await anmelden("xv10001", "Garten-Laube#26");
-  await page.waitForSelector("text=Meine Kostenstellen");
+  await page.waitForSelector("text=Abteilungsbudget");
   pruefe(await page.getAttribute("html", "data-farbe") === "rheingau", "Farbdesign kommt vom Server");
   pruefe(fehler.length === 0, "keine Fehler in der Konsole" + (fehler.length ? ": " + fehler.join(" | ") : ""));
   await browser.close();

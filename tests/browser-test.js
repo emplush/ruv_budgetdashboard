@@ -59,11 +59,12 @@ function pruefe(bedingung, text) {
   await anmelden("xv10001", "RuV-Plan#2026!");
   await page.waitForSelector("h1:has-text('Sabine')");
   pruefe(/^(Guten Morgen|Guten Tag|Guten Abend|Hallo), Sabine$/.test(await page.textContent("h1")), "Begrüßung nach Tageszeit mit Vornamen");
-  pruefe(await page.isVisible(".kopf__nav >> text=Übersicht") && await page.isVisible(".kopf__nav >> text=Verwaltung"), "Abteilungsleitung hat Übersicht und Verwaltung");
-  pruefe(await page.isVisible("text=Meine Kostenstellen"), "Abteilungsleitung sieht ihre eigene Kostenstelle");
+  pruefe(await page.isVisible(".kopf__nav >> text=Planbudgets") && await page.isVisible(".kopf__nav >> text=IST-Werte") && await page.isVisible(".kopf__nav >> text=Verwaltung"), "Abteilungsleitung hat Planbudgets, IST-Werte und Verwaltung");
+  pruefe(await page.isVisible("text=Abteilungsbudget " + new Date().getFullYear()) && await page.isVisible("section[aria-label='Planbudget der Abteilung']") && await page.isVisible("section[aria-label='IST der Abteilung']"), "Abteilungsbudget mit getrennten Bereichen Plan und IST");
+  pruefe(await page.isVisible("text=Einzelbudgets der Kostenstellen") && await page.isVisible(".einzelbudgets tr:has-text('410 eigenes Budget')"), "Einzelbudgets mit eigenem Budget der übergreifenden Kostenstelle");
   await bild("02-abteilungsleitung");
 
-  await page.click(".kopf__nav >> text=Übersicht");
+  await page.click(".kopf__nav >> text=Planbudgets");
   await page.waitForSelector("text=Summe Kostenstellen");
   pruefe(await page.isVisible("text=Summe Projektnummern"), "Kostenstellen und Projektnummern getrennt");
   await page.click("[data-budget='ks-413']");
@@ -78,7 +79,7 @@ function pruefe(bedingung, text) {
   await page.waitForSelector("text=Das Planbudget");
   pruefe(await page.isVisible("tr:has(th:has-text('413')) >> text=126.000,50 €"), "Planbudget erscheint in der Übersicht");
   await bild("03-uebersicht");
-  pruefe(await page.isVisible("tr.teilsumme >> text=Gesamt übergreifende Kostenstelle 410"), "übergreifende Kostenstelle mit Zwischensumme");
+  pruefe(await page.isVisible("tr.teilsumme >> text=davon eigenes Budget 410") && await page.isVisible("tr.teilsumme:has-text('eigenes Budget 410') >> text=166.300,00 €"), "übergreifende Kostenstelle: eigenes Budget als Rest");
   await page.click("a[href='#/bericht/410']");
   await page.waitForSelector("h1:has-text('Kostenstelle 410')");
   pruefe(await page.isVisible("th:has-text('Kostenstelle 411')") && await page.isVisible("th:has-text('Eigenes Budget')") && await page.isVisible("[data-kopieren]"), "Bericht der übergreifenden Kostenstelle");
@@ -103,9 +104,9 @@ function pruefe(bedingung, text) {
   await page.click("dialog button[type=submit]");
   await page.waitForSelector("text=sind importiert");
   pruefe(await page.isVisible("tr:has(th:has-text('413')) >> text=September 2026") && await page.isVisible("text=Import"), "IST-Stand und Sicherung erscheinen");
-  await page.goto(url + "#/uebersicht");
+  await page.goto(url + "#/ist");
   await page.waitForSelector("text=IST gegen Plan");
-  pruefe(await page.isVisible("text=IST in % vom Plan") && await page.isVisible("tr:has(th:has-text('413')) >> text=22.10.2026"), "Übersicht zeigt IST gegen Plan mit Stand");
+  pruefe(await page.isVisible("text=IST in % vom Plan") && await page.isVisible("tr:has(th:has-text('413')) >> text=22.10.2026"), "IST-Werte zeigen IST gegen Plan mit Stand");
   await bild("03d-ist-uebersicht");
 
   // Projektkosten manuell erfassen (Projektnummer 41000101 geht von Kostenstelle 410 ab)
@@ -200,7 +201,7 @@ function pruefe(bedingung, text) {
   // Administrator: Titel
   await anmelden("xv00000", "RuV-Plan#2026!");
   await page.waitForSelector(".startkachel");
-  pruefe(!(await page.isVisible(".kopf__nav >> text=Übersicht")), "Administrator sieht keine Planbudgets");
+  pruefe(!(await page.isVisible(".kopf__nav >> text=Planbudgets")), "Administrator sieht keine Planbudgets");
   await page.goto(url + "#/verwaltung/einstellungen");
   await page.fill("#e-titel", "Budget T&E");
   await page.click("[data-titel] button[type=submit]");

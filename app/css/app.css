@@ -252,7 +252,7 @@ textarea { min-height: 5rem; resize: vertical; }
 .chip--akzent { background: var(--akzent); color: var(--akzent-text); }
 .chip--warn { background: var(--sand); color: var(--text); border: 1px solid var(--akzent); }
 
-.tabelle-huelle { overflow-x: auto; }
+.tabelle-huelle { overflow-x: auto; position: relative; }
 table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: .7rem .6rem; border-bottom: 1px solid var(--linie); vertical-align: middle; }
 th { font-size: .85rem; color: var(--text-2); font-weight: 700; }
@@ -456,3 +456,40 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
 .warnungen li, .ok-hinweis { display: flex; gap: .45rem; align-items: flex-start; }
 .ok-hinweis { color: var(--erfolg); font-weight: 700; font-size: .9rem; margin: .6rem 0 0; }
 .ist-bereich { margin-top: 2rem; }
+
+/* Karten mit getrennten Bereichen für Planbudget und IST */
+.stapel > .karte + .karte { margin-top: 0; }
+.budget__kopf { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: .75rem 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--linie); }
+.budget__kopf .budget__nummer { margin-bottom: .2rem; }
+.budget__kopf p { margin: 0; }
+.budget__status { display: flex; flex-direction: column; align-items: flex-end; gap: .35rem; text-align: right; }
+.budget__status strong { font-variant-numeric: tabular-nums; }
+.budget__bereiche { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem 2.5rem; padding-top: 1.1rem; }
+.budget__bereich { display: grid; gap: .55rem; align-content: start; min-width: 0; }
+.budget__bereich > h3 { margin: 0; font-size: 1.05rem; display: flex; align-items: center; gap: .5rem; }
+.budget__bereich > h3::before { content: ""; width: .3rem; height: 1.1rem; border-radius: 2px; background: var(--teil-1); }
+.budget__bereich--ist > h3::before { background: var(--aktion); }
+.budget__bereich--ist { border-left: 1px solid var(--linie); padding-left: 2.5rem; }
+.budget__bereich .budget__gesamt { margin-bottom: 0; }
+.budget__bereich .legende { margin: .2rem 0 .4rem; }
+.budget--abteilung { border-top: 4px solid var(--akzent); }
+.budget--abteilung .budget__nummer { font-size: 1.6rem; }
+@media (max-width: 900px) {
+  .budget__bereiche { grid-template-columns: 1fr; }
+  .budget__bereich--ist { border-left: 0; padding-left: 0; border-top: 1px solid var(--linie); padding-top: 1.1rem; }
+  .budget__status { align-items: flex-start; text-align: left; }
+}
+.fortschritt__legende { margin: 0; }
+.positionen--ist td.minus { font-weight: 700; }
+td.minus, dd.minus, .minus { color: var(--fehler); }
+.fortschritt--klein { height: .55rem; width: 6rem; flex: none; }
+.fortschritt--klein .fortschritt__zeit { top: -.2rem; bottom: -.2rem; }
+.mini { display: inline-flex; align-items: center; gap: .5rem; font-variant-numeric: tabular-nums; }
+.link-btn { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: var(--aktion); text-decoration: underline; cursor: pointer; }
+.link-btn:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
+.blick { margin-bottom: 1.25rem; }
+.knopfreihe--oben { margin: 0 0 1.25rem; }
+.budgettabelle tr.fehlerzeile td.minus { font-weight: 700; }
+.einzelbudgets tr.unter th { padding-left: 1.4rem; font-weight: 400; }
+.budget:focus { outline: none; }
+@media (max-width: 640px) { .einzelbudgets .spalte-wer { display: none; } }
