@@ -244,6 +244,18 @@ function pruefe(bedingung, text) {
   await page.waitForSelector("text=Der Titel ist gespeichert");
   pruefe((await page.title()).endsWith("Budget T&E") && await page.isVisible(".kopf__titel >> text=Budget T&E"), "Titel im Tab und in der Kopfzeile");
 
+  // BETA-ANMELDEN-ALS Anfang (mit der Funktion entfernen)
+  await page.goto(url + "#/verwaltung/benutzer");
+  await page.click("[data-als='xv10005']");
+  await page.click("dialog button[type=submit]");
+  await page.waitForSelector(".als-admin");
+  pruefe(await page.isVisible("h1:has-text('Laura')") && !(await page.isVisible("#neu")) && await page.isVisible(".als-admin >> text=xv10005"), "Administrator meldet sich trotz Einmalpasswort als Key Account Manager an");
+  await bild("15-anmelden-als");
+  await page.click("[data-zurueck-admin]");
+  await page.waitForSelector("text=Du bist wieder als Administrator angemeldet");
+  pruefe(!(await page.isVisible(".als-admin")) && !(await page.isVisible(".kopf__nav >> text=Planbudgets")), "zurück zum Administrator");
+  // BETA-ANMELDEN-ALS Ende
+
   // Handy
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(url + "#/start");

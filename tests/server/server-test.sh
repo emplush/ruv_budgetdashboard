@@ -97,6 +97,16 @@ pruefe "zugeordnete Kostenstelle ohne Zuweisung dabei" "[]|['413']" "$(echo "$S"
 pruefe "Gruppenleitung darf keine Benutzer 403" "403" "$(code -b "$G" -H "$H" -H "$J" -d '{"kennung":"xv10009"}' "$U?aktion=benutzer-loeschen")"
 pruefe "Gruppenleitung darf kein Planbudget 403" "403" "$(code -b "$G" -H "$H" -H "$J" -d '{"jahr":"2026","art":"ks","nummer":"411","werte":{}}' "$U?aktion=budget-speichern")"
 pruefe "Design und Farbe speichern, unbekannte ignorieren" "dunkel|taunus" "$(post "$G" design '{"design":"dunkel","farbe":"taunus"}' >/dev/null; post "$G" design '{"design":"bunt","farbe":"<x>"}' >/dev/null; curl -s -b "$G" -H "$H" "$U?aktion=sitzung" | py 'd["daten"]["benutzer"][0]["design"]+"|"+d["daten"]["benutzer"][0]["farbe"]')"
+# BETA-ANMELDEN-ALS Anfang (mit der Funktion entfernen)
+pruefe "Anmelden als: Gruppenleitung ohne Recht 403" "403" "$(code -b "$G" -H "$H" -H "$J" -d '{"kennung":"xv10001"}' "$U?aktion=anmelden-als")"
+pruefe "Anmelden als: Admin wird Gruppenleitung" "xv10002|xv00000|1" "$(post "$A" anmelden-als '{"kennung":"xv10002"}' | py 'd["ich"]+"|"+d["alsAdmin"]+"|"+str(len(d["daten"]["benutzer"]))')"
+pruefe "Anmelden als: Sitzung bleibt" '"alsAdmin":"xv00000"' "$(curl -s -b "$A" -H "$H" "$U?aktion=sitzung")"
+pruefe "Anmelden als: kein Passwortwechsel 403" "403" "$(code -b "$A" -H "$H" -H "$J" -d '{"alt":null,"neu":"Anderes#Pw2026x"}' "$U?aktion=passwort")"
+pruefe "Anmelden als: nicht doppelt" "403" "$(code -b "$A" -H "$H" -H "$J" -d '{"kennung":"xv10001"}' "$U?aktion=anmelden-als")"
+pruefe "Anmelden als: zurück zum Admin" "xv00000|" "$(post "$A" zurueck-als-admin '{}' | py 'd["ich"]+"|"+d["alsAdmin"]')"
+pruefe "Anmelden als: Einmalpasswort aktiv" "xv10004|xv00000" "$(post "$A" anmelden-als '{"kennung":"xv10004"}' | py 'd["ich"]+"|"+d["alsAdmin"]')"
+pruefe "Anmelden als: zurück" '"ich":"xv00000"' "$(post "$A" zurueck-als-admin '{}')"
+# BETA-ANMELDEN-ALS Ende
 pruefe "Profil ändert Namen" "Tom|Becker|xv10002" "$(post "$G" profil '{"vorname":"Tom","nachname":"Becker","kennung":"xv99999"}' | py 'd["daten"]["benutzer"][0]["vorname"]+"|"+d["daten"]["benutzer"][0]["nachname"]+"|"+d["ich"]')"
 pruefe "Passwort ändern braucht das alte" "stimmt nicht" "$(post "$G" passwort '{"alt":"falsch","neu":"Noch-Ein#Pw2026"}')"
 curl -s -c "$K" -H "$H" -H "$J" -d '{"kennung":"xv10004","passwort":"Dq9#mRz4-wKte"}' "$U?aktion=anmelden" >/dev/null

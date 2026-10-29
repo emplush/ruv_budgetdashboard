@@ -29,6 +29,12 @@
     } catch (e) { /* ohne Speicher */ }
   }
 
+  // BETA-ANMELDEN-ALS Anfang: Administrator, der sich im Browserbetrieb als anderer Benutzer angemeldet hat
+  var ALS_ADMIN = "budgetdashboard-als-admin";
+  function alsAdminLesen() { try { return localStorage.getItem(ALS_ADMIN) || ""; } catch (e) { return ""; } }
+  function alsAdminSetzen(k) { try { if (k) localStorage.setItem(ALS_ADMIN, k); else localStorage.removeItem(ALS_ADMIN); } catch (e) { /* ohne Speicher */ } }
+  // BETA-ANMELDEN-ALS Ende
+
   function fehler(text, code) { var f = new Error(text); f.code = code || ""; return f; }
 
   /* ---------- Browserbetrieb ---------- */
@@ -37,7 +43,7 @@
 
   function ergebnis(kennung) {
     var daten = D.sicht(speicher, kennung);
-    return { daten: daten, benutzer: D.findeBenutzer(daten, kennung) };
+    return { daten: daten, benutzer: D.findeBenutzer(daten, kennung), alsAdmin: alsAdminLesen() /* BETA-ANMELDEN-ALS */ };
   }
 
   function oeffentlicheDaten(quelle) {
@@ -50,7 +56,7 @@
   function ich() {
     var b = D.findeBenutzer(speicher, sitzungLesen());
     if (!b) throw fehler("Deine Anmeldung ist abgelaufen. Melde Dich bitte neu an.", "abgemeldet");
-    if (b.mussPasswortAendern) throw fehler("Lege bitte zuerst Dein eigenes Passwort fest.", "eingabe");
+    if (b.mussPasswortAendern && !alsAdminLesen() /* BETA-ANMELDEN-ALS */) throw fehler("Lege bitte zuerst Dein eigenes Passwort fest.", "eingabe");
     return b;
   }
 
@@ -93,14 +99,33 @@
         if (!b) return null;
         b.letzteAnmeldung = new Date().toISOString();
         sitzungSetzen(b.kennung);
+        alsAdminSetzen(""); // BETA-ANMELDEN-ALS
         return D.Speicher.speichern(speicher).then(function () { return ergebnis(b.kennung); }, function () { return ergebnis(b.kennung); });
       });
     },
-    abmelden: function () { sitzungSetzen(null); return Promise.resolve(oeffentlicheDaten(speicher)); },
+    abmelden: function () { sitzungSetzen(null); alsAdminSetzen(""); /* BETA-ANMELDEN-ALS */ return Promise.resolve(oeffentlicheDaten(speicher)); },
+    // BETA-ANMELDEN-ALS Anfang
+    anmeldenAls: function (daten, b, kennung) {
+      var echt = D.findeBenutzer(speicher, sitzungLesen()), ziel = D.findeBenutzer(speicher, kennung);
+      if (!echt || echt.rolle !== "admin" || alsAdminLesen()) return Promise.reject(fehler("„Anmelden als“ gibt es nur für Administratoren.", "eingabe"));
+      if (!ziel || ziel.kennung === echt.kennung) return Promise.reject(fehler("Diesen Benutzer gibt es nicht.", "eingabe"));
+      alsAdminSetzen(echt.kennung);
+      sitzungSetzen(ziel.kennung);
+      return Promise.resolve(ergebnis(ziel.kennung));
+    },
+    zurueckAlsAdmin: function () {
+      var admin = D.findeBenutzer(speicher, alsAdminLesen());
+      if (!admin) { alsAdminSetzen(""); sitzungSetzen(null); return Promise.reject(fehler("Melde Dich bitte neu an.", "abgemeldet")); }
+      alsAdminSetzen("");
+      sitzungSetzen(admin.kennung);
+      return Promise.resolve(ergebnis(admin.kennung));
+    },
+    // BETA-ANMELDEN-ALS Ende
     /* alt null: erste Anmeldung mit Einmalpasswort. Liefert "" oder einen Fehlertext. */
     passwortSetzen: function (daten, b, alt, neu) {
       var echt = D.findeBenutzer(speicher, sitzungLesen());
       if (!echt) return Promise.reject(fehler("Deine Anmeldung ist abgelaufen. Melde Dich bitte neu an.", "abgemeldet"));
+      if (alsAdminLesen()) return Promise.resolve("Das Passwort ändert nur die Person selbst, nicht der Administrator über „Anmelden als“."); // BETA-ANMELDEN-ALS
       var maengel = D.passwortMaengel(neu, echt);
       if (maengel.length) return Promise.resolve("Dein Passwort braucht noch " + maengel.join(", ") + ".");
       var pruefung = echt.mussPasswortAendern
@@ -250,7 +275,7 @@
 
   function uebernehmen(s) {
     var daten = D.vervollstaendige(s.daten);
-    return { daten: daten, benutzer: D.findeBenutzer(daten, s.ich) };
+    return { daten: daten, benutzer: D.findeBenutzer(daten, s.ich), alsAdmin: s.alsAdmin || "" /* BETA-ANMELDEN-ALS */ };
   }
 
   function oeffentlich() {
@@ -276,6 +301,10 @@
       });
     },
     abmelden: function () { return anfrage("abmelden", {}).then(oeffentlich, oeffentlich); },
+    // BETA-ANMELDEN-ALS Anfang
+    anmeldenAls: function (daten, b, kennung) { return anfrage("anmelden-als", { kennung: kennung }).then(uebernehmen); },
+    zurueckAlsAdmin: function () { return anfrage("zurueck-als-admin", {}).then(uebernehmen); },
+    // BETA-ANMELDEN-ALS Ende
     passwortSetzen: function (daten, b, alt, neu) {
       return anfrage("passwort", { alt: alt, neu: neu }).then(function () {
         b.mussPasswortAendern = false;

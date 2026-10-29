@@ -1,5 +1,9 @@
 # Änderungen
 
+## 0.9.2 (29.10.2026)
+- Nur für die Betaversion: „Anmelden als“. Administratoren melden sich in der Benutzerverwaltung über das Anmelde-Symbol als andere Person an, ohne deren Passwort, auch wenn noch ein Einmalpasswort aktiv ist. Eine orange Leiste oben zeigt das an, „Zurück zum Administrator“ beendet es. Passwort und Einmalpasswort der Person bleiben unverändert, das Passwort ändern geht in diesem Modus nicht.
+- Die Funktion wird vor dem Echtbetrieb vollständig entfernt (alle Stellen sind mit BETA-ANMELDEN-ALS markiert).
+
 ## 0.9.1 (29.10.2026)
 - Alle Seiten nutzen die ganze Breite, auch Verwaltung, Einstellungen, Profil und die Startseite des Administrators.
 - Projektkosten: Mehr Abstand unter „Kosten erfassen“. Im Dialog stehen Datum und Betrag nebeneinander, das Datumsfeld sieht aus wie die übrigen Felder.

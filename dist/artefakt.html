@@ -1459,6 +1459,14 @@ input[type=file] { font: inherit; font-size: .9rem; color: var(--text-2); }
 input[type=file]::file-selector-button { font: inherit; font-weight: 700; color: var(--text); background: var(--flaeche); border: 2px solid var(--text); border-radius: var(--ruv-radius); padding: .45rem .9rem; margin-right: .8rem; cursor: pointer; }
 input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
 
+/* BETA-ANMELDEN-ALS Anfang: Leiste, solange der Administrator als anderer Benutzer angemeldet ist */
+.als-admin { position: relative; z-index: 31; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; padding: .55rem clamp(1rem, 2.5vw, 2.5rem); background: var(--ruv-orange-dark, #eb6504); color: #ffffff; font-size: .92rem; }
+.als-admin span { flex: 1 1 20rem; }
+.als-admin .btn { color: #ffffff; border-color: #ffffff; background: transparent; padding: .35rem .9rem; }
+.als-admin .btn:hover { background: rgba(255, 255, 255, .16); }
+@media print { .als-admin { display: none !important; } }
+/* BETA-ANMELDEN-ALS Ende */
+
 </style>
 <script>
 /* Design vor dem ersten Zeichnen setzen, damit nichts aufblitzt (eigene Datei wegen Content-Security-Policy).
@@ -2945,6 +2953,12 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
     } catch (e) { /* ohne Speicher */ }
   }
 
+  // BETA-ANMELDEN-ALS Anfang: Administrator, der sich im Browserbetrieb als anderer Benutzer angemeldet hat
+  var ALS_ADMIN = "budgetdashboard-als-admin";
+  function alsAdminLesen() { try { return localStorage.getItem(ALS_ADMIN) || ""; } catch (e) { return ""; } }
+  function alsAdminSetzen(k) { try { if (k) localStorage.setItem(ALS_ADMIN, k); else localStorage.removeItem(ALS_ADMIN); } catch (e) { /* ohne Speicher */ } }
+  // BETA-ANMELDEN-ALS Ende
+
   function fehler(text, code) { var f = new Error(text); f.code = code || ""; return f; }
 
   /* ---------- Browserbetrieb ---------- */
@@ -2953,7 +2967,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
 
   function ergebnis(kennung) {
     var daten = D.sicht(speicher, kennung);
-    return { daten: daten, benutzer: D.findeBenutzer(daten, kennung) };
+    return { daten: daten, benutzer: D.findeBenutzer(daten, kennung), alsAdmin: alsAdminLesen() /* BETA-ANMELDEN-ALS */ };
   }
 
   function oeffentlicheDaten(quelle) {
@@ -2966,7 +2980,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
   function ich() {
     var b = D.findeBenutzer(speicher, sitzungLesen());
     if (!b) throw fehler("Deine Anmeldung ist abgelaufen. Melde Dich bitte neu an.", "abgemeldet");
-    if (b.mussPasswortAendern) throw fehler("Lege bitte zuerst Dein eigenes Passwort fest.", "eingabe");
+    if (b.mussPasswortAendern && !alsAdminLesen() /* BETA-ANMELDEN-ALS */) throw fehler("Lege bitte zuerst Dein eigenes Passwort fest.", "eingabe");
     return b;
   }
 
@@ -3009,14 +3023,33 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
         if (!b) return null;
         b.letzteAnmeldung = new Date().toISOString();
         sitzungSetzen(b.kennung);
+        alsAdminSetzen(""); // BETA-ANMELDEN-ALS
         return D.Speicher.speichern(speicher).then(function () { return ergebnis(b.kennung); }, function () { return ergebnis(b.kennung); });
       });
     },
-    abmelden: function () { sitzungSetzen(null); return Promise.resolve(oeffentlicheDaten(speicher)); },
+    abmelden: function () { sitzungSetzen(null); alsAdminSetzen(""); /* BETA-ANMELDEN-ALS */ return Promise.resolve(oeffentlicheDaten(speicher)); },
+    // BETA-ANMELDEN-ALS Anfang
+    anmeldenAls: function (daten, b, kennung) {
+      var echt = D.findeBenutzer(speicher, sitzungLesen()), ziel = D.findeBenutzer(speicher, kennung);
+      if (!echt || echt.rolle !== "admin" || alsAdminLesen()) return Promise.reject(fehler("„Anmelden als“ gibt es nur für Administratoren.", "eingabe"));
+      if (!ziel || ziel.kennung === echt.kennung) return Promise.reject(fehler("Diesen Benutzer gibt es nicht.", "eingabe"));
+      alsAdminSetzen(echt.kennung);
+      sitzungSetzen(ziel.kennung);
+      return Promise.resolve(ergebnis(ziel.kennung));
+    },
+    zurueckAlsAdmin: function () {
+      var admin = D.findeBenutzer(speicher, alsAdminLesen());
+      if (!admin) { alsAdminSetzen(""); sitzungSetzen(null); return Promise.reject(fehler("Melde Dich bitte neu an.", "abgemeldet")); }
+      alsAdminSetzen("");
+      sitzungSetzen(admin.kennung);
+      return Promise.resolve(ergebnis(admin.kennung));
+    },
+    // BETA-ANMELDEN-ALS Ende
     /* alt null: erste Anmeldung mit Einmalpasswort. Liefert "" oder einen Fehlertext. */
     passwortSetzen: function (daten, b, alt, neu) {
       var echt = D.findeBenutzer(speicher, sitzungLesen());
       if (!echt) return Promise.reject(fehler("Deine Anmeldung ist abgelaufen. Melde Dich bitte neu an.", "abgemeldet"));
+      if (alsAdminLesen()) return Promise.resolve("Das Passwort ändert nur die Person selbst, nicht der Administrator über „Anmelden als“."); // BETA-ANMELDEN-ALS
       var maengel = D.passwortMaengel(neu, echt);
       if (maengel.length) return Promise.resolve("Dein Passwort braucht noch " + maengel.join(", ") + ".");
       var pruefung = echt.mussPasswortAendern
@@ -3166,7 +3199,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
 
   function uebernehmen(s) {
     var daten = D.vervollstaendige(s.daten);
-    return { daten: daten, benutzer: D.findeBenutzer(daten, s.ich) };
+    return { daten: daten, benutzer: D.findeBenutzer(daten, s.ich), alsAdmin: s.alsAdmin || "" /* BETA-ANMELDEN-ALS */ };
   }
 
   function oeffentlich() {
@@ -3192,6 +3225,10 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
       });
     },
     abmelden: function () { return anfrage("abmelden", {}).then(oeffentlich, oeffentlich); },
+    // BETA-ANMELDEN-ALS Anfang
+    anmeldenAls: function (daten, b, kennung) { return anfrage("anmelden-als", { kennung: kennung }).then(uebernehmen); },
+    zurueckAlsAdmin: function () { return anfrage("zurueck-als-admin", {}).then(uebernehmen); },
+    // BETA-ANMELDEN-ALS Ende
     passwortSetzen: function (daten, b, alt, neu) {
       return anfrage("passwort", { alt: alt, neu: neu }).then(function () {
         b.mussPasswortAendern = false;
@@ -3255,7 +3292,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
 (function () {
   "use strict";
 
-  var VERSION = "0.9.1";
+  var VERSION = "0.9.2";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -3293,6 +3330,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
     if (zustand.benutzer !== r.benutzer && (!zustand.benutzer || !r.benutzer || zustand.benutzer.kennung !== r.benutzer.kennung)) aktuellesJahr();
     zustand.daten = r.daten;
     zustand.benutzer = r.benutzer;
+    zustand.alsAdmin = r.alsAdmin || ""; // BETA-ANMELDEN-ALS
     document.title = zustand.daten.einstellungen.titel;
     return r;
   }
@@ -3571,9 +3609,17 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
     return n;
   }
 
+  // BETA-ANMELDEN-ALS Anfang: Hinweisleiste, solange der Administrator als anderer Benutzer angemeldet ist
+  function alsAdminHtml() {
+    if (!zustand.alsAdmin || !zustand.benutzer) return "";
+    return '<div class="als-admin" role="status">' + icon("infoCircleFilled") + "<span><strong>Beta:</strong> Du bist als " + esc(D.anzeigeName(zustand.benutzer)) + " (" + esc(zustand.benutzer.kennung) + ") angemeldet und siehst das Tool mit deren Rechten.</span>" +
+      '<button type="button" class="btn btn--rahmen" data-zurueck-admin>' + icon("login") + " Zurück zum Administrator</button></div>";
+  }
+  // BETA-ANMELDEN-ALS Ende
+
   function kopfHtml(aktiv) {
     var b = zustand.benutzer;
-    return '<header class="kopf"><div class="kopf__leiste">' +
+    return alsAdminHtml() /* BETA-ANMELDEN-ALS */ + '<header class="kopf"><div class="kopf__leiste">' +
       '<a class="kopf__marke" href="#/start"><img class="logo-hell" src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyBpZD0iRWJlbmVfMSIgZGF0YS1uYW1lPSJFYmVuZSAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB2ZXJzaW9uPSIxLjEiIHZpZXdCb3g9IjAgMCAxODkuOTIxMDA1MiAxMjcuNTU5MDA1NyI+CiAgPGRlZnM+CiAgICA8c3R5bGU+CiAgICAgIC5jbHMtMSB7CiAgICAgICAgY2xpcC1wYXRoOiB1cmwoI2NsaXBwYXRoKTsKICAgICAgfQoKICAgICAgLmNscy0yIHsKICAgICAgICBmaWxsOiBub25lOwogICAgICB9CgogICAgICAuY2xzLTIsIC5jbHMtMyB7CiAgICAgICAgc3Ryb2tlLXdpZHRoOiAwcHg7CiAgICAgIH0KCiAgICAgIC5jbHMtMyB7CiAgICAgICAgZmlsbDogIzAwMTk1NzsKICAgICAgfQogICAgPC9zdHlsZT4KICAgIDxjbGlwUGF0aCBpZD0iY2xpcHBhdGgiPgogICAgICA8cmVjdCBjbGFzcz0iY2xzLTIiIHk9Ii4wMDAwMDc2IiB3aWR0aD0iMTg5LjkyMTAwNTIiIGhlaWdodD0iMTI3LjU1ODk5ODEiLz4KICAgIDwvY2xpcFBhdGg+CiAgPC9kZWZzPgogIDxnIGNsYXNzPSJjbHMtMSI+CiAgICA8cGF0aCBjbGFzcz0iY2xzLTMiIGQ9Ik0xNDcuNDAxNTk2MSw0Mi41MTk2MDc1aC0xNC40MTA5OTU1bC0xNC4yMDkwMDczLDIxLjIyNDk5ODV2LTIxLjIyNDk5ODVoLTEzLjY5MTk5MzdsLS4wMDQwMDU0LDE2LjYzMjAwMzhoLTkuNzI3OTk2OHYtMTEuMjQyMDA0NGgtOS41NjA5OTdsLS4wMDEwMDcxLDExLjI0MjAwNDRoLTkuNzkzOTk4N2MuNzUyOTk4NC0xLjUzNTAwMzcsMS4xNzkwMDA5LTMuMjYxMDAxNiwxLjE3OTAwMDktNS4wODcwMDU2LDAtNi4zNzMwMDExLTUuNjg2OTk2NS0xMS41MzkwMDE1LTEyLjA0ODk5Ni0xMS41NDQ5OTgyaC0yMi42MTIwMDcxdjQyLjUyMDAwMDVoMTMuNjU4MDA0OHYtMzEuNjQ5OTk3N2gyLjcyMTAwMDdjMi44Njc5OTYyLDAsNS4xOTIwMDEzLDIuMzI3OTk1Myw1LjE5MjAwMTMsNS4xOTg5OTc1LDAsMi44Njc5OTYyLTIuMzI1MDA0Niw1LjE4NTk5Ny01LjE4ODAwMzUsNS4xOTEwMDE5bDguNjQzOTk3MiwyMS4yNTk5OTgzaDE0LjUyNjAwMWwtNi44MDg5OTgxLTE2LjQ5NDk5ODloMTAuNTMzMDA0OHYxMS4yNDU5OTg0aDkuNTYwOTk3di0xMS4yNDU5OTg0aDkuNzMyMDAyM3YxNi40OTQ5OTg5aDEzLjY5MTk5MzdsMjguNjIwMDAyNy00Mi41MjAwMDA1WiIvPgogIDwvZz4KPC9zdmc+" alt="R+V"><img class="logo-dunkel" src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyBpZD0iRWJlbmVfMSIgZGF0YS1uYW1lPSJFYmVuZSAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB2ZXJzaW9uPSIxLjEiIHZpZXdCb3g9IjAgMCAxODkuOTIxMDA1MiAxMjcuNTU5MDA1NyI+CiAgPGRlZnM+CiAgICA8c3R5bGU+CiAgICAgIC5jbHMtMSB7CiAgICAgICAgY2xpcC1wYXRoOiB1cmwoI2NsaXBwYXRoKTsKICAgICAgfQoKICAgICAgLmNscy0yIHsKICAgICAgICBmaWxsOiBub25lOwogICAgICB9CgogICAgICAuY2xzLTIsIC5jbHMtMyB7CiAgICAgICAgc3Ryb2tlLXdpZHRoOiAwcHg7CiAgICAgIH0KCiAgICAgIC5jbHMtMyB7CiAgICAgICAgZmlsbDogI2ZmZjsKICAgICAgfQogICAgPC9zdHlsZT4KICAgIDxjbGlwUGF0aCBpZD0iY2xpcHBhdGgiPgogICAgICA8cmVjdCBjbGFzcz0iY2xzLTIiIHk9Ii4wMDAwMDc2IiB3aWR0aD0iMTg5LjkyMTAwNTIiIGhlaWdodD0iMTI3LjU1ODk5ODEiLz4KICAgIDwvY2xpcFBhdGg+CiAgPC9kZWZzPgogIDxnIGNsYXNzPSJjbHMtMSI+CiAgICA8cGF0aCBjbGFzcz0iY2xzLTMiIGQ9Ik0xNDcuNDAxNTk2MSw0Mi41MTk2MDc1aC0xNC40MTA5OTU1bC0xNC4yMDkwMDczLDIxLjIyNDk5ODV2LTIxLjIyNDk5ODVoLTEzLjY5MTk5MzdsLS4wMDQwMDU0LDE2LjYzMjAwMzhoLTkuNzI3OTk2OHYtMTEuMjQyMDA0NGgtOS41NjA5OTdsLS4wMDEwMDcxLDExLjI0MjAwNDRoLTkuNzkzOTk4N2MuNzUyOTk4NC0xLjUzNTAwMzcsMS4xNzkwMDA5LTMuMjYxMDAxNiwxLjE3OTAwMDktNS4wODcwMDU2LDAtNi4zNzMwMDExLTUuNjg2OTk2NS0xMS41MzkwMDE1LTEyLjA0ODk5Ni0xMS41NDQ5OTgyaC0yMi42MTIwMDcxdjQyLjUyMDAwMDVoMTMuNjU4MDA0OHYtMzEuNjQ5OTk3N2gyLjcyMTAwMDdjMi44Njc5OTYyLDAsNS4xOTIwMDEzLDIuMzI3OTk1Myw1LjE5MjAwMTMsNS4xOTg5OTc1LDAsMi44Njc5OTYyLTIuMzI1MDA0Niw1LjE4NTk5Ny01LjE4ODAwMzUsNS4xOTEwMDE5bDguNjQzOTk3MiwyMS4yNTk5OTgzaDE0LjUyNjAwMWwtNi44MDg5OTgxLTE2LjQ5NDk5ODloMTAuNTMzMDA0OHYxMS4yNDU5OTg0aDkuNTYwOTk3di0xMS4yNDU5OTg0aDkuNzMyMDAyM3YxNi40OTQ5OTg5aDEzLjY5MTk5MzdsMjguNjIwMDAyNy00Mi41MjAwMDA1WiIvPgogIDwvZz4KPC9zdmc+" alt="R+V">' +
       '<span class="kopf__titel">' + esc(zustand.daten.einstellungen.titel) + "</span></a>" +
       '<nav class="kopf__nav" aria-label="Hauptnavigation">' + navigation().map(function (n) {
@@ -3598,6 +3644,13 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
     document.title = (titel ? titel + " · " : "") + zustand.daten.einstellungen.titel;
     breit = true; // alle Seiten nutzen die ganze Breite
     app.innerHTML = kopfHtml(aktiv) + '<main class="seite' + (breit ? " seite--breit" : "") + '" id="inhalt">' + druckkopfHtml(titel) + inhalt + "</main>" + fussHtml();
+    // BETA-ANMELDEN-ALS Anfang
+    app.querySelectorAll("[data-zurueck-admin]").forEach(function (k) {
+      k.addEventListener("click", function () {
+        Dienst.zurueckAlsAdmin().then(function (r) { uebernehmen(r); setzeDesign(r.benutzer.design || "auto", r.benutzer.farbe || "klassik"); location.hash = "#/verwaltung/benutzer"; zeige(); meldung("Du bist wieder als Administrator angemeldet."); }, serverFehler);
+      });
+    });
+    // BETA-ANMELDEN-ALS Ende
     app.querySelectorAll("[data-design]").forEach(function (k) {
       k.addEventListener("click", function () {
         setzeDesign(aktuellesDesign() === "hell" ? "dunkel" : "hell", window.BDFarben.gewaehlt().farbe, true);
@@ -4694,6 +4747,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
           '<td class="passwortzelle">' + einmalHtml(b) + "</td>" +
           '<td class="klein">' + esc(datumZeit(b.letzteAnmeldung)) + "</td>" +
           '<td><div class="liste__aktionen">' +
+          (ich.rolle === "admin" && !zustand.alsAdmin && b.kennung !== ich.kennung ? '<button type="button" class="icon-btn" data-als="' + esc(b.kennung) + '" aria-label="Als ' + esc(b.kennung) + ' anmelden" title="Anmelden als (Beta)">' + icon("login") + "</button>" : "") + /* BETA-ANMELDEN-ALS */
           '<button type="button" class="icon-btn" data-bearbeiten="' + esc(b.kennung) + '" aria-label="' + esc(b.kennung) + ' bearbeiten" title="Bearbeiten"' + (darf ? "" : " disabled") + ">" + icon("pencil") + "</button>" +
           '<button type="button" class="icon-btn" data-reset="' + esc(b.kennung) + '" aria-label="Neues Einmalpasswort für ' + esc(b.kennung) + '" title="Neues Einmalpasswort"' + (darf && b.kennung !== ich.kennung ? "" : " disabled") + ">" + icon("lockClosed") + "</button>" +
           '<button type="button" class="icon-btn icon-btn--gefahr" data-loeschen="' + esc(b.kennung) + '" aria-label="' + esc(b.kennung) + ' löschen" title="Löschen"' + (darf && b.kennung !== ich.kennung ? "" : " disabled") + ">" + icon("bin") + "</button>" +
@@ -4708,6 +4762,18 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
       });
     });
     ziel.querySelectorAll("[data-bearbeiten]").forEach(function (k) { k.addEventListener("click", function () { benutzerDialog(D.findeBenutzer(daten, k.getAttribute("data-bearbeiten"))); }); });
+    // BETA-ANMELDEN-ALS Anfang
+    ziel.querySelectorAll("[data-als]").forEach(function (k) {
+      k.addEventListener("click", function () {
+        var b = D.findeBenutzer(daten, k.getAttribute("data-als"));
+        bestaetige("Anmelden als (Beta)", "Möchtest Du Dich als " + D.anzeigeName(b) + " (" + b.kennung + ") anmelden? Du siehst und änderst dann alles mit deren Rechten. Das Passwort und ein aktives Einmalpasswort bleiben unverändert. Über die Leiste oben kommst Du zurück.", "Anmelden als " + b.kennung)
+          .then(function (ja) {
+            if (!ja) return;
+            Dienst.anmeldenAls(daten, ich, b.kennung).then(function (r) { uebernehmen(r); setzeDesign(r.benutzer.design || "auto", r.benutzer.farbe || "klassik"); location.hash = "#/start"; zeige(); }, serverFehler);
+          });
+      });
+    });
+    // BETA-ANMELDEN-ALS Ende
     ziel.querySelectorAll("[data-reset]").forEach(function (k) {
       k.addEventListener("click", function () {
         var b = D.findeBenutzer(daten, k.getAttribute("data-reset"));
@@ -5199,7 +5265,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
     if (!zustand.daten) return;
     if (dialog.open) schliesseDialog();
     if (!zustand.benutzer) { zeigeAnmeldung(); return; }
-    if (zustand.benutzer.mussPasswortAendern) { zeigePasswortFestlegen(); return; }
+    if (zustand.benutzer.mussPasswortAendern && !zustand.alsAdmin /* BETA-ANMELDEN-ALS */) { zeigePasswortFestlegen(); return; }
     var r = route(), b = zustand.benutzer;
     if (r.seite === "uebersicht" && D.Rechte.budgets(b)) zeigeUebersicht();
     else if (r.seite === "ist" && D.Rechte.budgets(b)) zeigeIstWerte();

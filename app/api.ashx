@@ -108,7 +108,7 @@ public class BdErgebnis
 
 public static class BdKern
 {
-    public const string Version = "0.9.1";
+    public const string Version = "0.9.2";
     public const string CookieName = "budgetdashboard_sitzung";
     public const int MaxBytes = 2 * 1024 * 1024;
     private const int AnzahlSicherungen = 50;
@@ -135,7 +135,10 @@ public static class BdKern
     private static readonly Regex KennungMuster = new Regex("^xv[0-9]{5}$");
     private static readonly Regex JahrMuster = new Regex("^20[0-9]{2}$");
 
-    private class Sitzung { public string Kennung; public DateTime Ablauf; }
+    private class Sitzung { public string Kennung; public DateTime Ablauf; public string Admin; /* BETA-ANMELDEN-ALS: Administrator, der sich als Kennung angemeldet hat */ }
+    // BETA-ANMELDEN-ALS Anfang: Sitzung der laufenden Anfrage (alles läuft unter Sperre)
+    private static Sitzung aktuelleSitzung;
+    // BETA-ANMELDEN-ALS Ende
     private class Versuche { public int Anzahl; public DateTime GesperrtBis; }
 
     private class Fehler : Exception
@@ -160,6 +163,7 @@ public static class BdKern
             {
                 if (aktion == "ping" && !post) return Antwort(200, new { ok = true, modus = "server", version = Version });
                 SitzungenLaden(a.AppData);
+                aktuelleSitzung = null; // BETA-ANMELDEN-ALS
                 try { return Bearbeiten(a, aktion, post); }
                 finally { if (sitzungenGeaendert) SitzungenSichern(a.AppData); }
             }
@@ -184,8 +188,14 @@ public static class BdKern
 
         var ich = Angemeldet(daten, sitzung);
         if (aktion == "sitzung" && !post) return Antwort(200, Sicht(daten, ich));
+        // BETA-ANMELDEN-ALS Anfang: Administrator meldet sich ohne Passwort als anderer Benutzer an und wieder zurück
+        if (aktion == "anmelden-als" && post) return AnmeldenAls(daten, ich, Json(a.Koerper));
+        if (aktion == "zurueck-als-admin" && post) return ZurueckAlsAdmin(daten);
+        bool alsAdmin = aktuelleSitzung != null && aktuelleSitzung.Admin != null;
+        if (alsAdmin && aktion == "passwort") throw new Fehler(403, "Das Passwort ändert nur die Person selbst, nicht der Administrator über „Anmelden als“.");
+        // BETA-ANMELDEN-ALS Ende
         if (aktion == "passwort" && post) return PasswortAendern(daten, ich, Json(a.Koerper), a.AppData, sitzung);
-        if (B(ich, "mussPasswortAendern")) throw new Fehler(403, "Lege bitte zuerst Dein eigenes Passwort fest.");
+        if (B(ich, "mussPasswortAendern") && !alsAdmin /* BETA-ANMELDEN-ALS */) throw new Fehler(403, "Lege bitte zuerst Dein eigenes Passwort fest.");
         if (!post) throw new Fehler(404, "Diese Aktion gibt es nicht.");
 
         var k = Json(a.Koerper);
@@ -392,8 +402,35 @@ public static class BdKern
         }
         var b = Benutzer(daten, s.Kennung);
         if (b == null) { Sitzungen.Remove(sitzung); sitzungenGeaendert = true; throw new Fehler(401, "Dein Konto gibt es nicht mehr. Wende Dich bitte an Deine Abteilungsleitung."); }
+        aktuelleSitzung = s; // BETA-ANMELDEN-ALS
         return b;
     }
+
+    // BETA-ANMELDEN-ALS Anfang: nur für die Betaversion, später mit allen Blöcken BETA-ANMELDEN-ALS entfernen
+    private static BdErgebnis AnmeldenAls(Dictionary<string, object> daten, Dictionary<string, object> ich, Dictionary<string, object> k)
+    {
+        if (S(ich, "rolle") != "admin" || aktuelleSitzung.Admin != null) throw new Fehler(403, "„Anmelden als“ gibt es nur für Administratoren.");
+        string kennung = (S(k, "kennung") ?? "").Trim().ToLowerInvariant();
+        var ziel = Benutzer(daten, kennung);
+        if (ziel == null) throw new Fehler(404, "Diesen Benutzer gibt es nicht.");
+        if (kennung == S(ich, "kennung")) throw new Fehler(400, "Du bist schon mit diesem Konto angemeldet.");
+        aktuelleSitzung.Admin = S(ich, "kennung");
+        aktuelleSitzung.Kennung = kennung;
+        sitzungenGeaendert = true;
+        return Antwort(200, Sicht(daten, ziel));
+    }
+
+    private static BdErgebnis ZurueckAlsAdmin(Dictionary<string, object> daten)
+    {
+        if (aktuelleSitzung.Admin == null) throw new Fehler(400, "Du bist mit Deinem eigenen Konto angemeldet.");
+        var admin = Benutzer(daten, aktuelleSitzung.Admin);
+        if (admin == null || S(admin, "rolle") != "admin") throw new Fehler(401, "Das Administratorkonto gibt es nicht mehr. Melde Dich bitte neu an.");
+        aktuelleSitzung.Kennung = aktuelleSitzung.Admin;
+        aktuelleSitzung.Admin = null;
+        sitzungenGeaendert = true;
+        return Antwort(200, Sicht(daten, admin));
+    }
+    // BETA-ANMELDEN-ALS Ende
 
     /// <summary>Beendet alle Sitzungen eines Kontos, auf Wunsch bis auf die aktuelle.</summary>
     private static void SitzungenBeenden(string kennung, string ausser = null)
@@ -428,7 +465,7 @@ public static class BdKern
                 string s = S(e, "s"), k = S(e, "k");
                 if (string.IsNullOrEmpty(s) || !KennungMuster.IsMatch(k ?? "")) continue;
                 if (!DateTime.TryParse(S(e, "a"), null, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out ablauf)) continue;
-                if (ablauf > DateTime.UtcNow) Sitzungen[s] = new Sitzung { Kennung = k, Ablauf = ablauf };
+                if (ablauf > DateTime.UtcNow) Sitzungen[s] = new Sitzung { Kennung = k, Ablauf = ablauf, Admin = KennungMuster.IsMatch(S(e, "admin") ?? "") ? S(e, "admin") : null /* BETA-ANMELDEN-ALS */ };
             }
         }
         catch (Exception) { /* Defekte Datei: alle melden sich neu an */ }
@@ -437,7 +474,7 @@ public static class BdKern
     private static void SitzungenSichern(string appData)
     {
         sitzungenGeaendert = false;
-        var liste = Sitzungen.Select(x => new Dictionary<string, object> { { "s", x.Key }, { "k", x.Value.Kennung }, { "a", x.Value.Ablauf.ToString("o") } }).ToList();
+        var liste = Sitzungen.Select(x => new Dictionary<string, object> { { "s", x.Key }, { "k", x.Value.Kennung }, { "a", x.Value.Ablauf.ToString("o") }, { "admin", x.Value.Admin ?? "" } /* BETA-ANMELDEN-ALS */ }).ToList();
         DateiSchreiben(Path.Combine(appData, "sitzungen.json"), Serializer().Serialize(liste));
     }
 
@@ -905,7 +942,7 @@ public static class BdKern
                     { "vorherStand", v == null ? "" : S(v, "stand") }, { "vorherMonat", v == null ? "" : S(v, "monat") } });
             }
         d["istSicherungen"] = sicherungen;
-        return new { ich = kennung, daten = d };
+        return new { ich = kennung, daten = d, alsAdmin = aktuelleSitzung != null && aktuelleSitzung.Kennung == kennung ? aktuelleSitzung.Admin ?? "" : "" /* BETA-ANMELDEN-ALS */ };
     }
 
     // ---------- Daten laden und speichern ----------

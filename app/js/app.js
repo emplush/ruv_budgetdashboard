@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "0.9.1";
+  var VERSION = "0.9.2";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -40,6 +40,7 @@
     if (zustand.benutzer !== r.benutzer && (!zustand.benutzer || !r.benutzer || zustand.benutzer.kennung !== r.benutzer.kennung)) aktuellesJahr();
     zustand.daten = r.daten;
     zustand.benutzer = r.benutzer;
+    zustand.alsAdmin = r.alsAdmin || ""; // BETA-ANMELDEN-ALS
     document.title = zustand.daten.einstellungen.titel;
     return r;
   }
@@ -318,9 +319,17 @@
     return n;
   }
 
+  // BETA-ANMELDEN-ALS Anfang: Hinweisleiste, solange der Administrator als anderer Benutzer angemeldet ist
+  function alsAdminHtml() {
+    if (!zustand.alsAdmin || !zustand.benutzer) return "";
+    return '<div class="als-admin" role="status">' + icon("infoCircleFilled") + "<span><strong>Beta:</strong> Du bist als " + esc(D.anzeigeName(zustand.benutzer)) + " (" + esc(zustand.benutzer.kennung) + ") angemeldet und siehst das Tool mit deren Rechten.</span>" +
+      '<button type="button" class="btn btn--rahmen" data-zurueck-admin>' + icon("login") + " Zurück zum Administrator</button></div>";
+  }
+  // BETA-ANMELDEN-ALS Ende
+
   function kopfHtml(aktiv) {
     var b = zustand.benutzer;
-    return '<header class="kopf"><div class="kopf__leiste">' +
+    return alsAdminHtml() /* BETA-ANMELDEN-ALS */ + '<header class="kopf"><div class="kopf__leiste">' +
       '<a class="kopf__marke" href="#/start"><img class="logo-hell" src="img/logo-positiv.svg" alt="R+V"><img class="logo-dunkel" src="img/logo-negativ.svg" alt="R+V">' +
       '<span class="kopf__titel">' + esc(zustand.daten.einstellungen.titel) + "</span></a>" +
       '<nav class="kopf__nav" aria-label="Hauptnavigation">' + navigation().map(function (n) {
@@ -345,6 +354,13 @@
     document.title = (titel ? titel + " · " : "") + zustand.daten.einstellungen.titel;
     breit = true; // alle Seiten nutzen die ganze Breite
     app.innerHTML = kopfHtml(aktiv) + '<main class="seite' + (breit ? " seite--breit" : "") + '" id="inhalt">' + druckkopfHtml(titel) + inhalt + "</main>" + fussHtml();
+    // BETA-ANMELDEN-ALS Anfang
+    app.querySelectorAll("[data-zurueck-admin]").forEach(function (k) {
+      k.addEventListener("click", function () {
+        Dienst.zurueckAlsAdmin().then(function (r) { uebernehmen(r); setzeDesign(r.benutzer.design || "auto", r.benutzer.farbe || "klassik"); location.hash = "#/verwaltung/benutzer"; zeige(); meldung("Du bist wieder als Administrator angemeldet."); }, serverFehler);
+      });
+    });
+    // BETA-ANMELDEN-ALS Ende
     app.querySelectorAll("[data-design]").forEach(function (k) {
       k.addEventListener("click", function () {
         setzeDesign(aktuellesDesign() === "hell" ? "dunkel" : "hell", window.BDFarben.gewaehlt().farbe, true);
@@ -1441,6 +1457,7 @@
           '<td class="passwortzelle">' + einmalHtml(b) + "</td>" +
           '<td class="klein">' + esc(datumZeit(b.letzteAnmeldung)) + "</td>" +
           '<td><div class="liste__aktionen">' +
+          (ich.rolle === "admin" && !zustand.alsAdmin && b.kennung !== ich.kennung ? '<button type="button" class="icon-btn" data-als="' + esc(b.kennung) + '" aria-label="Als ' + esc(b.kennung) + ' anmelden" title="Anmelden als (Beta)">' + icon("login") + "</button>" : "") + /* BETA-ANMELDEN-ALS */
           '<button type="button" class="icon-btn" data-bearbeiten="' + esc(b.kennung) + '" aria-label="' + esc(b.kennung) + ' bearbeiten" title="Bearbeiten"' + (darf ? "" : " disabled") + ">" + icon("pencil") + "</button>" +
           '<button type="button" class="icon-btn" data-reset="' + esc(b.kennung) + '" aria-label="Neues Einmalpasswort für ' + esc(b.kennung) + '" title="Neues Einmalpasswort"' + (darf && b.kennung !== ich.kennung ? "" : " disabled") + ">" + icon("lockClosed") + "</button>" +
           '<button type="button" class="icon-btn icon-btn--gefahr" data-loeschen="' + esc(b.kennung) + '" aria-label="' + esc(b.kennung) + ' löschen" title="Löschen"' + (darf && b.kennung !== ich.kennung ? "" : " disabled") + ">" + icon("bin") + "</button>" +
@@ -1455,6 +1472,18 @@
       });
     });
     ziel.querySelectorAll("[data-bearbeiten]").forEach(function (k) { k.addEventListener("click", function () { benutzerDialog(D.findeBenutzer(daten, k.getAttribute("data-bearbeiten"))); }); });
+    // BETA-ANMELDEN-ALS Anfang
+    ziel.querySelectorAll("[data-als]").forEach(function (k) {
+      k.addEventListener("click", function () {
+        var b = D.findeBenutzer(daten, k.getAttribute("data-als"));
+        bestaetige("Anmelden als (Beta)", "Möchtest Du Dich als " + D.anzeigeName(b) + " (" + b.kennung + ") anmelden? Du siehst und änderst dann alles mit deren Rechten. Das Passwort und ein aktives Einmalpasswort bleiben unverändert. Über die Leiste oben kommst Du zurück.", "Anmelden als " + b.kennung)
+          .then(function (ja) {
+            if (!ja) return;
+            Dienst.anmeldenAls(daten, ich, b.kennung).then(function (r) { uebernehmen(r); setzeDesign(r.benutzer.design || "auto", r.benutzer.farbe || "klassik"); location.hash = "#/start"; zeige(); }, serverFehler);
+          });
+      });
+    });
+    // BETA-ANMELDEN-ALS Ende
     ziel.querySelectorAll("[data-reset]").forEach(function (k) {
       k.addEventListener("click", function () {
         var b = D.findeBenutzer(daten, k.getAttribute("data-reset"));
@@ -1946,7 +1975,7 @@
     if (!zustand.daten) return;
     if (dialog.open) schliesseDialog();
     if (!zustand.benutzer) { zeigeAnmeldung(); return; }
-    if (zustand.benutzer.mussPasswortAendern) { zeigePasswortFestlegen(); return; }
+    if (zustand.benutzer.mussPasswortAendern && !zustand.alsAdmin /* BETA-ANMELDEN-ALS */) { zeigePasswortFestlegen(); return; }
     var r = route(), b = zustand.benutzer;
     if (r.seite === "uebersicht" && D.Rechte.budgets(b)) zeigeUebersicht();
     else if (r.seite === "ist" && D.Rechte.budgets(b)) zeigeIstWerte();
