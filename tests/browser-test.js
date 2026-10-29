@@ -61,7 +61,7 @@ function pruefe(bedingung, text) {
   pruefe(/^(Guten Morgen|Guten Tag|Guten Abend|Hallo), Sabine$/.test(await page.textContent("h1")), "Begrüßung nach Tageszeit mit Vornamen");
   pruefe(await page.isVisible(".kopf__nav >> text=Planbudgets") && await page.isVisible(".kopf__nav >> text=IST-Werte") && await page.isVisible(".kopf__nav >> text=Verwaltung"), "Abteilungsleitung hat Planbudgets, IST-Werte und Verwaltung");
   pruefe(await page.isVisible("text=Abteilungsbudget " + new Date().getFullYear()) && await page.isVisible("section[aria-label='Planbudget der Abteilung']") && await page.isVisible("section[aria-label='IST der Abteilung']"), "Abteilungsbudget mit getrennten Bereichen Plan und IST");
-  pruefe(await page.isVisible("text=Einzelbudgets der Kostenstellen") && await page.isVisible(".einzelbudgets tr:has-text('410 eigenes Budget')"), "Einzelbudgets mit eigenem Budget der übergreifenden Kostenstelle");
+  pruefe(await page.isVisible("text=Einzelbudgets der Kostenstellen") && await page.locator(".einzelbudgets tbody th", { hasText: /^\s*410\s*$/ }).count() === 2 && !(await page.isVisible(".einzelbudgets >> text=übergreifend")) && !(await page.isVisible(".einzelbudgets >> text=eigenes Budget")), "Einzelbudgets ohne Zusätze, übergreifende und eigene Zeile");
   await bild("02-abteilungsleitung");
 
   await page.click(".kopf__nav >> text=Planbudgets");

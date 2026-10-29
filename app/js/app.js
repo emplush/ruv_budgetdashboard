@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "0.6.1";
+  var VERSION = "0.6.2";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -688,10 +688,10 @@
       if (r.art === "teilsumme") return "";
       if (r.art === "oben") {
         var gi = D.gesamtIstVon(daten, jahr, "ks", nr);
-        return zeile("teilsumme", '<th scope="row"><strong>' + esc(nr) + '</strong> <span class="chip chip--ks">übergreifend</span></th>', wer,
+        return zeile("teilsumme", '<th scope="row"><strong>' + esc(nr) + "</strong></th>", wer,
             D.gesamtBudgetVon(daten, jahr, "ks", nr).gesamt, gi.gesamt,
             '<a class="icon-btn" href="#/bericht/' + esc(nr) + '" aria-label="Bericht Kostenstelle ' + esc(nr) + '" title="Bericht ansehen">' + icon("diagramBarchart") + "</a>") +
-          zeile("unter", '<th scope="row">' + esc(nr) + ' <span class="leise klein">eigenes Budget</span></th>', "", D.gesamtBudgetVon(daten, jahr, "ks", nr).eigen, gi.eigen);
+          zeile("unter", '<th scope="row" title="ohne Unterkostenstellen und Projektnummern">' + esc(nr) + "</th>", "", D.gesamtBudgetVon(daten, jahr, "ks", nr).eigen, gi.eigen);
       }
       return zeile(r.art === "unter" ? "unter" : "", '<th scope="row">' + esc(nr) + "</th>", wer, D.budgetVon(daten, jahr, "ks", nr), D.istVon(daten, jahr, nr));
     }).join("");
@@ -778,7 +778,7 @@
       else { plan = D.budgetVon(daten, jahr, "ks", nr); ist = D.istVon(daten, jahr, nr); }
       var kopf = r.art === "teilsumme" ? '<th scope="row">Gesamt übergreifende Kostenstelle ' + esc(nr) + "</th>"
         : '<th scope="row"><strong>' + (art === "pn" ? '<a href="#/projekt/' + esc(nr) + '">' + esc(nr) + "</a>" : esc(nr)) + "</strong>" +
-          (r.art === "oben" ? ' <span class="leise klein">eigenes Budget</span>' : "") + (art === "pn" && r.n.ks ? '<br><span class="leise klein">Kostenstelle ' + esc(r.n.ks) + "</span>" : "") + "</th>";
+          (art === "pn" && r.n.ks ? '<br><span class="leise klein">Kostenstelle ' + esc(r.n.ks) + "</span>" : "") + "</th>";
       var klasse = r.art === "teilsumme" ? "teilsumme" : r.art === "unter" ? "unter" : "";
       if (!ist.vorhanden) return "<tr" + (klasse ? ' class="' + klasse + ' ohne"' : ' class="ohne"') + ">" + kopf + '<td colspan="8" class="leise klein">' + (art === "pn" ? "noch keine Kosten erfasst" : "keine IST-Werte") + "</td></tr>";
       var k = D.kennzahlen(plan, ist);
@@ -820,7 +820,7 @@
       var namen = namenVon(n.benutzer);
       var klassen = [w.vorhanden ? "" : "ohne", r.art === "unter" ? "unter" : ""].filter(Boolean).join(" ");
       return "<tr" + (klassen ? ' class="' + klassen + '"' : "") + '><th scope="row"><strong>' + esc(n.nummer) + "</strong>" +
-        (r.art === "oben" ? ' <span class="chip chip--akzent" title="Fasst Kostenstellen zusammen">übergreifend</span><br><span class="leise klein">Gesamtbudget</span>' : "") + "</th>" +
+        (r.art === "oben" ? '<br><span class="leise klein">Gesamtbudget</span>' : "") + "</th>" +
         '<td class="klein">' + (namen.length ? esc(namen.join(", ")) : '<span class="leise">niemand</span>') + "</td>" +
         D.POSITIONEN.map(function (p) { return '<td class="zahl">' + (w.vorhanden ? euro(w[p.id]) : "–") + "</td>"; }).join("") +
         '<td class="zahl summe">' + (w.vorhanden ? euro(w.sachkosten) : "–") + '</td><td class="zahl summe"><strong>' + (w.vorhanden ? euro(w.gesamt) : "–") + "</strong></td>" +

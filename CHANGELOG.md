@@ -1,5 +1,8 @@
 # Änderungen
 
+## 0.6.2 (29.10.2026)
+- Tabellen ohne Zusätze „übergreifend“ und „eigenes Budget“: Die übergreifende Kostenstelle steht hervorgehoben über ihren Unterkostenstellen, die eingerückte Zeile mit gleicher Nummer zeigt ihren eigenen Teil.
+
 ## 0.6.1 (29.10.2026)
 - Neue Kostenstelle direkt einer übergreifenden zuordnen: Im Dialog gibt es das Feld „Gehört zu“. Bisher ging das nur über die übergreifende Kostenstelle.
 - Eine Kostenstelle ist entweder Unterkostenstelle oder hat selbst Unterkostenstellen; der Dialog sperrt jeweils die andere Auswahl.
