@@ -420,3 +420,39 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
 .budgettabelle tr.teilsumme th, .budgettabelle tr.teilsumme td { font-weight: 700; background: var(--flaeche-2); border-bottom: 2px solid var(--linie-stark); }
 .budget__link { margin-top: 1rem; }
 .berichtstabelle tr.gesamtzeile th, .berichtstabelle tr.gesamtzeile td { border-top: 2px solid var(--text); font-weight: 700; }
+
+/* IST gegen Plan */
+.stapel { display: grid; gap: 1.25rem; }
+.stapel > .karte + .karte { margin-top: 0; }
+.ist { margin-top: 1.2rem; padding-top: 1rem; border-top: 1px solid var(--linie); display: grid; gap: .55rem; }
+.ist__kopf { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; }
+.ist__kopf h3 { margin: 0; font-size: 1.05rem; }
+.stand { display: flex; align-items: center; gap: .4rem; margin: 0; font-size: .85rem; color: var(--text-2); font-weight: 700; }
+.ist__quote { margin: .2rem 0 0; }
+.ist__quote strong { font-size: 1.5rem; font-weight: 900; font-variant-numeric: tabular-nums; }
+.fortschritt { position: relative; height: .9rem; border-radius: 999px; background: var(--flaeche-2); border: 1px solid var(--linie); }
+.fortschritt__balken { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: var(--erfolg); }
+.fortschritt--gelb .fortschritt__balken { background: var(--akzent); }
+.fortschritt--rot .fortschritt__balken { background: var(--fehler); }
+.fortschritt__zeit { position: absolute; top: -.3rem; bottom: -.3rem; width: 2px; background: var(--text); }
+.ist__werte { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); gap: .6rem 1rem; margin: .3rem 0 0; }
+.ist__werte dt { font-size: .8rem; color: var(--text-2); font-weight: 700; }
+.ist__werte dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.minus { color: var(--fehler); }
+.ampel { display: inline-block; white-space: nowrap; font-size: .75rem; font-weight: 700; padding: .12rem .55rem; border-radius: 999px; border: 1px solid var(--linie-stark); }
+.ampel::before { content: ""; display: inline-block; width: .6rem; height: .6rem; border-radius: 50%; margin-right: .35rem; vertical-align: -.05rem; background: var(--linie-stark); }
+.ampel--gruen::before { background: var(--erfolg); }
+.ampel--gelb::before { background: var(--akzent); }
+.ampel--rot::before { background: var(--fehler); }
+.ampel--rot { border-color: var(--fehler); }
+.positionen--planist thead th { font-size: .8rem; color: var(--text-2); }
+.positionen--planist { margin-top: 1rem; }
+.kennzahlen--ist .kennzahl { border-top-color: var(--aktion); }
+.berichtstabelle tr.standzeile td, .berichtstabelle tr.standzeile th { font-size: .82rem; color: var(--text-2); white-space: normal; }
+.bereich-tabelle h3 { margin: 1.6rem 0 .5rem; font-size: 1.05rem; }
+.import-felder { display: grid; gap: 0 1.25rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); }
+.vorschau { margin: .5rem 0 1rem; }
+.warnungen { list-style: none; padding: 0; margin: .6rem 0 0; display: grid; gap: .3rem; color: var(--fehler); font-weight: 700; font-size: .9rem; }
+.warnungen li, .ok-hinweis { display: flex; gap: .45rem; align-items: flex-start; }
+.ok-hinweis { color: var(--erfolg); font-weight: 700; font-size: .9rem; margin: .6rem 0 0; }
+.ist-bereich { margin-top: 2rem; }

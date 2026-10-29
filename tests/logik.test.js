@@ -116,6 +116,52 @@ test("Übergreifende Kostenstelle: Regeln, Summe, Sicht", () => {
   assert.strictEqual(D.gesamtBudgetVon(d, "2026", "ks", "410").uebergreifend, false);
 });
 
+test("IST: KST-Bericht lesen, importieren, sichern, wiederherstellen", async () => {
+  const X = require("../app/js/excel.js");
+  const blaetter = await X.arbeitsmappeLesen(require("fs").readFileSync(require("path").join(__dirname, "daten", "kst-bericht-beispiel.xlsx")));
+  const e = D.istAuslesen(blaetter[0].zeilen);
+  assert.strictEqual(e.fehler, undefined);
+  assert.deepStrictEqual([e.kst, e.stand, e.monat, e.aktuell.jahr, e.vorjahr.jahr, e.vorjahrZeitraum.jahr], ["413", "2026-10-22", "2026-09", 2026, 2025, 2025]);
+  assert.deepStrictEqual(e.aktuell.werte, { pkId: 160000.25, pkAd: 310000.5, werbung: 30000.1, reise: 55000, sonstiges: 11370 });
+  assert.strictEqual(e.vorjahr.werte.sonstiges, 16100);
+  assert.deepStrictEqual(e.warnungen, []);
+  const kaputt = blaetter[0].zeilen.map((z) => z && z.slice());
+  kaputt[21][3] = "1";
+  assert.strictEqual(D.istAuslesen(kaputt).warnungen.length, 2);
+  assert.match(D.istAuslesen([["Text", "ohne Kostenstelle"]]).fehler, /keine Kostenstelle/);
+
+  const d = daten();
+  ["410", "413"].forEach((n) => D.speichereNummer(d, "ks", "", n, []));
+  D.speichereNummer(d, "ks", "410", "410", ["xv10002"], ["413"]);
+  assert.match(D.setzeIst(d, "999", e, "xv10001"), /gibt es nicht/);
+  assert.match(D.setzeIst(d, "413", Object.assign({}, e, { monat: "2025-09" }), "xv10001"), /passen nicht/);
+  assert.strictEqual(D.setzeIst(d, "413", e, "xv10001"), "");
+  assert.deepStrictEqual([d.istSicherungen.length, d.istSicherungen[0].vorher], [1, null]);
+  const ist = D.istVon(d, 2026, "413");
+  assert.deepStrictEqual([ist.vorhanden, ist.bisMonat, ist.gesamt, ist.sachkosten], [true, 9, 566370.85, 96370.1]);
+  assert.deepStrictEqual([D.istVon(d, 2025, "413").bisMonat, D.istVon(d, 2025, "413").gesamt, D.istVon(d, 2024, "413").vorhanden], [12, 746100, false]);
+  D.setzeBudget(d, "2026", "ks", "413", { pkId: 800000 });
+  const k = D.kennzahlen(D.gesamtBudgetVon(d, 2026, "ks", "410").gesamt, D.gesamtIstVon(d, 2026, "ks", "410").gesamt);
+  assert.deepStrictEqual([Math.round(k.quote * 1000), k.rest, k.hochrechnung, k.ampel, k.vorjahr], [708, 233629.15, 755161.13, "gruen", 557750]);
+  assert.strictEqual(D.prozentText(k.quote), "70,8 %");
+  assert.strictEqual(D.standText("2026-10-22", "2026-09"), "Stand 22.10.2026 · gebucht bis September 2026");
+  const gl = D.sicht(d, "xv10002");
+  assert.deepStrictEqual([Object.keys(gl.ist), gl.istSicherungen], [["ks-413"], []]);
+  const admin = D.sicht(d, "xv00000");
+  assert.deepStrictEqual([admin.ist, admin.istSicherungen.length, "vorher" in admin.istSicherungen[0]], [{}, 1, false]);
+  D.setzeIst(d, "413", Object.assign({}, e, { stand: "2026-11-05" }), "xv10001");
+  assert.strictEqual(d.istSicherungen[0].vorher.stand, "2026-10-22");
+  assert.strictEqual(D.stelleIstWiederHer(d, d.istSicherungen[0].id, "xv00000"), "");
+  assert.strictEqual(d.ist["ks-413"].stand, "2026-10-22");
+  assert.strictEqual(D.stelleIstWiederHer(d, d.istSicherungen[d.istSicherungen.length - 1].id, "xv00000"), "");
+  assert.strictEqual(d.ist["ks-413"], undefined);
+  D.setzeIst(d, "413", e, "xv10001");
+  D.speichereNummer(d, "ks", "413", "414", []);
+  assert.ok(d.ist["ks-414"] && d.istSicherungen.every((x) => x.nummer === "414"));
+  D.loescheNummer(d, "ks", "414");
+  assert.deepStrictEqual([d.ist, d.istSicherungen], [{}, []]);
+});
+
 test("Rechte der Rollen", () => {
   const d = daten();
   const [admin, al, gl, kam] = d.benutzer;

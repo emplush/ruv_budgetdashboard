@@ -1,5 +1,12 @@
 # Änderungen
 
+## 0.3.0 (29.10.2026)
+- IST-Daten je Kostenstelle: Die Abteilungsleitung importiert den KST-Bericht des Konzern-Controllings (.xlsx). Das Tool liest Kostenstelle (KST1xxx00), Datenstand, Abrechnungsmonat und die Spalten „Ist“ (Vorjahr gesamt, Vorjahr bis Monat, aktuelles Jahr bis Monat) und zeigt vorher eine Vorschau mit Prüfsummen (Sachkosten, Primärkosten I).
+- Zuordnung: Personalkosten AD und ID, Werbung, Reise/Kfz; alle übrigen Sachkosten-Zeilen ergeben „Sonstiges“.
+- Die gewählte Kostenstelle muss zur Datei passen. Ein Import ersetzt die IST-Daten dieser Kostenstelle; vorher sichert das Tool den bisherigen Stand. Abteilungsleitung und Administrator können Sicherungen wiederherstellen.
+- IST gegen Plan überall mit Stand-Datum: IST in % vom Plan, Restbudget, Hochrechnung zum Jahresende, Veränderung zum Vorjahr im gleichen Zeitraum, Ampel nach Hochrechnung, je Position Plan, IST und Prozent.
+- Übergreifende Kostenstellen summieren auch das IST der zugeordneten Kostenstellen; der Bericht zeigt Plan, IST und den Vergleich und lässt sich komplett nach Excel kopieren.
+
 ## 0.2.0 (29.10.2026)
 - Übergreifende Kostenstellen: Eine Kostenstelle fasst andere zusammen. Ihr Planbudget ergibt sich aus dem eigenen Budget plus den Planbudgets der zugeordneten Kostenstellen. Nur eine Ebene, jede Kostenstelle gehört zu höchstens einer übergreifenden.
 - Zuordnung im Dialog der Kostenstelle, Anzeige in der Verwaltung, Zwischensumme in der Übersicht und Zusammensetzung auf der Karte.

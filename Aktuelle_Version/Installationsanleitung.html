@@ -24,15 +24,15 @@
 <body>
 <main>
 <h1>Budgetdashboard</h1>
-<p class="unter">Installation und Update auf dem IIS · Version 0.2.0</p>
+<p class="unter">Installation und Update auf dem IIS · Version 0.3.0</p>
 
 <p>Das Budgetdashboard läuft auf einem IIS mit ASP.NET, ohne Datenbank, ohne PHP und ohne HTTPS. Alle Daten liegen als JSON-Datei im Ordner <code>App_Data</code> der Website. Anmeldung, Passwörter und Rechte prüft der Server.</p>
 
 <h2>Die Pakete</h2>
 <table>
   <tr><th>Datei</th><th>Wofür</th></tr>
-  <tr><td><code>Budgetdashboard_IIS_0.2.0.zip</code></td><td>Neuinstallation. Enthält alle Dateien und den leeren Ordner <code>App_Data</code>.</td></tr>
-  <tr><td><code>Budgetdashboard_Update_0.2.0.zip</code></td><td>Update einer bestehenden Installation. Ohne <code>App_Data</code>, Deine Daten bleiben also unverändert.</td></tr>
+  <tr><td><code>Budgetdashboard_IIS_0.3.0.zip</code></td><td>Neuinstallation. Enthält alle Dateien und den leeren Ordner <code>App_Data</code>.</td></tr>
+  <tr><td><code>Budgetdashboard_Update_0.3.0.zip</code></td><td>Update einer bestehenden Installation. Ohne <code>App_Data</code>, Deine Daten bleiben also unverändert.</td></tr>
 </table>
 <p>Beide ZIPs haben keinen Unterordner: Die Dateien liegen direkt auf der obersten Ebene und gehören direkt in den Ordner der Website. Die aktuellen Pakete liegen immer im GitHub-Repository im Ordner <code>Aktuelle_Version</code>.</p>
 
@@ -48,7 +48,7 @@
 <ol>
   <li>Lege einen Ordner für die Website an, zum Beispiel <code>D:\Web\budget</code>.</li>
   <li>Prüfe die Dateieigenschaften des ZIPs. Steht dort „Zulassen“, setze den Haken. Sonst blockiert der IIS die entpackten Dateien.</li>
-  <li>Entpacke <code>Budgetdashboard_IIS_0.2.0.zip</code> direkt in diesen Ordner. Danach liegen dort unter anderem <code>index.html</code>, <code>api.ashx</code>, <code>web.config</code> und der Ordner <code>App_Data</code>.</li>
+  <li>Entpacke <code>Budgetdashboard_IIS_0.3.0.zip</code> direkt in diesen Ordner. Danach liegen dort unter anderem <code>index.html</code>, <code>api.ashx</code>, <code>web.config</code> und der Ordner <code>App_Data</code>.</li>
   <li>Lege im IIS-Manager eine Website oder eine Anwendung an, die auf den Ordner zeigt. Wähle den Anwendungspool mit .NET CLR v4.0, integriert.</li>
   <li>Gib der Identität des Anwendungspools <strong>Schreibrechte auf <code>App_Data</code></strong> (Ändern), zum Beispiel für <code>IIS AppPool\budget</code>. Auf alle anderen Ordner reicht Lesen.</li>
   <li>Stelle unter <strong>Authentifizierung</strong> die <strong>anonyme Authentifizierung</strong> auf „Aktiviert“ (Identität des Anwendungspools) und die <strong>Windows-Authentifizierung</strong> auf „Deaktiviert“. Das Tool hat eine eigene Anmeldung.</li>

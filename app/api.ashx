@@ -24,6 +24,9 @@
  *   POST nummer-speichern        <- {art:"ks"|"pn",alt,nummer,benutzer:[kennung],unter?:[nummer]} (Administrator, Abteilungsleitung;
  *                                   unter nur bei Kostenstellen: zugeordnete Kostenstellen einer übergreifenden Kostenstelle, fehlt es, bleibt die Zuordnung)
  *   POST nummer-loeschen         <- {art,nummer}                                        (Administrator, Abteilungsleitung)
+ *   POST ist-importieren         <- {nummer,eintrag:{stand,monat,aktuell:{jahr,werte},vorjahrZeitraum,vorjahr,datei}} (Abteilungsleitung;
+ *                                   ersetzt die IST-Daten der Kostenstelle, sichert vorher den bisherigen Stand in istSicherungen)
+ *   POST ist-wiederherstellen    <- {id}                                               (Administrator, Abteilungsleitung)
  *   POST budget-speichern        <- {jahr,art,nummer,werte:{pkId,pkAd,werbung,reise,sonstiges}} (Abteilungsleitung)
  *
  * Jede Änderung antwortet mit der neuen Sicht = {"ich":kennung,"daten":{...}}, gleiche Regeln wie sicht() in js/daten.js:
@@ -103,7 +106,7 @@ public class BdErgebnis
 
 public static class BdKern
 {
-    public const string Version = "0.2.0";
+    public const string Version = "0.3.0";
     public const string CookieName = "budgetdashboard_sitzung";
     public const int MaxBytes = 2 * 1024 * 1024;
     private const int AnzahlSicherungen = 50;
@@ -278,8 +281,12 @@ public static class BdKern
                     if (eintrag == null) throw new Fehler(404, "Diese Nummer gibt es nicht mehr.");
                     Liste(daten, art).Remove(eintrag);
                     if (art == "ks")
+                    {
                         foreach (var n in Liste(daten, "ks").Select(x => D(x)))
                             n["unter"] = Unter(n).Where(u => u != nummer).Cast<object>().ToList();
+                        D(daten["ist"]).Remove("ks-" + nummer);
+                        daten["istSicherungen"] = L(daten["istSicherungen"]).Where(x => S(D(x), "nummer") != nummer).ToList();
+                    }
                     var budgets = D(daten["budgets"]);
                     foreach (var jahr in budgets.Keys.ToList())
                     {
@@ -287,6 +294,18 @@ public static class BdKern
                         j.Remove(art + "-" + nummer);
                         if (j.Count == 0) budgets.Remove(jahr);
                     }
+                    break;
+                }
+            case "ist-importieren":
+                {
+                    if (rolle != "al") throw new Fehler(403, "IST-Daten importiert nur die Abteilungsleitung.");
+                    IstSetzen(daten, (S(k, "nummer") ?? "").Trim(), G(k, "eintrag") as Dictionary<string, object>, S(ich, "kennung"));
+                    break;
+                }
+            case "ist-wiederherstellen":
+                {
+                    if (!verwaltet) throw new Fehler(403, "Dafür fehlen Dir die Rechte.");
+                    IstWiederherstellen(daten, S(k, "id") ?? "", S(ich, "kennung"));
                     break;
                 }
             case "budget-speichern":
@@ -561,6 +580,12 @@ public static class BdKern
                     u.Sort(string.CompareOrdinal);
                     n["unter"] = u.Cast<object>().ToList();
                 }
+            if (art == "ks")
+            {
+                var ist = D(daten["ist"]);
+                if (ist.ContainsKey("ks-" + alt)) { ist["ks-" + nummer] = ist["ks-" + alt]; ist.Remove("ks-" + alt); }
+                foreach (var x in L(daten["istSicherungen"]).Select(y => D(y))) if (S(x, "nummer") == alt) x["nummer"] = nummer;
+            }
         }
         eintrag["nummer"] = nummer;
         eintrag["benutzer"] = zugewiesen.Cast<object>().ToList();
@@ -611,6 +636,71 @@ public static class BdKern
         var budgets = D(daten["budgets"]);
         if (!budgets.ContainsKey(jahr)) budgets[jahr] = new Dictionary<string, object>();
         D(budgets[jahr])[art + "-" + nummer] = neu;
+    }
+
+    // ---------- IST-Daten (gleiche Regeln wie setzeIst und stelleIstWiederHer in js/daten.js) ----------
+
+    private const int MaxSicherungen = 30;
+
+    /// <summary>Prüft einen Teil {jahr, werte}; null bleibt null, ungültig wirft.</summary>
+    private static Dictionary<string, object> IstTeil(object o)
+    {
+        if (o == null) return null;
+        var t = o as Dictionary<string, object>;
+        var w = t == null ? null : G(t, "werte") as Dictionary<string, object>;
+        string jahr = t == null ? "" : Convert.ToString(G(t, "jahr"), CultureInfo.InvariantCulture);
+        if (w == null || !JahrMuster.IsMatch(jahr ?? "")) throw new Fehler(400, "Die IST-Werte sind unvollständig.");
+        var werte = new Dictionary<string, object>();
+        foreach (var p in Positionen)
+        {
+            object z = G(w, p);
+            decimal d;
+            if (!(z is int || z is long || z is decimal || z is double)) throw new Fehler(400, "Die IST-Werte sind unvollständig.");
+            try { d = Convert.ToDecimal(z, CultureInfo.InvariantCulture); } catch { throw new Fehler(400, "Die IST-Werte sind unvollständig."); }
+            if (Math.Abs(d) > MaxBetrag) throw new Fehler(400, "Die IST-Werte sind unvollständig.");
+            werte[p] = Math.Round(d, 2, MidpointRounding.AwayFromZero);
+        }
+        return new Dictionary<string, object> { { "jahr", int.Parse(jahr, CultureInfo.InvariantCulture) }, { "werte", werte } };
+    }
+
+    private static void IstSichern(Dictionary<string, object> daten, string nummer, string kennung, string anlass)
+    {
+        var ist = D(daten["ist"]);
+        var liste = L(daten["istSicherungen"]).ToList();
+        liste.Insert(0, new Dictionary<string, object> {
+            { "id", "s" + Guid.NewGuid().ToString("N").Substring(0, 12) }, { "zeit", Jetzt() }, { "von", kennung ?? "" },
+            { "nummer", nummer }, { "anlass", anlass }, { "vorher", ist.ContainsKey("ks-" + nummer) ? ist["ks-" + nummer] : null } });
+        daten["istSicherungen"] = liste.Take(MaxSicherungen).ToList();
+    }
+
+    private static void IstSetzen(Dictionary<string, object> daten, string nummer, Dictionary<string, object> e, string kennung)
+    {
+        if (FindeNummer(daten, "ks", nummer) == null) throw new Fehler(404, "Die Kostenstelle " + nummer + " gibt es nicht.");
+        if (e == null) throw new Fehler(400, "Die IST-Werte sind unvollständig.");
+        string stand = S(e, "stand") ?? "", monat = S(e, "monat") ?? "";
+        if (!Regex.IsMatch(stand, "^[0-9]{4}-[0-9]{2}-[0-9]{2}$") || !Regex.IsMatch(monat, "^[0-9]{4}-(0[1-9]|1[0-2])$")) throw new Fehler(400, "Datenstand oder Abrechnungsmonat fehlen.");
+        var akt = IstTeil(G(e, "aktuell"));
+        if (akt == null) throw new Fehler(400, "Die IST-Werte sind unvollständig.");
+        var vz = IstTeil(G(e, "vorjahrZeitraum"));
+        var vj = IstTeil(G(e, "vorjahr"));
+        if (monat.Substring(0, 4) != Convert.ToString(akt["jahr"], CultureInfo.InvariantCulture)) throw new Fehler(400, "Abrechnungsmonat und IST-Jahr passen nicht zusammen.");
+        IstSichern(daten, nummer, kennung, "Import");
+        D(daten["ist"])["ks-" + nummer] = new Dictionary<string, object> {
+            { "stand", stand }, { "monat", monat }, { "aktuell", akt }, { "vorjahrZeitraum", vz }, { "vorjahr", vj },
+            { "datei", Kuerzen(S(e, "datei"), 120) }, { "importiert", Jetzt() }, { "von", kennung ?? "" } };
+    }
+
+    private static void IstWiederherstellen(Dictionary<string, object> daten, string id, string kennung)
+    {
+        var s = L(daten["istSicherungen"]).Select(x => D(x)).FirstOrDefault(x => S(x, "id") == id);
+        if (s == null) throw new Fehler(404, "Diese Sicherung gibt es nicht mehr.");
+        string nummer = S(s, "nummer");
+        if (FindeNummer(daten, "ks", nummer) == null) throw new Fehler(404, "Die Kostenstelle " + nummer + " gibt es nicht mehr.");
+        var vorher = G(s, "vorher");
+        IstSichern(daten, nummer, kennung, "Wiederherstellung");
+        var ist = D(daten["ist"]);
+        if (vorher != null) ist["ks-" + nummer] = Serializer().DeserializeObject(Serializer().Serialize(vorher));
+        else ist.Remove("ks-" + nummer);
     }
 
     // ---------- Sicht für die Oberfläche (gleiche Regeln wie sicht() in js/daten.js) ----------
@@ -672,6 +762,21 @@ public static class BdKern
             }
         }
         d["budgets"] = budgets;
+        // IST wie Planbudgets; Sicherungen nur als Liste ohne Werte für Abteilungsleitung und Administrator
+        var ist = new Dictionary<string, object>();
+        if (rolle != "admin")
+            foreach (var e in D(daten["ist"])) if (rolle == "al" || erlaubt.Contains(e.Key)) ist[e.Key] = e.Value;
+        d["ist"] = ist;
+        var sicherungen = new List<object>();
+        if (verwaltet)
+            foreach (var x in L(daten["istSicherungen"]).Select(y => D(y)))
+            {
+                var v = G(x, "vorher") as Dictionary<string, object>;
+                sicherungen.Add(new Dictionary<string, object> {
+                    { "id", S(x, "id") }, { "zeit", S(x, "zeit") }, { "von", S(x, "von") }, { "nummer", S(x, "nummer") }, { "anlass", S(x, "anlass") },
+                    { "vorherStand", v == null ? "" : S(v, "stand") }, { "vorherMonat", v == null ? "" : S(v, "monat") } });
+            }
+        d["istSicherungen"] = sicherungen;
         return new { ich = kennung, daten = d };
     }
 
@@ -686,7 +791,7 @@ public static class BdKern
                 { "schema", 1 }, { "stand", 0 },
                 { "einstellungen", new Dictionary<string, object> { { "titel", StandardTitel } } },
                 { "benutzer", new List<object>() }, { "kostenstellen", new List<object>() }, { "projekte", new List<object>() },
-                { "budgets", new Dictionary<string, object>() } };
+                { "budgets", new Dictionary<string, object>() }, { "ist", new Dictionary<string, object>() }, { "istSicherungen", new List<object>() } };
             var admin = NeuerBenutzer(StandardAdmin, "Admin", "Budget", "admin");
             PasswortSetzen(admin, StandardPasswort, false);
             L(neu["benutzer"]).Add(admin);
@@ -697,6 +802,8 @@ public static class BdKern
         // Listen veränderbar machen (der Serializer liefert Arrays)
         foreach (var s in new[] { "benutzer", "kostenstellen", "projekte" }) daten[s] = L(daten.ContainsKey(s) ? daten[s] : null).ToList();
         if (!(G(daten, "budgets") is Dictionary<string, object>)) daten["budgets"] = new Dictionary<string, object>();
+        if (!(G(daten, "ist") is Dictionary<string, object>)) daten["ist"] = new Dictionary<string, object>();
+        daten["istSicherungen"] = L(G(daten, "istSicherungen")).ToList();
         if (!(G(daten, "einstellungen") is Dictionary<string, object>)) daten["einstellungen"] = new Dictionary<string, object> { { "titel", StandardTitel } };
         if (!daten.ContainsKey("stand")) daten["stand"] = 0;
         return daten;

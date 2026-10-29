@@ -198,6 +198,12 @@
     budgetSpeichern: function (daten, b, jahr, art, nummer, werte) {
       return aendern(function (ich) { return recht(D.Rechte.budgets(ich)) || D.setzeBudget(speicher, jahr, art, nummer, werte); });
     },
+    istImportieren: function (daten, b, nummer, eintrag) {
+      return aendern(function (ich) { return recht(D.Rechte.budgets(ich)) || D.setzeIst(speicher, nummer, eintrag, ich.kennung); });
+    },
+    istWiederherstellen: function (daten, b, id) {
+      return aendern(function (ich) { return recht(D.Rechte.nummern(ich)) || D.stelleIstWiederHer(speicher, id, ich.kennung); });
+    },
     /* Nur für den Browserbetrieb: zurück auf die Beispieldaten */
     zuruecksetzen: function () {
       return D.startDaten(DEMO ? DEMO.fuelle : null).then(function (neu) {
@@ -289,7 +295,11 @@
     nummerLoeschen: function (daten, b, art, nummer) { return anfrage("nummer-loeschen", { art: art, nummer: nummer }).then(uebernehmen); },
     budgetSpeichern: function (daten, b, jahr, art, nummer, werte) {
       return anfrage("budget-speichern", { jahr: String(jahr), art: art, nummer: nummer, werte: werte }).then(uebernehmen);
-    }
+    },
+    istImportieren: function (daten, b, nummer, eintrag) {
+      return anfrage("ist-importieren", { nummer: nummer, eintrag: eintrag }).then(uebernehmen);
+    },
+    istWiederherstellen: function (daten, b, id) { return anfrage("ist-wiederherstellen", { id: id }).then(uebernehmen); }
   };
 
   function ermitteln() {

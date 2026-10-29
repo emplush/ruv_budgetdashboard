@@ -1173,6 +1173,42 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
 .budget__link { margin-top: 1rem; }
 .berichtstabelle tr.gesamtzeile th, .berichtstabelle tr.gesamtzeile td { border-top: 2px solid var(--text); font-weight: 700; }
 
+/* IST gegen Plan */
+.stapel { display: grid; gap: 1.25rem; }
+.stapel > .karte + .karte { margin-top: 0; }
+.ist { margin-top: 1.2rem; padding-top: 1rem; border-top: 1px solid var(--linie); display: grid; gap: .55rem; }
+.ist__kopf { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; }
+.ist__kopf h3 { margin: 0; font-size: 1.05rem; }
+.stand { display: flex; align-items: center; gap: .4rem; margin: 0; font-size: .85rem; color: var(--text-2); font-weight: 700; }
+.ist__quote { margin: .2rem 0 0; }
+.ist__quote strong { font-size: 1.5rem; font-weight: 900; font-variant-numeric: tabular-nums; }
+.fortschritt { position: relative; height: .9rem; border-radius: 999px; background: var(--flaeche-2); border: 1px solid var(--linie); }
+.fortschritt__balken { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: var(--erfolg); }
+.fortschritt--gelb .fortschritt__balken { background: var(--akzent); }
+.fortschritt--rot .fortschritt__balken { background: var(--fehler); }
+.fortschritt__zeit { position: absolute; top: -.3rem; bottom: -.3rem; width: 2px; background: var(--text); }
+.ist__werte { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); gap: .6rem 1rem; margin: .3rem 0 0; }
+.ist__werte dt { font-size: .8rem; color: var(--text-2); font-weight: 700; }
+.ist__werte dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.minus { color: var(--fehler); }
+.ampel { display: inline-block; white-space: nowrap; font-size: .75rem; font-weight: 700; padding: .12rem .55rem; border-radius: 999px; border: 1px solid var(--linie-stark); }
+.ampel::before { content: ""; display: inline-block; width: .6rem; height: .6rem; border-radius: 50%; margin-right: .35rem; vertical-align: -.05rem; background: var(--linie-stark); }
+.ampel--gruen::before { background: var(--erfolg); }
+.ampel--gelb::before { background: var(--akzent); }
+.ampel--rot::before { background: var(--fehler); }
+.ampel--rot { border-color: var(--fehler); }
+.positionen--planist thead th { font-size: .8rem; color: var(--text-2); }
+.positionen--planist { margin-top: 1rem; }
+.kennzahlen--ist .kennzahl { border-top-color: var(--aktion); }
+.berichtstabelle tr.standzeile td, .berichtstabelle tr.standzeile th { font-size: .82rem; color: var(--text-2); white-space: normal; }
+.bereich-tabelle h3 { margin: 1.6rem 0 .5rem; font-size: 1.05rem; }
+.import-felder { display: grid; gap: 0 1.25rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); }
+.vorschau { margin: .5rem 0 1rem; }
+.warnungen { list-style: none; padding: 0; margin: .6rem 0 0; display: grid; gap: .3rem; color: var(--fehler); font-weight: 700; font-size: .9rem; }
+.warnungen li, .ok-hinweis { display: flex; gap: .45rem; align-items: flex-start; }
+.ok-hinweis { color: var(--erfolg); font-weight: 700; font-size: .9rem; margin: .6rem 0 0; }
+.ist-bereich { margin-top: 2rem; }
+
 </style>
 <script>
 /* Design vor dem ersten Zeichnen setzen, damit nichts aufblitzt (eigene Datei wegen Content-Security-Policy).
@@ -1301,6 +1337,149 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
 <div id="app" aria-live="polite"></div>
 <div id="meldungen" class="meldungen" role="status" aria-live="polite"></div>
 <dialog id="dialog" class="dialog" aria-labelledby="dialog-titel"></dialog>
+<script>
+/*
+ * Budgetdashboard: Excel-Dateien (.xlsx) lesen, ohne Fremdbibliothek.
+ * Übernommen aus der Lernprogrammübersicht (emplush/ruv_lernprogramme_uebersicht), nur der Leseteil.
+ * Wie ein KST-Bericht gedeutet wird, regelt BDDaten.istAuslesen.
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.BDExcel = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  /* ---------- ZIP lesen ---------- */
+
+  function u16(b, o) { return b[o] | (b[o + 1] << 8); }
+  function u32(b, o) { return (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0; }
+
+  function entpacken(bytes) {
+    if (typeof require === 'function' && typeof window === 'undefined') {
+      return Promise.resolve(new Uint8Array(require('zlib').inflateRawSync(Buffer.from(bytes))));
+    }
+    if (typeof DecompressionStream === 'undefined') {
+      return Promise.reject(new Error('Dein Browser kann Excel-Dateien nicht entpacken. Bitte nutze einen aktuellen Browser, zum Beispiel Edge oder Chrome.'));
+    }
+    var strom = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+    return new Response(strom).arrayBuffer().then(function (ab) { return new Uint8Array(ab); });
+  }
+
+  /** Liest das Inhaltsverzeichnis einer ZIP-Datei: { pfad: { methode, start, laenge } } */
+  function zipVerzeichnis(b) {
+    var ende = -1;
+    for (var i = b.length - 22; i >= Math.max(0, b.length - 65557); i--) {
+      if (u32(b, i) === 0x06054b50) { ende = i; break; }
+    }
+    if (ende < 0) throw new Error('Die Datei ist keine Excel-Datei im Format .xlsx.');
+    var anzahl = u16(b, ende + 10), pos = u32(b, ende + 16);
+    var dec = new TextDecoder('utf-8'), dateien = {};
+    for (var n = 0; n < anzahl; n++) {
+      if (u32(b, pos) !== 0x02014b50) throw new Error('Die Excel-Datei ist beschädigt.');
+      var methode = u16(b, pos + 10), laenge = u32(b, pos + 20);
+      var nl = u16(b, pos + 28), el = u16(b, pos + 30), kl = u16(b, pos + 32), lokal = u32(b, pos + 42);
+      var name = dec.decode(b.subarray(pos + 46, pos + 46 + nl));
+      var start = lokal + 30 + u16(b, lokal + 26) + u16(b, lokal + 28);
+      dateien[name] = { methode: methode, start: start, laenge: laenge };
+      pos += 46 + nl + el + kl;
+    }
+    return dateien;
+  }
+
+  function zipText(b, dateien, pfad) {
+    var e = dateien[pfad];
+    if (!e) return Promise.resolve(null);
+    var roh = b.subarray(e.start, e.start + e.laenge);
+    var p = e.methode === 0 ? Promise.resolve(roh) : e.methode === 8 ? entpacken(roh) : Promise.reject(new Error('Die Excel-Datei nutzt eine unbekannte Komprimierung.'));
+    return p.then(function (x) { return new TextDecoder('utf-8').decode(x); });
+  }
+
+  /* ---------- XML ---------- */
+
+  function entitaeten(s) {
+    return s.replace(/&(#x[0-9a-fA-F]+|#\d+|lt|gt|amp|quot|apos);/g, function (m, e) {
+      if (e[0] === '#') return String.fromCodePoint(e[1] === 'x' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10));
+      return { lt: '<', gt: '>', amp: '&', quot: '"', apos: "'" }[e];
+    });
+  }
+
+  function attribute(s) {
+    var a = {}, re = /([\w:]+)\s*=\s*"([^"]*)"/g, m;
+    while ((m = re.exec(s))) a[m[1]] = entitaeten(m[2]);
+    return a;
+  }
+
+  /** Text aller <t>-Elemente, ohne Lautschrift-Angaben (rPh) */
+  function texte(xml) {
+    var s = xml.replace(/<rPh\b[\s\S]*?<\/rPh>/g, ''), aus = '', re = /<t\b[^>]*?(?:\/>|>([\s\S]*?)<\/t>)/g, m;
+    while ((m = re.exec(s))) aus += m[1] ? entitaeten(m[1]) : '';
+    return aus;
+  }
+
+  function spalteNr(ref) {
+    var buchst = /^[A-Z]+/.exec(ref)[0], n = 0;
+    for (var i = 0; i < buchst.length; i++) n = n * 26 + (buchst.charCodeAt(i) - 64);
+    return n - 1;
+  }
+
+  function spalteName(nr) {
+    var s = '';
+    nr += 1;
+    while (nr > 0) { var r = (nr - 1) % 26; s = String.fromCharCode(65 + r) + s; nr = Math.floor((nr - 1) / 26); }
+    return s;
+  }
+
+  function blattLesen(xml, gemeinsam) {
+    var zeilen = [], re = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g, m;
+    while ((m = re.exec(xml))) {
+      var a = attribute(m[1]), inhalt = m[2] || '';
+      if (!a.r) continue;
+      var wert = '', v = /<v>([\s\S]*?)<\/v>/.exec(inhalt);
+      if (a.t === 's') wert = v ? (gemeinsam[parseInt(v[1], 10)] || '') : '';
+      else if (a.t === 'inlineStr') wert = texte(inhalt);
+      else if (a.t === 'b') wert = v ? (v[1] === '1' ? 'WAHR' : 'FALSCH') : '';
+      else wert = v ? entitaeten(v[1]) : '';
+      if (wert === '') continue;
+      var zeile = parseInt(/\d+$/.exec(a.r)[0], 10) - 1, spalte = spalteNr(a.r);
+      (zeilen[zeile] || (zeilen[zeile] = []))[spalte] = wert;
+    }
+    return zeilen;
+  }
+
+  /**
+   * Liest alle Arbeitsblätter einer .xlsx-Datei.
+   * @param bytes ArrayBuffer oder Uint8Array
+   * @returns Promise<[{ name, zeilen: [[Zellwert]] }]>
+   */
+  function arbeitsmappeLesen(bytes) {
+    var b;
+    try {
+      b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+      var dateien = zipVerzeichnis(b);
+    } catch (e) { return Promise.reject(e); }
+    if (!dateien['xl/workbook.xml']) return Promise.reject(new Error('Die Datei ist keine Excel-Datei im Format .xlsx.'));
+    return Promise.all([zipText(b, dateien, 'xl/workbook.xml'), zipText(b, dateien, 'xl/_rels/workbook.xml.rels'), zipText(b, dateien, 'xl/sharedStrings.xml')]).then(function (t) {
+      var ziele = {}, re = /<Relationship\b([^>]*?)\/?>/g, m;
+      while ((m = re.exec(t[1] || ''))) { var r = attribute(m[1]); ziele[r.Id] = r.Target; }
+      var gemeinsam = [], reSi = /<si\b[^>]*?(?:\/>|>([\s\S]*?)<\/si>)/g;
+      while ((m = reSi.exec(t[2] || ''))) gemeinsam.push(m[1] ? texte(m[1]) : '');
+      var blaetter = [], reS = /<sheet\b([^>]*?)\/?>/g;
+      while ((m = reS.exec(t[0]))) {
+        var a = attribute(m[1]), ziel = ziele[a['r:id']];
+        if (!ziel) continue;
+        var pfad = ziel.charAt(0) === '/' ? ziel.slice(1) : 'xl/' + ziel.replace(/^\.\//, '');
+        blaetter.push({ name: a.name || '', pfad: pfad });
+      }
+      return Promise.all(blaetter.map(function (bl) { return zipText(b, dateien, bl.pfad); })).then(function (xmls) {
+        return blaetter.map(function (bl, i) { return { name: bl.name, zeilen: xmls[i] ? blattLesen(xmls[i], gemeinsam) : [] }; });
+      });
+    });
+  }
+
+  return { arbeitsmappeLesen: arbeitsmappeLesen, spalteName: spalteName };
+});
+
+</script>
 <script>
 /* Budgetdashboard: Datenmodell, Regeln und Speicher.
    Läuft im Browser (window.BDDaten) und in Node (require) für die Tests.
@@ -1455,6 +1634,8 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
       kostenstellen: [],
       projekte: [],
       budgets: {},
+      ist: {},
+      istSicherungen: [],
       geaendert: jetzt()
     };
   }
@@ -1483,6 +1664,8 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
     Object.keys(basis).forEach(function (k) { if (daten[k] === undefined) daten[k] = basis[k]; });
     daten.einstellungen = Object.assign({}, basis.einstellungen, daten.einstellungen);
     if (!daten.budgets || typeof daten.budgets !== "object" || Array.isArray(daten.budgets)) daten.budgets = {};
+    if (!daten.ist || typeof daten.ist !== "object" || Array.isArray(daten.ist)) daten.ist = {};
+    if (!Array.isArray(daten.istSicherungen)) daten.istSicherungen = [];
     daten.benutzer.forEach(function (b) {
       var muster = neuerBenutzer(b.kennung);
       Object.keys(muster).forEach(function (k) { if (b[k] === undefined) b[k] = muster[k]; });
@@ -1649,10 +1832,14 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
         var j = daten.budgets[jahr];
         if (j[art + "-" + alt]) { j[art + "-" + nummer] = j[art + "-" + alt]; delete j[art + "-" + alt]; }
       });
-      if (art === "ks") daten.kostenstellen.forEach(function (n) {
-        var i = (n.unter || []).indexOf(alt);
-        if (i >= 0) { n.unter[i] = nummer; n.unter.sort(); }
-      });
+      if (art === "ks") {
+        daten.kostenstellen.forEach(function (n) {
+          var i = (n.unter || []).indexOf(alt);
+          if (i >= 0) { n.unter[i] = nummer; n.unter.sort(); }
+        });
+        if (daten.ist["ks-" + alt]) { daten.ist["ks-" + nummer] = daten.ist["ks-" + alt]; delete daten.ist["ks-" + alt]; }
+        daten.istSicherungen.forEach(function (x) { if (x.nummer === alt) x.nummer = nummer; });
+      }
     }
     eintrag.nummer = nummer;
     eintrag.benutzer = zugewiesen;
@@ -1667,6 +1854,8 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
     else {
       daten.kostenstellen = daten.kostenstellen.filter(function (n) { return n.nummer !== nummer; });
       daten.kostenstellen.forEach(function (n) { n.unter = (n.unter || []).filter(function (u) { return u !== nummer; }); });
+      delete daten.ist["ks-" + nummer];
+      daten.istSicherungen = daten.istSicherungen.filter(function (x) { return x.nummer !== nummer; });
     }
     Object.keys(daten.budgets).forEach(function (jahr) {
       delete daten.budgets[jahr][art + "-" + nummer];
@@ -1770,6 +1959,223 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
     return Object.keys(menge).map(Number).sort(function (a, b) { return b - a; });
   }
 
+  /* ---------- IST-Daten (Import aus dem KST-Bericht, je Kostenstelle) ---------- */
+
+  var MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+  var MAX_SICHERUNGEN = 30;
+
+  function zahl(text) {
+    var t = String(text == null ? "" : text).trim();
+    if (!t) return 0;
+    var z = Number(t);
+    return isFinite(z) ? runde(z) : null;
+  }
+
+  /* Deutet einen KST-Bericht (Zeilen wie von BDExcel: zeilen[zeile][spalte] als Text).
+     Kostenstelle aus „KST163000“ (Stellen 2 bis 4), Datenstand und Abrechnungsmonat aus dem Kopf,
+     IST-Spalten über „Ist“ / Jahr / „Dezember (kum)“ oder „aktMon (kum vt)“, Zeilen über die Bezeichnung in Spalte A.
+     Liefert { fehler } oder { kst, stand, monat, aktuell, vorjahrZeitraum, vorjahr, warnungen }. */
+  function istAuslesen(zeilen) {
+    zeilen = zeilen || [];
+    var kst = "", stand = "", monat = "";
+    zeilen.forEach(function (z) {
+      (z || []).forEach(function (w) {
+        var t = String(w == null ? "" : w), m;
+        if (!kst && (m = /KST\s*\d(\d{3})\d{2}(?!\d)/i.exec(t))) kst = m[1];
+        if (!stand && (m = /Datenstand:?\s*(\d{1,2})\.(\d{1,2})\.(\d{4})/i.exec(t))) stand = m[3] + "-" + ("0" + m[2]).slice(-2) + "-" + ("0" + m[1]).slice(-2);
+        if (!monat && (m = /Abrechnungsmonat:?\s*(\d{1,2})\.(\d{4})/i.exec(t))) monat = m[2] + "-" + ("0" + m[1]).slice(-2);
+      });
+    });
+    if (!kst) return { fehler: "In der Datei steht keine Kostenstelle (zum Beispiel KST163000 in Zelle B9)." };
+    if (!stand) return { fehler: "In der Datei fehlt der Datenstand (zum Beispiel „Datenstand: 22.10.2026“)." };
+    if (!monat) return { fehler: "In der Datei fehlt der Abrechnungsmonat (zum Beispiel „Abrechnungsmonat: 09.2026“)." };
+    var spalten = [];
+    for (var r = 0; r < zeilen.length - 3 && !spalten.length; r++) {
+      (zeilen[r] || []).forEach(function (w, c) {
+        if (String(w).trim() !== "Ist") return;
+        var jahr = /(\d{4})/.exec(String((zeilen[r + 2] || [])[c] || "")), art = String((zeilen[r + 3] || [])[c] || "");
+        if (!jahr) return;
+        if (/Dezember/i.test(art)) spalten.push({ c: c, jahr: Number(jahr[1]), voll: true });
+        else if (/aktMon/i.test(art)) spalten.push({ c: c, jahr: Number(jahr[1]), voll: false });
+      });
+    }
+    var bis = spalten.filter(function (s) { return !s.voll; }).sort(function (a, b) { return b.jahr - a.jahr; });
+    if (!bis.length) return { fehler: "In der Datei fehlt die Spalte mit dem IST des aktuellen Jahres („Ist“, Jahr, „aktMon (kum vt)“)." };
+    var aktJahr = bis[0].jahr;
+    if (Number(monat.slice(0, 4)) !== aktJahr) return { fehler: "Abrechnungsmonat " + monat.slice(5) + "." + monat.slice(0, 4) + " passt nicht zum IST-Jahr " + aktJahr + "." };
+    function zeileVon(muster) {
+      for (var i = 0; i < zeilen.length; i++) if (zeilen[i] && muster.test(String(zeilen[i][0] || "").trim())) return i;
+      return -1;
+    }
+    var z = {
+      pkAd: zeileVon(/^Personalkosten A{1,2}D\b/i), pkId: zeileVon(/^Personalkosten ID\b/i), sach: zeileVon(/^Sachkosten\b/i),
+      werbung: zeileVon(/^Werbung/i), reise: zeileVon(/^Reise/i), primaer: zeileVon(/^Primärkosten I\b/i)
+    };
+    var fehlt = Object.keys(z).filter(function (k) { return z[k] < 0; });
+    if (fehlt.length) return { fehler: "In der Datei fehlen Zeilen: " + fehlt.map(function (k) { return { pkAd: "Personalkosten AD", pkId: "Personalkosten ID", sach: "Sachkosten", werbung: "Werbung", reise: "Reise/Kfz", primaer: "Primärkosten I" }[k]; }).join(", ") + "." };
+    if (!(z.sach < z.werbung && z.werbung < z.primaer && z.sach < z.reise && z.reise < z.primaer)) return { fehler: "Die Zeilen der Sachkosten stehen nicht in der erwarteten Reihenfolge." };
+    var warnungen = [], kaputt = "";
+    function werteVon(s) {
+      function w(i) { var x = zahl((zeilen[i] || [])[s.c]); if (x === null) kaputt = "Zeile " + (i + 1); return x || 0; }
+      var sonst = 0;
+      for (var i = z.sach + 1; i < z.primaer; i++) if (i !== z.werbung && i !== z.reise) sonst += w(i);
+      var werte = { pkId: w(z.pkId), pkAd: w(z.pkAd), werbung: w(z.werbung), reise: w(z.reise), sonstiges: runde(sonst) };
+      var name = (s.voll ? "IST " + s.jahr + " gesamt" : "IST " + s.jahr + " bis " + MONATE[Number(monat.slice(5)) - 1]);
+      if (Math.abs(werte.werbung + werte.reise + werte.sonstiges - w(z.sach)) > 0.05) warnungen.push(name + ": Die Sachkosten der Datei passen nicht zur Summe der einzelnen Zeilen.");
+      if (Math.abs(werte.pkId + werte.pkAd + w(z.sach) - w(z.primaer)) > 0.05) warnungen.push(name + ": Personal- und Sachkosten ergeben nicht die Primärkosten I der Datei.");
+      return werte;
+    }
+    var voll = spalten.filter(function (s) { return s.voll && s.jahr === aktJahr - 1; })[0];
+    var vz = bis.filter(function (s) { return s.jahr === aktJahr - 1; })[0];
+    var aus = {
+      kst: kst, stand: stand, monat: monat,
+      aktuell: { jahr: aktJahr, werte: werteVon(bis[0]) },
+      vorjahrZeitraum: vz ? { jahr: vz.jahr, werte: werteVon(vz) } : null,
+      vorjahr: voll ? { jahr: voll.jahr, werte: werteVon(voll) } : null,
+      warnungen: warnungen
+    };
+    if (kaputt) return { fehler: "In der Datei steht in " + kaputt + " kein gültiger Betrag." };
+    return aus;
+  }
+
+  function monatName(monat) { return MONATE[Number(String(monat).slice(5)) - 1] || ""; }
+
+  /* „Stand 22.10.2026 · gebucht bis September 2026“ */
+  function standText(stand, monat) {
+    var s = String(stand || "").split("-");
+    return "Stand " + s[2] + "." + s[1] + "." + s[0] + (monat ? " · gebucht bis " + monatName(monat) + " " + String(monat).slice(0, 4) : "");
+  }
+
+  function pruefeIstWerte(w) {
+    if (!w || typeof w !== "object") return false;
+    for (var i = 0; i < POSITIONEN.length; i++) {
+      var z = w[POSITIONEN[i].id];
+      if (typeof z !== "number" || !isFinite(z) || Math.abs(z) > MAX_BETRAG) return false;
+    }
+    return true;
+  }
+
+  function istTeil(t) {
+    if (t == null) return null;
+    if (!istJahr(t.jahr) || !pruefeIstWerte(t.werte)) return undefined;
+    var w = {};
+    POSITIONEN.forEach(function (p) { w[p.id] = runde(t.werte[p.id]); });
+    return { jahr: Number(t.jahr), werte: w };
+  }
+
+  /* Ersetzt die IST-Daten einer Kostenstelle. Vorher legt es eine Sicherung des bisherigen Stands an. Liefert Fehlertext oder "". */
+  function setzeIst(daten, nummer, e, kennung, jetztZeit) {
+    if (!findeNummer(daten, "ks", nummer)) return "Die Kostenstelle " + nummer + " gibt es nicht.";
+    e = e || {};
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(e.stand || "") || !/^\d{4}-(0[1-9]|1[0-2])$/.test(e.monat || "")) return "Datenstand oder Abrechnungsmonat fehlen.";
+    var akt = istTeil(e.aktuell), vz = istTeil(e.vorjahrZeitraum), vj = istTeil(e.vorjahr);
+    if (!akt || vz === undefined || vj === undefined) return "Die IST-Werte sind unvollständig.";
+    if (Number(e.monat.slice(0, 4)) !== akt.jahr) return "Abrechnungsmonat und IST-Jahr passen nicht zusammen.";
+    var zeit = jetztZeit || jetzt();
+    sichereIst(daten, nummer, kennung, zeit, "Import");
+    daten.ist["ks-" + nummer] = {
+      stand: e.stand, monat: e.monat, aktuell: akt, vorjahrZeitraum: vz, vorjahr: vj,
+      datei: String(e.datei || "").slice(0, 120), importiert: zeit, von: kennung || ""
+    };
+    return "";
+  }
+
+  function sichereIst(daten, nummer, kennung, zeit, anlass) {
+    var vorher = daten.ist["ks-" + nummer] || null;
+    daten.istSicherungen.unshift({
+      id: "s" + Date.parse(zeit).toString(36) + Math.random().toString(36).slice(2, 7),
+      zeit: zeit, von: kennung || "", nummer: nummer, anlass: anlass, vorher: vorher ? kopie(vorher) : null
+    });
+    daten.istSicherungen = daten.istSicherungen.slice(0, MAX_SICHERUNGEN);
+  }
+
+  /* Stellt den Stand vor einem Import wieder her; der ersetzte Stand wird dabei selbst gesichert. */
+  function stelleIstWiederHer(daten, id, kennung) {
+    var s = daten.istSicherungen.filter(function (x) { return x.id === id; })[0];
+    if (!s) return "Diese Sicherung gibt es nicht mehr.";
+    if (!findeNummer(daten, "ks", s.nummer)) return "Die Kostenstelle " + s.nummer + " gibt es nicht mehr.";
+    var vorher = s.vorher;
+    sichereIst(daten, s.nummer, kennung, jetzt(), "Wiederherstellung");
+    if (vorher) daten.ist["ks-" + s.nummer] = kopie(vorher);
+    else delete daten.ist["ks-" + s.nummer];
+    return "";
+  }
+
+  function mitSummen(w) {
+    var aus = {};
+    POSITIONEN.forEach(function (p) { aus[p.id] = w ? Number(w[p.id]) || 0 : 0; });
+    aus.sachkosten = runde(aus.werbung + aus.reise + aus.sonstiges);
+    aus.personalkosten = runde(aus.pkId + aus.pkAd);
+    aus.gesamt = runde(aus.personalkosten + aus.sachkosten);
+    return aus;
+  }
+
+  /* IST einer Kostenstelle in einem Jahr: bisMonat (12 = ganzes Jahr), vergleich = Vorjahr im gleichen Zeitraum */
+  function istVon(daten, jahr, nummer) {
+    var e = (daten.ist || {})["ks-" + nummer];
+    jahr = Number(jahr);
+    if (e && e.aktuell && e.aktuell.jahr === jahr) {
+      var w = mitSummen(e.aktuell.werte);
+      w.vorhanden = true; w.bisMonat = Number(e.monat.slice(5)); w.stand = e.stand; w.monat = e.monat;
+      w.vergleich = e.vorjahrZeitraum ? mitSummen(e.vorjahrZeitraum.werte) : null;
+      return w;
+    }
+    if (e && e.vorjahr && e.vorjahr.jahr === jahr) {
+      var v = mitSummen(e.vorjahr.werte);
+      v.vorhanden = true; v.bisMonat = 12; v.stand = e.stand; v.monat = jahr + "-12"; v.vergleich = null;
+      return v;
+    }
+    var leer = mitSummen(null);
+    leer.vorhanden = false; leer.bisMonat = 0; leer.stand = ""; leer.monat = ""; leer.vergleich = null;
+    return leer;
+  }
+
+  /* IST einer übergreifenden Kostenstelle = eigenes IST plus IST der zugeordneten. Stand und Monat: der älteste Teil. */
+  function gesamtIstVon(daten, jahr, art, nummer) {
+    if (art !== "ks") { var l = mitSummen(null); l.vorhanden = false; return { uebergreifend: false, eigen: l, unter: [], gesamt: l }; }
+    var eigen = istVon(daten, jahr, nummer);
+    var e = findeNummer(daten, "ks", nummer);
+    var unter = (e && e.unter || []).map(function (u) { return { nummer: u, ist: istVon(daten, jahr, u) }; });
+    var teile = [eigen].concat(unter.map(function (u) { return u.ist; })).filter(function (t) { return t.vorhanden; });
+    var g = summe(teile);
+    g.vorhanden = teile.length > 0;
+    g.bisMonat = teile.length ? Math.min.apply(null, teile.map(function (t) { return t.bisMonat; })) : 0;
+    var aeltester = teile.slice().sort(function (a, b) { return a.stand < b.stand ? -1 : a.stand > b.stand ? 1 : 0; })[0];
+    g.stand = aeltester ? aeltester.stand : "";
+    g.monat = teile.length ? teile.map(function (t) { return t.monat; }).sort()[0] : "";
+    g.unterschiedlich = teile.some(function (t) { return t.stand !== g.stand || t.monat !== g.monat; });
+    var vgl = teile.filter(function (t) { return t.vergleich; });
+    g.vergleich = vgl.length === teile.length && teile.length ? summe(vgl.map(function (t) { return t.vergleich; })) : null;
+    g.fehlend = 1 + unter.length - teile.length;
+    return { uebergreifend: unter.length > 0, eigen: eigen, unter: unter, gesamt: g };
+  }
+
+  /* Kennzahlen IST gegen Plan */
+  function kennzahlen(plan, ist) {
+    var p = plan.gesamt, i = ist.gesamt, monate = ist.bisMonat || 12;
+    var hoch = ist.bisMonat >= 12 ? i : runde(i / monate * 12);
+    var k = {
+      ist: i, plan: p,
+      quote: p > 0 ? i / p : null,
+      rest: runde(p - i),
+      zeitanteil: monate / 12,
+      hochrechnung: hoch,
+      hochQuote: p > 0 ? hoch / p : null,
+      abweichung: runde(hoch - p),
+      vorjahr: ist.vergleich ? ist.vergleich.gesamt : null,
+      vorjahrDiff: ist.vergleich ? runde(i - ist.vergleich.gesamt) : null,
+      vorjahrQuote: ist.vergleich && ist.vergleich.gesamt ? (i - ist.vergleich.gesamt) / ist.vergleich.gesamt : null
+    };
+    k.ampel = k.hochQuote === null ? "" : k.hochQuote > 1 ? "rot" : k.hochQuote > 0.95 ? "gelb" : "gruen";
+    return k;
+  }
+
+  function prozentText(q, mitVorzeichen) {
+    if (q === null || q === undefined || !isFinite(q)) return "–";
+    var t = (q * 100).toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " %";
+    return mitVorzeichen && q > 0 ? "+" + t : t;
+  }
+
   /* ---------- Begrüßung ---------- */
 
   function begruessung(datum) {
@@ -1828,6 +2234,14 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
         });
       });
     }
+    /* IST wie Planbudgets; Sicherungen nur als Liste ohne Werte für Abteilungsleitung und Administrator */
+    d.ist = {};
+    if (ich.rolle !== "admin") Object.keys(daten.ist || {}).forEach(function (s) {
+      if (ich.rolle === "al" || (s.indexOf("ks-") === 0 && d.kostenstellen.some(function (n) { return "ks-" + n.nummer === s; }))) d.ist[s] = kopie(daten.ist[s]);
+    });
+    d.istSicherungen = verwaltet ? (daten.istSicherungen || []).map(function (x) {
+      return { id: x.id, zeit: x.zeit, von: x.von, nummer: x.nummer, anlass: x.anlass, vorherStand: x.vorher ? x.vorher.stand : "", vorherMonat: x.vorher ? x.vorher.monat : "" };
+    }) : [];
     return d;
   }
 
@@ -1904,6 +2318,16 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
     uebergeordnete: uebergeordnete,
     pruefeUnter: pruefeUnter,
     gesamtBudgetVon: gesamtBudgetVon,
+    MONATE: MONATE,
+    istAuslesen: istAuslesen,
+    monatName: monatName,
+    standText: standText,
+    setzeIst: setzeIst,
+    stelleIstWiederHer: stelleIstWiederHer,
+    istVon: istVon,
+    gesamtIstVon: gesamtIstVon,
+    kennzahlen: kennzahlen,
+    prozentText: prozentText,
     nummernVon: nummernVon,
     setzeNummernFuer: setzeNummernFuer,
     leseBetrag: leseBetrag,
@@ -1940,6 +2364,13 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
     return { pkId: pkId, pkAd: pkAd, werbung: werbung, reise: reise, sonstiges: sonstiges };
   }
 
+  /* Erfundene IST-Werte: Plan je Position mal Faktor, anteilig bis zum Vormonat */
+  function istAus(plan, faktor, anteil) {
+    var w = {};
+    Object.keys(plan).forEach(function (k, i) { w[k] = Math.round(plan[k] * faktor * anteil * (0.94 + (i % 3) * 0.05) * 100) / 100; });
+    return w;
+  }
+
   function fuelle(daten) {
     var jahr = new Date().getFullYear();
     daten.benutzer.push(
@@ -1973,6 +2404,21 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
       "ks-412": werte(190000, 205000, 8000, 39000, 10500),
       "pn-41000101": werte(60000, 35000, 20000, 14000, 3500)
     };
+    var heute = new Date(), m = heute.getMonth(), istJahr = m === 0 ? jahr - 1 : jahr, monat = m === 0 ? 12 : m;
+    var stand = new Date(heute.getTime() - 3 * 864e5).toISOString().slice(0, 10);
+    daten.ist = {};
+    [["410", 0.97, 1.0], ["411", 0.91, 0.96], ["412", 1.09, 1.04]].forEach(function (x) {
+      var plan = daten.budgets[String(istJahr)] && daten.budgets[String(istJahr)]["ks-" + x[0]];
+      var vorPlan = daten.budgets[String(istJahr - 1)] && daten.budgets[String(istJahr - 1)]["ks-" + x[0]];
+      if (!plan || !vorPlan) return;
+      daten.ist["ks-" + x[0]] = {
+        stand: stand, monat: istJahr + "-" + ("0" + monat).slice(-2),
+        aktuell: { jahr: istJahr, werte: istAus(plan, x[1], monat / 12) },
+        vorjahrZeitraum: { jahr: istJahr - 1, werte: istAus(vorPlan, x[2], monat / 12) },
+        vorjahr: { jahr: istJahr - 1, werte: istAus(vorPlan, x[2], 1) },
+        datei: "KST-Bericht " + x[0] + " (Beispiel).xlsx", importiert: new Date().toISOString(), von: "xv10001"
+      };
+    });
   }
 
   wurzel.BDDemo = { fuelle: fuelle, PASSWORT: PASSWORT };
@@ -2180,6 +2626,12 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
     budgetSpeichern: function (daten, b, jahr, art, nummer, werte) {
       return aendern(function (ich) { return recht(D.Rechte.budgets(ich)) || D.setzeBudget(speicher, jahr, art, nummer, werte); });
     },
+    istImportieren: function (daten, b, nummer, eintrag) {
+      return aendern(function (ich) { return recht(D.Rechte.budgets(ich)) || D.setzeIst(speicher, nummer, eintrag, ich.kennung); });
+    },
+    istWiederherstellen: function (daten, b, id) {
+      return aendern(function (ich) { return recht(D.Rechte.nummern(ich)) || D.stelleIstWiederHer(speicher, id, ich.kennung); });
+    },
     /* Nur für den Browserbetrieb: zurück auf die Beispieldaten */
     zuruecksetzen: function () {
       return D.startDaten(DEMO ? DEMO.fuelle : null).then(function (neu) {
@@ -2271,7 +2723,11 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
     nummerLoeschen: function (daten, b, art, nummer) { return anfrage("nummer-loeschen", { art: art, nummer: nummer }).then(uebernehmen); },
     budgetSpeichern: function (daten, b, jahr, art, nummer, werte) {
       return anfrage("budget-speichern", { jahr: String(jahr), art: art, nummer: nummer, werte: werte }).then(uebernehmen);
-    }
+    },
+    istImportieren: function (daten, b, nummer, eintrag) {
+      return anfrage("ist-importieren", { nummer: nummer, eintrag: eintrag }).then(uebernehmen);
+    },
+    istWiederherstellen: function (daten, b, id) { return anfrage("ist-wiederherstellen", { id: id }).then(uebernehmen); }
   };
 
   function ermitteln() {
@@ -2293,7 +2749,7 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
 (function () {
   "use strict";
 
-  var VERSION = "0.2.0";
+  var VERSION = "0.3.0";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -2667,18 +3123,72 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
       '</tbody><tfoot><tr><th scope="row">Planbudget gesamt</th><td class="zahl">' + euro(w.gesamt) + "</td></tr></tfoot></table>";
   }
 
+  /* ---------- IST gegen Plan ---------- */
+
+  function prozent(q, vz) { return esc(D.prozentText(q, vz)); }
+
+  function istUeberschrift(ist) {
+    return "IST " + zustand.jahr + (ist.bisMonat < 12 ? " bis " + D.monatName(ist.monat) : " gesamt");
+  }
+
+  function standHtml(ist) {
+    return '<p class="stand">' + icon("calendar") + "<span>" + esc(D.standText(ist.stand, ist.monat)) +
+      (ist.unterschiedlich ? " (ältester Teil)" : "") + "</span></p>";
+  }
+
+  /* Balken: IST in Prozent vom Plan, Strich = verstrichener Anteil des Jahres */
+  function fortschrittHtml(k) {
+    var breite = k.quote === null ? 0 : Math.max(0, Math.min(1, k.quote)) * 100;
+    return '<div class="fortschritt fortschritt--' + (k.ampel || "leer") + '" role="img" aria-label="IST ' + esc(D.prozentText(k.quote)) + " vom Plan, " +
+      Math.round(k.zeitanteil * 100) + ' % des Jahres vergangen"><span class="fortschritt__balken" style="width:' + breite.toFixed(2) + '%"></span>' +
+      '<span class="fortschritt__zeit" style="left:' + (k.zeitanteil * 100).toFixed(2) + '%"></span></div>';
+  }
+
+  function ampelText(k) {
+    return { rot: "Hochrechnung über Plan", gelb: "Hochrechnung knapp am Plan", gruen: "im Plan" }[k.ampel] || "ohne Planbudget";
+  }
+
+  /* IST-Teil einer Karte (nur Kostenstellen) */
+  function istBlockHtml(plan, ist) {
+    if (!ist.vorhanden) return '<p class="leer-hinweis">Für ' + zustand.jahr + " gibt es noch keine IST-Daten.</p>";
+    var k = D.kennzahlen(plan, ist);
+    return '<div class="ist"><div class="ist__kopf"><h3>' + esc(istUeberschrift(ist)) + "</h3>" +
+      '<span class="ampel ampel--' + (k.ampel || "leer") + '">' + esc(ampelText(k)) + "</span></div>" + standHtml(ist) +
+      '<p class="ist__quote"><strong>' + prozent(k.quote) + "</strong> vom Planbudget ausgegeben</p>" + fortschrittHtml(k) +
+      '<dl class="ist__werte">' +
+      "<div><dt>IST</dt><dd>" + euro(k.ist) + "</dd></div>" +
+      "<div><dt>Restbudget</dt><dd" + (k.rest < 0 ? ' class="minus"' : "") + ">" + euro(k.rest) + "</dd></div>" +
+      (ist.bisMonat < 12 ? "<div><dt>Hochrechnung Jahresende</dt><dd>" + euro(k.hochrechnung) + ' <span class="leise">' + prozent(k.hochQuote) + "</span></dd></div>" : "") +
+      (k.vorjahr !== null ? "<div><dt>Vorjahr gleicher Zeitraum</dt><dd>" + euro(k.vorjahr) + ' <span class="leise">' + prozent(k.vorjahrQuote, true) + "</span></dd></div>" : "") +
+      "</dl></div>";
+  }
+
+  /* Positionen mit Plan, IST und Prozent */
+  function planIstHtml(plan, ist) {
+    function zeile(name, id, klasse) {
+      return "<tr" + (klasse ? ' class="' + klasse + '"' : "") + '><th scope="row">' + name + '</th><td class="zahl">' + euro(plan[id]) + '</td><td class="zahl">' + euro(ist[id]) +
+        '</td><td class="zahl leise">' + prozent(plan[id] > 0 ? ist[id] / plan[id] : null) + "</td></tr>";
+    }
+    return '<table class="positionen positionen--planist"><thead><tr><th><span class="sr">Position</span></th><th class="zahl">Plan</th><th class="zahl">IST</th><th class="zahl">IST in %</th></tr></thead><tbody>' +
+      zeile("Personalkosten ID", "pkId") + zeile("Personalkosten AD", "pkAd") + zeile("Sachkosten", "sachkosten", "positionen__bereich") +
+      zeile("Werbung", "werbung", "positionen__unter") + zeile("Reise/KfZ", "reise", "positionen__unter") + zeile("Sonstiges", "sonstiges", "positionen__unter") +
+      '</tbody><tfoot><tr><th scope="row">Gesamt</th><td class="zahl">' + euro(plan.gesamt) + '</td><td class="zahl">' + euro(ist.gesamt) + '</td><td class="zahl">' +
+      prozent(plan.gesamt > 0 ? ist.gesamt / plan.gesamt : null) + "</td></tr></tfoot></table>";
+  }
+
   /* Eine Karte je Kostenstelle oder Projektnummer, nie gemischt */
   function budgetKarte(art, nummer) {
     var g = D.gesamtBudgetVon(zustand.daten, zustand.jahr, art, nummer), w = g.gesamt;
     var oben = art === "ks" ? D.uebergeordnete(zustand.daten, nummer) : "";
+    var ist = art === "ks" ? D.gesamtIstVon(zustand.daten, zustand.jahr, art, nummer).gesamt : null;
     return '<article class="karte budget" data-nummer="' + esc(art + "-" + nummer) + '">' +
       '<p class="topline">' + (g.uebergreifend ? "Übergreifende Kostenstelle" : esc(D.ARTEN[art].name)) + "</p>" +
       '<h2 class="budget__nummer">' + esc(nummer) + "</h2>" +
       (oben ? '<p class="leise klein">Gehört zur übergreifenden Kostenstelle ' + esc(oben) + ".</p>" : "") +
       (w.vorhanden
         ? '<p class="budget__gesamt"><span class="leise klein">Planbudget ' + zustand.jahr + (g.uebergreifend ? " inklusive zugeordneter Kostenstellen" : "") + "</span><strong>" + euro(w.gesamt) + "</strong></p>" +
-          anteilHtml(w) + positionenHtml(w) + (g.uebergreifend ? zusammensetzungHtml(g) : "")
-        : '<p class="leer-hinweis">Für ' + zustand.jahr + " ist noch kein Planbudget eingetragen.</p>") +
+          anteilHtml(w) + (ist ? istBlockHtml(w, ist) : "") + (ist && ist.vorhanden ? planIstHtml(w, ist) : positionenHtml(w)) + (g.uebergreifend ? zusammensetzungHtml(g) : "")
+        : '<p class="leer-hinweis">Für ' + zustand.jahr + " ist noch kein Planbudget eingetragen.</p>" + (ist && ist.vorhanden ? istBlockHtml(w, ist) + planIstHtml(w, ist) : "")) +
       (g.uebergreifend ? '<p class="budget__link"><a class="btn btn--rahmen" href="#/bericht/' + esc(nummer) + '">' + icon("diagramBarchart") + " Bericht ansehen</a></p>" : "") +
       "</article>";
   }
@@ -2773,7 +3283,7 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
       kennzahl("Personalkosten", euro(gesamt.personalkosten), "ID " + euro(gesamt.pkId) + " · AD " + euro(gesamt.pkAd)) +
       kennzahl("Sachkosten", euro(gesamt.sachkosten), "Werbung, Reise/KfZ, Sonstiges") +
       kennzahl("Ohne Planbudget", String(ohnePlan()), "Kostenstellen und Projektnummern") + "</div>" +
-      tabelleHtml("ks") + tabelleHtml("pn");
+      tabelleHtml("ks") + tabelleHtml("pn") + '<div class="ist-bereich">' + istKennzahlenHtml() + istTabelleHtml() + "</div>";
     seite("uebersicht", "Übersicht", html, true);
     verbindeJahrwahl();
     app.querySelectorAll("[data-budget]").forEach(function (k) {
@@ -2784,17 +3294,73 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
     });
   }
 
-  function tabelleHtml(art) {
-    var a = D.ARTEN[art], l = D.liste(zustand.daten, art);
-    /* Übergreifende Kostenstellen stehen mit ihren zugeordneten Kostenstellen und einer Zwischensumme zusammen */
+  /* Reihenfolge der Kostenstellen: übergreifende mit ihren zugeordneten und einer Zwischensumme */
+  function ksReihe() {
     var reihe = [];
-    l.forEach(function (n) {
-      if (art === "ks" && D.uebergeordnete(zustand.daten, n.nummer)) return;
-      var unter = art === "ks" ? (n.unter || []) : [];
+    D.liste(zustand.daten, "ks").forEach(function (n) {
+      if (D.uebergeordnete(zustand.daten, n.nummer)) return;
+      var unter = n.unter || [];
       reihe.push({ n: n, art: unter.length ? "oben" : "" });
       unter.forEach(function (u) { var e = D.findeNummer(zustand.daten, "ks", u); if (e) reihe.push({ n: e, art: "unter" }); });
       if (unter.length) reihe.push({ n: n, art: "teilsumme" });
     });
+    return reihe;
+  }
+
+  /* Summe über alle Kostenstellen mit IST-Daten; Plan nur dieser Kostenstellen */
+  function istGesamt() {
+    var s = { ist: 0, plan: 0, hoch: 0, anzahl: 0, stand: "", monat: "" };
+    D.liste(zustand.daten, "ks").forEach(function (n) {
+      var ist = D.istVon(zustand.daten, zustand.jahr, n.nummer);
+      if (!ist.vorhanden) return;
+      var k = D.kennzahlen(D.budgetVon(zustand.daten, zustand.jahr, "ks", n.nummer), ist);
+      s.ist += k.ist; s.plan += k.plan; s.hoch += k.hochrechnung; s.anzahl++;
+      if (!s.stand || ist.stand < s.stand) s.stand = ist.stand;
+      if (!s.monat || ist.monat < s.monat) s.monat = ist.monat;
+    });
+    return s;
+  }
+
+  function istKennzahlenHtml() {
+    var s = istGesamt();
+    if (!s.anzahl) return '<p class="leer-hinweis">Für ' + zustand.jahr + ' gibt es noch keine IST-Daten. <a href="#/verwaltung/ist">IST-Daten importieren</a></p>';
+    return '<div class="kennzahlen kennzahlen--ist">' +
+      kennzahl("IST " + zustand.jahr, euro(s.ist), esc(D.standText(s.stand, s.monat)) + (s.anzahl > 1 ? " (ältester Stand)" : "")) +
+      kennzahl("IST in % vom Plan", prozent(s.plan > 0 ? s.ist / s.plan : null), "bei " + s.anzahl + (s.anzahl === 1 ? " Kostenstelle" : " Kostenstellen") + " mit IST-Daten") +
+      kennzahl("Restbudget", euro(s.plan - s.ist), "Plan " + euro(s.plan)) +
+      kennzahl("Hochrechnung Jahresende", euro(s.hoch), prozent(s.plan > 0 ? s.hoch / s.plan : null) + " vom Plan") + "</div>";
+  }
+
+  function istTabelleHtml() {
+    var daten = zustand.daten, jahr = zustand.jahr;
+    var zeilen = ksReihe().map(function (r) {
+      var nr = r.n.nummer, plan, ist;
+      if (r.art === "teilsumme") { plan = D.gesamtBudgetVon(daten, jahr, "ks", nr).gesamt; ist = D.gesamtIstVon(daten, jahr, "ks", nr).gesamt; }
+      else { plan = D.budgetVon(daten, jahr, "ks", nr); ist = D.istVon(daten, jahr, nr); }
+      var kopf = r.art === "teilsumme" ? '<th scope="row">Gesamt übergreifende Kostenstelle ' + esc(nr) + "</th>"
+        : '<th scope="row"><strong>' + esc(nr) + "</strong>" + (r.art === "oben" ? ' <span class="leise klein">eigenes Budget</span>' : "") + "</th>";
+      var klasse = r.art === "teilsumme" ? "teilsumme" : r.art === "unter" ? "unter" : "";
+      if (!ist.vorhanden) return "<tr" + (klasse ? ' class="' + klasse + ' ohne"' : ' class="ohne"') + ">" + kopf + '<td colspan="8" class="leise klein">keine IST-Daten</td></tr>';
+      var k = D.kennzahlen(plan, ist);
+      return "<tr" + (klasse ? ' class="' + klasse + '"' : "") + ">" + kopf +
+        '<td class="klein">' + esc(D.standText(ist.stand, ist.monat).replace("Stand ", "")) + "</td>" +
+        '<td class="zahl">' + euro(k.plan) + '</td><td class="zahl">' + euro(k.ist) + '</td><td class="zahl summe"><strong>' + prozent(k.quote) + "</strong></td>" +
+        '<td class="zahl' + (k.rest < 0 ? " minus" : "") + '">' + euro(k.rest) + '</td><td class="zahl">' + euro(k.hochrechnung) + "</td>" +
+        '<td class="zahl">' + (k.vorjahrQuote === null ? "–" : prozent(k.vorjahrQuote, true)) + "</td>" +
+        '<td><span class="ampel ampel--' + (k.ampel || "leer") + '" title="' + esc(ampelText(k)) + '">' + esc(prozent(k.hochQuote)) + "</span></td></tr>";
+    }).join("");
+    return '<section class="karte bereich-tabelle"><div class="bereich-tabelle__kopf"><h2>IST gegen Plan ' + jahr + "</h2>" +
+      (D.Rechte.budgets(zustand.benutzer) ? '<a class="leise klein" href="#/verwaltung/ist">IST-Daten importieren</a>' : "") + "</div>" +
+      '<p class="leise klein">IST-Daten gibt es je Kostenstelle aus dem KST-Bericht. Die Hochrechnung schreibt das IST bis zum gebuchten Monat gleichmäßig aufs Jahr fort. Die Ampel zeigt die Hochrechnung in % vom Plan: grün bis 95 %, gelb bis 100 %, rot darüber.</p>' +
+      (zeilen ? '<div class="tabelle-huelle"><table class="budgettabelle"><thead><tr><th>Kostenstelle</th><th>Stand · gebucht bis</th><th class="zahl">Plan</th><th class="zahl">IST</th><th class="zahl">IST in %</th>' +
+        '<th class="zahl">Restbudget</th><th class="zahl">Hochrechnung</th><th class="zahl">zum Vorjahr</th><th>Ampel</th></tr></thead><tbody>' + zeilen + "</tbody></table></div>"
+        : '<p class="leer-hinweis">Noch keine Kostenstellen angelegt.</p>') + "</section>";
+  }
+
+  function tabelleHtml(art) {
+    var a = D.ARTEN[art], l = D.liste(zustand.daten, art);
+    /* Übergreifende Kostenstellen stehen mit ihren zugeordneten Kostenstellen und einer Zwischensumme zusammen */
+    var reihe = art === "ks" ? ksReihe() : l.map(function (n) { return { n: n, art: "" }; });
     var zeilen = reihe.map(function (r) {
       var n = r.n;
       if (r.art === "teilsumme") {
@@ -2893,31 +3459,79 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
   ];
 
   function zeigeBericht(nummer) {
-    var g = D.gesamtBudgetVon(zustand.daten, zustand.jahr, "ks", nummer);
-    var spalten = [{ name: "Eigenes Budget", w: g.eigen }].concat(g.unter.map(function (u) { return { name: "Kostenstelle " + u.nummer, w: u.budget }; }));
-    spalten.push({ name: "Gesamt", w: g.gesamt, gesamt: true });
-    var html = '<div class="seite__kopf"><div><p class="topline">Bericht übergreifende Kostenstelle</p><h1>Kostenstelle ' + esc(nummer) + " · " + zustand.jahr + "</h1></div>" + jahrwahlHtml() + "</div>" +
+    var daten = zustand.daten, jahr = zustand.jahr;
+    var g = D.gesamtBudgetVon(daten, jahr, "ks", nummer), gi = D.gesamtIstVon(daten, jahr, "ks", nummer);
+    var spalten = [{ name: "Eigenes Budget", w: g.eigen, i: gi.eigen }].concat(g.unter.map(function (u, x) { return { name: "Kostenstelle " + u.nummer, w: u.budget, i: gi.unter[x].ist }; }));
+    spalten.push({ name: "Gesamt", w: g.gesamt, i: gi.gesamt, gesamt: true });
+    var mitIst = gi.gesamt.vorhanden;
+    function tabelle(titel, zeilen, kopfzeile) {
+      return '<div class="tabelle-huelle"><table class="budgettabelle berichtstabelle"><caption class="sr">' + esc(titel) + "</caption><thead><tr><th>" + esc(kopfzeile) + "</th>" +
+        spalten.map(function (sp) { return '<th class="zahl' + (sp.gesamt ? " summe" : "") + '">' + esc(sp.name) + "</th>"; }).join("") + "</tr></thead><tbody>" + zeilen + "</tbody></table></div>";
+    }
+    function zeile(name, klasse, wert) {
+      return "<tr" + (klasse ? ' class="' + klasse + '"' : "") + '><th scope="row">' + esc(name) + "</th>" +
+        spalten.map(function (sp) { return '<td class="zahl' + (sp.gesamt ? " summe" : "") + '">' + wert(sp) + "</td>"; }).join("") + "</tr>";
+    }
+    function positionen(feld, gesamtName) {
+      return BERICHT_ZEILEN.map(function (z) {
+        return zeile(z.gesamt ? gesamtName : z.name, z.summe ? "teilsumme" : z.gesamt ? "gesamtzeile" : "", function (sp) {
+          var w = sp[feld];
+          if (feld === "i" && !w.vorhanden) return '<span class="leise">–</span>';
+          return z.gesamt ? "<strong>" + euro(w[z.id]) + "</strong>" : euro(w[z.id]);
+        });
+      }).join("");
+    }
+    /* Vergleich Plan und IST je Spalte */
+    var VERGLEICH = [
+      { name: "Planbudget", wert: function (k) { return euro(k.plan); }, roh: function (k) { return k.plan; } },
+      { name: "IST", wert: function (k) { return euro(k.ist); }, roh: function (k) { return k.ist; } },
+      { name: "IST in % vom Plan", klasse: "teilsumme", wert: function (k) { return "<strong>" + prozent(k.quote) + "</strong>"; }, roh: function (k) { return k.quote; }, prozent: true },
+      { name: "Restbudget", wert: function (k) { return euro(k.rest); }, roh: function (k) { return k.rest; } },
+      { name: "Hochrechnung Jahresende", wert: function (k) { return euro(k.hochrechnung); }, roh: function (k) { return k.hochrechnung; } },
+      { name: "Hochrechnung in % vom Plan", wert: function (k) { return prozent(k.hochQuote); }, roh: function (k) { return k.hochQuote; }, prozent: true },
+      { name: "Vorjahr gleicher Zeitraum", wert: function (k) { return k.vorjahr === null ? "–" : euro(k.vorjahr); }, roh: function (k) { return k.vorjahr; } },
+      { name: "Veränderung zum Vorjahr", wert: function (k) { return k.vorjahrQuote === null ? "–" : prozent(k.vorjahrQuote, true); }, roh: function (k) { return k.vorjahrQuote; }, prozent: true }
+    ];
+    var kz = function (sp) { return sp.i.vorhanden ? D.kennzahlen(sp.w, sp.i) : null; };
+    var kg = mitIst ? D.kennzahlen(g.gesamt, gi.gesamt) : null;
+    var html = '<div class="seite__kopf"><div><p class="topline">Bericht übergreifende Kostenstelle</p><h1>Kostenstelle ' + esc(nummer) + " · " + jahr + "</h1></div>" + jahrwahlHtml() + "</div>" +
       '<div class="kennzahlen">' +
       kennzahl("Planbudget gesamt", euro(g.gesamt.gesamt), "eigenes Budget und " + g.unter.length + " zugeordnete Kostenstellen") +
-      kennzahl("Eigenes Budget", euro(g.eigen.gesamt), "Kostenstelle " + esc(nummer)) +
-      kennzahl("Zugeordnete Kostenstellen", euro(D.summe(g.unter.map(function (u) { return u.budget; })).gesamt), esc(g.unter.map(function (u) { return u.nummer; }).join(", "))) +
-      kennzahl("Ohne Planbudget", String(spalten.slice(0, -1).filter(function (x) { return !x.w.vorhanden; }).length), "von " + (spalten.length - 1) + " Teilen") + "</div>" +
-      '<section class="karte bereich-tabelle"><div class="bereich-tabelle__kopf"><h2>Planbudget nach Positionen</h2>' +
-      '<button type="button" class="btn btn--rahmen" data-kopieren>' + icon("copy") + " Tabelle kopieren</button></div>" +
-      '<p class="leise klein">Mit „Tabelle kopieren“ fügst Du die Werte direkt in Excel ein und kannst sie dort mit Deinem Dokument abgleichen. Die IST-Werte kommen mit dem IST-Import dazu.</p>' +
-      '<div class="tabelle-huelle"><table class="budgettabelle berichtstabelle"><thead><tr><th>Position</th>' +
-      spalten.map(function (sp) { return '<th class="zahl' + (sp.gesamt ? " summe" : "") + '">' + esc(sp.name) + "</th>"; }).join("") + "</tr></thead><tbody>" +
-      BERICHT_ZEILEN.map(function (z) {
-        return "<tr" + (z.summe ? ' class="teilsumme"' : z.gesamt ? ' class="gesamtzeile"' : "") + '><th scope="row">' + esc(z.name) + "</th>" +
-          spalten.map(function (sp) { return '<td class="zahl' + (sp.gesamt ? " summe" : "") + '">' + (z.gesamt ? "<strong>" + euro(sp.w[z.id]) + "</strong>" : euro(sp.w[z.id])) + "</td>"; }).join("") + "</tr>";
-      }).join("") + "</tbody></table></div></section>";
+      (kg ? kennzahl(istUeberschrift(gi.gesamt), euro(kg.ist), esc(D.standText(gi.gesamt.stand, gi.gesamt.monat))) +
+        kennzahl("IST in % vom Plan", prozent(kg.quote), "Restbudget " + euro(kg.rest)) +
+        kennzahl("Hochrechnung Jahresende", euro(kg.hochrechnung), prozent(kg.hochQuote) + " vom Plan")
+        : kennzahl("Eigenes Budget", euro(g.eigen.gesamt), "Kostenstelle " + esc(nummer)) +
+        kennzahl("Zugeordnete Kostenstellen", euro(D.summe(g.unter.map(function (u) { return u.budget; })).gesamt), esc(g.unter.map(function (u) { return u.nummer; }).join(", "))) +
+        kennzahl("IST-Daten", "–", "noch nicht importiert")) + "</div>" +
+      '<section class="karte bereich-tabelle"><div class="bereich-tabelle__kopf"><h2>Bericht ' + jahr + "</h2>" +
+      '<button type="button" class="btn btn--rahmen" data-kopieren>' + icon("copy") + " Bericht kopieren</button></div>" +
+      '<p class="leise klein">Mit „Bericht kopieren“ fügst Du alle Tabellen direkt in Excel ein und kannst sie dort mit Deinen KST-Berichten abgleichen. ' +
+      "„IST gesamt“ entspricht den Primärkosten I im KST-Bericht.</p>" +
+      "<h3>Planbudget nach Positionen</h3>" + tabelle("Planbudget nach Positionen", positionen("w", "Planbudget gesamt"), "Position") +
+      (mitIst
+        ? "<h3>" + esc(istUeberschrift(gi.gesamt)) + " nach Positionen</h3>" +
+          tabelle("IST nach Positionen", zeile("Stand", "standzeile", function (sp) { return sp.i.vorhanden ? esc(D.standText(sp.i.stand, sp.i.monat).replace("Stand ", "")) : '<span class="leise">keine IST-Daten</span>'; }) +
+            positionen("i", "IST gesamt (Primärkosten I)"), "Position") +
+          "<h3>Plan gegen IST</h3>" + tabelle("Plan gegen IST", VERGLEICH.map(function (v) {
+            return zeile(v.name, v.klasse || "", function (sp) { var k = kz(sp); return k ? v.wert(k) : '<span class="leise">–</span>'; });
+          }).join(""), "Kennzahl")
+        : '<p class="leer-hinweis">Für ' + jahr + " gibt es noch keine IST-Daten zu dieser Kostenstelle und den zugeordneten.</p>") +
+      "</section>";
     seite("bericht", "Bericht " + nummer, html, true);
     verbindeJahrwahl();
     app.querySelector("[data-kopieren]").addEventListener("click", function () {
       var zahl = function (z) { return (Number(z) || 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false }); };
-      var text = ["Kostenstelle " + nummer + " " + zustand.jahr].concat(spalten.map(function (sp) { return sp.name; })).join("\t") + "\n" +
-        BERICHT_ZEILEN.map(function (z) { return [z.name].concat(spalten.map(function (sp) { return zahl(sp.w[z.id]); })).join("\t"); }).join("\n");
-      kopiere(text).then(function () { meldung("Die Tabelle ist kopiert. Füge sie in Excel mit Strg+V ein."); }, function () { meldung("Das Kopieren hat nicht geklappt. Markiere die Tabelle bitte von Hand.", true); });
+      var pz = function (q) { return q === null || q === undefined || !isFinite(q) ? "" : (q * 100).toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false }) + " %"; };
+      function block(titel, zeilen) { return [titel].concat(spalten.map(function (sp) { return sp.name; })).join("\t") + "\n" + zeilen.join("\n"); }
+      var teile = [block("Planbudget Kostenstelle " + nummer + " " + jahr, BERICHT_ZEILEN.map(function (z) { return [z.gesamt ? "Planbudget gesamt" : z.name].concat(spalten.map(function (sp) { return zahl(sp.w[z.id]); })).join("\t"); }))];
+      if (mitIst) {
+        teile.push(block(istUeberschrift(gi.gesamt) + " Kostenstelle " + nummer, [["Stand"].concat(spalten.map(function (sp) { return sp.i.vorhanden ? D.standText(sp.i.stand, sp.i.monat).replace("Stand ", "") : ""; })).join("\t")]
+          .concat(BERICHT_ZEILEN.map(function (z) { return [z.gesamt ? "IST gesamt (Primärkosten I)" : z.name].concat(spalten.map(function (sp) { return sp.i.vorhanden ? zahl(sp.i[z.id]) : ""; })).join("\t"); }))));
+        teile.push(block("Plan gegen IST", VERGLEICH.map(function (v) {
+          return [v.name].concat(spalten.map(function (sp) { var k = kz(sp), r = k ? v.roh(k) : null; return r === null ? "" : v.prozent ? pz(r) : zahl(r); })).join("\t");
+        })));
+      }
+      kopiere(teile.join("\n\n")).then(function () { meldung("Der Bericht ist kopiert. Füge ihn in Excel mit Strg+V ein."); }, function () { meldung("Das Kopieren hat nicht geklappt. Markiere die Tabellen bitte von Hand.", true); });
     });
   }
 
@@ -2928,7 +3542,8 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
     var r = [
       { id: "benutzer", name: "Benutzer", icon: "peopleTwo" },
       { id: "kostenstellen", name: "Kostenstellen", icon: "folderOpen" },
-      { id: "projekte", name: "Projektnummern", icon: "briefcase" }
+      { id: "projekte", name: "Projektnummern", icon: "briefcase" },
+      { id: "ist", name: "IST-Daten", icon: "documentXls" }
     ];
     if (D.Rechte.einstellungen(b)) r.push({ id: "einstellungen", name: "Einstellungen", icon: "settings" });
     return r;
@@ -2947,6 +3562,7 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
     var kopfaktion = app.querySelector("[data-kopfaktion]");
     if (unter === "benutzer") verwaltungBenutzer(ziel, kopfaktion);
     else if (unter === "einstellungen") verwaltungEinstellungen(ziel);
+    else if (unter === "ist") verwaltungIst(ziel);
     else verwaltungNummern(unter === "projekte" ? "pn" : "ks", ziel, kopfaktion);
   }
 
@@ -3164,6 +3780,119 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
         Dienst.nummerSpeichern(daten, ich, art, eintrag ? eintrag.nummer : "", nummer, kennungen, unter)
           .then(nachAenderung("Die " + a.name + " " + nummer + " ist gespeichert."), function (x) { serverFehler(x, f); });
       });
+  }
+
+  /* ---------- IST-Daten: Import je Kostenstelle und Sicherungen ---------- */
+
+  function datumZeit(iso) {
+    var d = new Date(iso);
+    return isNaN(d) ? "" : d.toLocaleDateString("de-DE") + ", " + d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) + " Uhr";
+  }
+
+  function nameVon(kennung) { var b = D.findeBenutzer(zustand.daten, kennung); return b ? D.anzeigeName(b) : kennung || "–"; }
+
+  function verwaltungIst(ziel) {
+    var daten = zustand.daten, ich = zustand.benutzer, darfImport = D.Rechte.budgets(ich);
+    var ks = daten.kostenstellen;
+    var staende = ks.filter(function (n) { return daten.ist && daten.ist["ks-" + n.nummer]; });
+    var html = "";
+    if (darfImport) {
+      html += '<form class="karte" data-import novalidate><h2>KST-Bericht importieren</h2>' +
+        "<p>Wähle die Kostenstelle und ihren KST-Bericht als Excel-Datei (.xlsx). Die bisherigen IST-Daten dieser Kostenstelle werden ersetzt. Vorher legt das Tool automatisch eine Sicherung an.</p>" +
+        (ks.length
+          ? '<div class="import-felder"><div class="feld"><label for="i-ks">Kostenstelle</label><select id="i-ks" name="ks"><option value="">Bitte wählen</option>' +
+            ks.map(function (n) { return '<option value="' + esc(n.nummer) + '">' + esc(n.nummer) + "</option>"; }).join("") + "</select></div>" +
+            '<div class="feld"><label for="i-datei">KST-Bericht</label><input id="i-datei" name="datei" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></div></div>' +
+            '<div data-vorschau></div><p class="fehlertext" hidden></p>' +
+            '<button type="submit" class="btn btn--primaer" data-importieren disabled>' + icon("documentXls") + " IST-Daten importieren</button>"
+          : '<p class="leer-hinweis">Lege zuerst Kostenstellen an.</p>') + "</form>";
+      html += '<section class="karte"><h2>Aktuelle IST-Stände</h2>' + (staende.length
+        ? '<div class="tabelle-huelle"><table><thead><tr><th>Kostenstelle</th><th>Stand</th><th>Gebucht bis</th><th>Importiert</th><th>Datei</th></tr></thead><tbody>' +
+          staende.map(function (n) {
+            var e = daten.ist["ks-" + n.nummer];
+            return '<tr><th scope="row"><strong>' + esc(n.nummer) + "</strong></th><td>" + esc(D.standText(e.stand).replace("Stand ", "")) + "</td><td>" + esc(D.monatName(e.monat) + " " + e.monat.slice(0, 4)) +
+              '</td><td class="klein">' + esc(datumZeit(e.importiert)) + "<br>" + esc(nameVon(e.von)) + '</td><td class="klein">' + esc(e.datei || "–") + "</td></tr>";
+          }).join("") + "</tbody></table></div>"
+        : '<p class="leer-hinweis">Noch keine IST-Daten importiert.</p>') + "</section>";
+    }
+    var sich = daten.istSicherungen || [];
+    html += '<section class="karte"><h2>Sicherungen</h2><p class="leise klein">Vor jedem Import und jeder Wiederherstellung sichert das Tool den bisherigen Stand der Kostenstelle. ' +
+      "Mit „Wiederherstellen“ holst Du diesen Stand zurück; der dann ersetzte Stand wird wiederum gesichert.</p>" + (sich.length
+      ? '<div class="tabelle-huelle"><table><thead><tr><th>Zeitpunkt</th><th>Kostenstelle</th><th>Anlass</th><th>Gesicherter Stand</th><th><span class="sr">Aktion</span></th></tr></thead><tbody>' +
+        sich.map(function (x) {
+          return '<tr><td class="klein">' + esc(datumZeit(x.zeit)) + "<br>" + esc(nameVon(x.von)) + "</td><td><strong>" + esc(x.nummer) + "</strong></td><td>" + esc(x.anlass || "Import") + "</td><td>" +
+            (x.vorherStand ? esc(D.standText(x.vorherStand, x.vorherMonat)) : '<span class="leise">keine IST-Daten</span>') + "</td>" +
+            '<td><button type="button" class="btn btn--rahmen btn--klein" data-wiederherstellen="' + esc(x.id) + '">' + icon("reload") + " Wiederherstellen</button></td></tr>";
+        }).join("") + "</tbody></table></div>"
+      : '<p class="leer-hinweis">Noch keine Sicherungen vorhanden.</p>') + "</section>";
+    ziel.innerHTML = '<div class="stapel">' + html + "</div>";
+
+    ziel.querySelectorAll("[data-wiederherstellen]").forEach(function (k) {
+      k.addEventListener("click", function () {
+        var x = sich.filter(function (s) { return s.id === k.getAttribute("data-wiederherstellen"); })[0];
+        bestaetige("Sicherung wiederherstellen", "Möchtest Du für die Kostenstelle " + x.nummer + " den Stand vom " + datumZeit(x.zeit) + " wiederherstellen? " +
+          (x.vorherStand ? "Danach gilt wieder der " + D.standText(x.vorherStand, x.vorherMonat) + "." : "Danach hat die Kostenstelle keine IST-Daten mehr.") + " Der aktuelle Stand wird vorher gesichert.", "Wiederherstellen")
+          .then(function (ja) { if (ja) Dienst.istWiederherstellen(daten, ich, x.id).then(nachAenderung("Der Stand der Kostenstelle " + x.nummer + " ist wiederhergestellt."), serverFehler); });
+      });
+    });
+
+    var form = ziel.querySelector("[data-import]");
+    if (!form || !form.ks) return;
+    var gelesen = null, dateiName = "";
+    var vorschau = form.querySelector("[data-vorschau]"), knopf = form.querySelector("[data-importieren]");
+    function pruefen() {
+      knopf.disabled = true;
+      zeigeFehler(form, "");
+      if (!gelesen) return;
+      if (gelesen.fehler) { zeigeFehler(form, gelesen.fehler); return; }
+      if (!D.findeNummer(daten, "ks", gelesen.kst)) { zeigeFehler(form, "Die Datei gehört zur Kostenstelle " + gelesen.kst + ". Diese Kostenstelle gibt es im Tool noch nicht. Lege sie bitte zuerst an."); return; }
+      if (!form.ks.value) form.ks.value = gelesen.kst;
+      if (form.ks.value !== gelesen.kst) { zeigeFehler(form, "Die Datei gehört zur Kostenstelle " + gelesen.kst + ", gewählt ist " + form.ks.value + ". Prüfe bitte Deine Auswahl oder die Datei."); return; }
+      knopf.disabled = false;
+    }
+    function vorschauHtml(e) {
+      var sp = [{ name: "IST " + e.aktuell.jahr + " bis " + D.monatName(e.monat), t: e.aktuell }];
+      if (e.vorjahrZeitraum) sp.push({ name: "IST " + e.vorjahrZeitraum.jahr + " bis " + D.monatName(e.monat), t: e.vorjahrZeitraum });
+      if (e.vorjahr) sp.push({ name: "IST " + e.vorjahr.jahr + " gesamt", t: e.vorjahr });
+      var mit = sp.map(function (s) { return D.istVon({ ist: { "ks-x": { stand: e.stand, monat: e.monat, aktuell: s.t } } }, s.t.jahr, "x"); });
+      var zeilen = [["Personalkosten ID", "pkId"], ["Personalkosten AD", "pkAd"], ["Werbung", "werbung"], ["Reise/KfZ", "reise"], ["Sonstiges", "sonstiges"], ["Sachkosten", "sachkosten"], ["Gesamt (Primärkosten I)", "gesamt"]];
+      return '<div class="vorschau"><p><strong>Kostenstelle ' + esc(e.kst) + "</strong> · " + esc(D.standText(e.stand, e.monat)) + "</p>" +
+        '<div class="tabelle-huelle"><table class="budgettabelle"><thead><tr><th>Position</th>' + sp.map(function (s) { return '<th class="zahl">' + esc(s.name) + "</th>"; }).join("") + "</tr></thead><tbody>" +
+        zeilen.map(function (z) {
+          return "<tr" + (z[1] === "gesamt" || z[1] === "sachkosten" ? ' class="teilsumme"' : "") + '><th scope="row">' + esc(z[0]) + "</th>" + mit.map(function (w) { return '<td class="zahl">' + euro(w[z[1]]) + "</td>"; }).join("") + "</tr>";
+        }).join("") + "</tbody></table></div>" +
+        (e.warnungen.length ? '<ul class="warnungen">' + e.warnungen.map(function (w) { return "<li>" + icon("warning") + "<span>" + esc(w) + "</span></li>"; }).join("") + "</ul>"
+          : '<p class="ok-hinweis">' + icon("checkmarkCircle") + "<span>Die Summen stimmen mit der Datei überein (Sachkosten und Primärkosten I).</span></p>") + "</div>";
+    }
+    form.ks.addEventListener("change", pruefen);
+    form.datei.addEventListener("change", function () {
+      var datei = form.datei.files && form.datei.files[0];
+      gelesen = null; vorschau.innerHTML = ""; pruefen();
+      if (!datei) return;
+      dateiName = datei.name;
+      datei.arrayBuffer().then(function (b) { return window.BDExcel.arbeitsmappeLesen(b); }).then(function (blaetter) {
+        var erstes = null;
+        for (var i = 0; i < blaetter.length; i++) {
+          var e = D.istAuslesen(blaetter[i].zeilen);
+          if (!e.fehler) { gelesen = e; break; }
+          if (!erstes) erstes = e;
+        }
+        gelesen = gelesen || erstes || { fehler: "Die Datei enthält kein Arbeitsblatt." };
+        if (!gelesen.fehler) vorschau.innerHTML = vorschauHtml(gelesen);
+        pruefen();
+      }).catch(function (x) { gelesen = { fehler: x && x.message ? x.message : "Die Datei lässt sich nicht lesen." }; pruefen(); });
+    });
+    form.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      if (knopf.disabled || !gelesen || gelesen.fehler) return;
+      var e = gelesen, nr = form.ks.value;
+      bestaetige("IST-Daten importieren", "Die IST-Daten der Kostenstelle " + nr + " werden durch den " + D.standText(e.stand, e.monat) + " ersetzt. Der bisherige Stand wird vorher gesichert.", "Importieren")
+        .then(function (ja) {
+          if (!ja) return;
+          Dienst.istImportieren(daten, ich, nr, { stand: e.stand, monat: e.monat, aktuell: e.aktuell, vorjahrZeitraum: e.vorjahrZeitraum, vorjahr: e.vorjahr, datei: dateiName })
+            .then(nachAenderung("Die IST-Daten der Kostenstelle " + nr + " sind importiert."), function (x) { serverFehler(x, form); });
+        });
+    });
   }
 
   function verwaltungEinstellungen(ziel) {

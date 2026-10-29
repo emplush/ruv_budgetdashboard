@@ -151,6 +151,8 @@
       kostenstellen: [],
       projekte: [],
       budgets: {},
+      ist: {},
+      istSicherungen: [],
       geaendert: jetzt()
     };
   }
@@ -179,6 +181,8 @@
     Object.keys(basis).forEach(function (k) { if (daten[k] === undefined) daten[k] = basis[k]; });
     daten.einstellungen = Object.assign({}, basis.einstellungen, daten.einstellungen);
     if (!daten.budgets || typeof daten.budgets !== "object" || Array.isArray(daten.budgets)) daten.budgets = {};
+    if (!daten.ist || typeof daten.ist !== "object" || Array.isArray(daten.ist)) daten.ist = {};
+    if (!Array.isArray(daten.istSicherungen)) daten.istSicherungen = [];
     daten.benutzer.forEach(function (b) {
       var muster = neuerBenutzer(b.kennung);
       Object.keys(muster).forEach(function (k) { if (b[k] === undefined) b[k] = muster[k]; });
@@ -345,10 +349,14 @@
         var j = daten.budgets[jahr];
         if (j[art + "-" + alt]) { j[art + "-" + nummer] = j[art + "-" + alt]; delete j[art + "-" + alt]; }
       });
-      if (art === "ks") daten.kostenstellen.forEach(function (n) {
-        var i = (n.unter || []).indexOf(alt);
-        if (i >= 0) { n.unter[i] = nummer; n.unter.sort(); }
-      });
+      if (art === "ks") {
+        daten.kostenstellen.forEach(function (n) {
+          var i = (n.unter || []).indexOf(alt);
+          if (i >= 0) { n.unter[i] = nummer; n.unter.sort(); }
+        });
+        if (daten.ist["ks-" + alt]) { daten.ist["ks-" + nummer] = daten.ist["ks-" + alt]; delete daten.ist["ks-" + alt]; }
+        daten.istSicherungen.forEach(function (x) { if (x.nummer === alt) x.nummer = nummer; });
+      }
     }
     eintrag.nummer = nummer;
     eintrag.benutzer = zugewiesen;
@@ -363,6 +371,8 @@
     else {
       daten.kostenstellen = daten.kostenstellen.filter(function (n) { return n.nummer !== nummer; });
       daten.kostenstellen.forEach(function (n) { n.unter = (n.unter || []).filter(function (u) { return u !== nummer; }); });
+      delete daten.ist["ks-" + nummer];
+      daten.istSicherungen = daten.istSicherungen.filter(function (x) { return x.nummer !== nummer; });
     }
     Object.keys(daten.budgets).forEach(function (jahr) {
       delete daten.budgets[jahr][art + "-" + nummer];
@@ -466,6 +476,223 @@
     return Object.keys(menge).map(Number).sort(function (a, b) { return b - a; });
   }
 
+  /* ---------- IST-Daten (Import aus dem KST-Bericht, je Kostenstelle) ---------- */
+
+  var MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+  var MAX_SICHERUNGEN = 30;
+
+  function zahl(text) {
+    var t = String(text == null ? "" : text).trim();
+    if (!t) return 0;
+    var z = Number(t);
+    return isFinite(z) ? runde(z) : null;
+  }
+
+  /* Deutet einen KST-Bericht (Zeilen wie von BDExcel: zeilen[zeile][spalte] als Text).
+     Kostenstelle aus „KST163000“ (Stellen 2 bis 4), Datenstand und Abrechnungsmonat aus dem Kopf,
+     IST-Spalten über „Ist“ / Jahr / „Dezember (kum)“ oder „aktMon (kum vt)“, Zeilen über die Bezeichnung in Spalte A.
+     Liefert { fehler } oder { kst, stand, monat, aktuell, vorjahrZeitraum, vorjahr, warnungen }. */
+  function istAuslesen(zeilen) {
+    zeilen = zeilen || [];
+    var kst = "", stand = "", monat = "";
+    zeilen.forEach(function (z) {
+      (z || []).forEach(function (w) {
+        var t = String(w == null ? "" : w), m;
+        if (!kst && (m = /KST\s*\d(\d{3})\d{2}(?!\d)/i.exec(t))) kst = m[1];
+        if (!stand && (m = /Datenstand:?\s*(\d{1,2})\.(\d{1,2})\.(\d{4})/i.exec(t))) stand = m[3] + "-" + ("0" + m[2]).slice(-2) + "-" + ("0" + m[1]).slice(-2);
+        if (!monat && (m = /Abrechnungsmonat:?\s*(\d{1,2})\.(\d{4})/i.exec(t))) monat = m[2] + "-" + ("0" + m[1]).slice(-2);
+      });
+    });
+    if (!kst) return { fehler: "In der Datei steht keine Kostenstelle (zum Beispiel KST163000 in Zelle B9)." };
+    if (!stand) return { fehler: "In der Datei fehlt der Datenstand (zum Beispiel „Datenstand: 22.10.2026“)." };
+    if (!monat) return { fehler: "In der Datei fehlt der Abrechnungsmonat (zum Beispiel „Abrechnungsmonat: 09.2026“)." };
+    var spalten = [];
+    for (var r = 0; r < zeilen.length - 3 && !spalten.length; r++) {
+      (zeilen[r] || []).forEach(function (w, c) {
+        if (String(w).trim() !== "Ist") return;
+        var jahr = /(\d{4})/.exec(String((zeilen[r + 2] || [])[c] || "")), art = String((zeilen[r + 3] || [])[c] || "");
+        if (!jahr) return;
+        if (/Dezember/i.test(art)) spalten.push({ c: c, jahr: Number(jahr[1]), voll: true });
+        else if (/aktMon/i.test(art)) spalten.push({ c: c, jahr: Number(jahr[1]), voll: false });
+      });
+    }
+    var bis = spalten.filter(function (s) { return !s.voll; }).sort(function (a, b) { return b.jahr - a.jahr; });
+    if (!bis.length) return { fehler: "In der Datei fehlt die Spalte mit dem IST des aktuellen Jahres („Ist“, Jahr, „aktMon (kum vt)“)." };
+    var aktJahr = bis[0].jahr;
+    if (Number(monat.slice(0, 4)) !== aktJahr) return { fehler: "Abrechnungsmonat " + monat.slice(5) + "." + monat.slice(0, 4) + " passt nicht zum IST-Jahr " + aktJahr + "." };
+    function zeileVon(muster) {
+      for (var i = 0; i < zeilen.length; i++) if (zeilen[i] && muster.test(String(zeilen[i][0] || "").trim())) return i;
+      return -1;
+    }
+    var z = {
+      pkAd: zeileVon(/^Personalkosten A{1,2}D\b/i), pkId: zeileVon(/^Personalkosten ID\b/i), sach: zeileVon(/^Sachkosten\b/i),
+      werbung: zeileVon(/^Werbung/i), reise: zeileVon(/^Reise/i), primaer: zeileVon(/^Primärkosten I\b/i)
+    };
+    var fehlt = Object.keys(z).filter(function (k) { return z[k] < 0; });
+    if (fehlt.length) return { fehler: "In der Datei fehlen Zeilen: " + fehlt.map(function (k) { return { pkAd: "Personalkosten AD", pkId: "Personalkosten ID", sach: "Sachkosten", werbung: "Werbung", reise: "Reise/Kfz", primaer: "Primärkosten I" }[k]; }).join(", ") + "." };
+    if (!(z.sach < z.werbung && z.werbung < z.primaer && z.sach < z.reise && z.reise < z.primaer)) return { fehler: "Die Zeilen der Sachkosten stehen nicht in der erwarteten Reihenfolge." };
+    var warnungen = [], kaputt = "";
+    function werteVon(s) {
+      function w(i) { var x = zahl((zeilen[i] || [])[s.c]); if (x === null) kaputt = "Zeile " + (i + 1); return x || 0; }
+      var sonst = 0;
+      for (var i = z.sach + 1; i < z.primaer; i++) if (i !== z.werbung && i !== z.reise) sonst += w(i);
+      var werte = { pkId: w(z.pkId), pkAd: w(z.pkAd), werbung: w(z.werbung), reise: w(z.reise), sonstiges: runde(sonst) };
+      var name = (s.voll ? "IST " + s.jahr + " gesamt" : "IST " + s.jahr + " bis " + MONATE[Number(monat.slice(5)) - 1]);
+      if (Math.abs(werte.werbung + werte.reise + werte.sonstiges - w(z.sach)) > 0.05) warnungen.push(name + ": Die Sachkosten der Datei passen nicht zur Summe der einzelnen Zeilen.");
+      if (Math.abs(werte.pkId + werte.pkAd + w(z.sach) - w(z.primaer)) > 0.05) warnungen.push(name + ": Personal- und Sachkosten ergeben nicht die Primärkosten I der Datei.");
+      return werte;
+    }
+    var voll = spalten.filter(function (s) { return s.voll && s.jahr === aktJahr - 1; })[0];
+    var vz = bis.filter(function (s) { return s.jahr === aktJahr - 1; })[0];
+    var aus = {
+      kst: kst, stand: stand, monat: monat,
+      aktuell: { jahr: aktJahr, werte: werteVon(bis[0]) },
+      vorjahrZeitraum: vz ? { jahr: vz.jahr, werte: werteVon(vz) } : null,
+      vorjahr: voll ? { jahr: voll.jahr, werte: werteVon(voll) } : null,
+      warnungen: warnungen
+    };
+    if (kaputt) return { fehler: "In der Datei steht in " + kaputt + " kein gültiger Betrag." };
+    return aus;
+  }
+
+  function monatName(monat) { return MONATE[Number(String(monat).slice(5)) - 1] || ""; }
+
+  /* „Stand 22.10.2026 · gebucht bis September 2026“ */
+  function standText(stand, monat) {
+    var s = String(stand || "").split("-");
+    return "Stand " + s[2] + "." + s[1] + "." + s[0] + (monat ? " · gebucht bis " + monatName(monat) + " " + String(monat).slice(0, 4) : "");
+  }
+
+  function pruefeIstWerte(w) {
+    if (!w || typeof w !== "object") return false;
+    for (var i = 0; i < POSITIONEN.length; i++) {
+      var z = w[POSITIONEN[i].id];
+      if (typeof z !== "number" || !isFinite(z) || Math.abs(z) > MAX_BETRAG) return false;
+    }
+    return true;
+  }
+
+  function istTeil(t) {
+    if (t == null) return null;
+    if (!istJahr(t.jahr) || !pruefeIstWerte(t.werte)) return undefined;
+    var w = {};
+    POSITIONEN.forEach(function (p) { w[p.id] = runde(t.werte[p.id]); });
+    return { jahr: Number(t.jahr), werte: w };
+  }
+
+  /* Ersetzt die IST-Daten einer Kostenstelle. Vorher legt es eine Sicherung des bisherigen Stands an. Liefert Fehlertext oder "". */
+  function setzeIst(daten, nummer, e, kennung, jetztZeit) {
+    if (!findeNummer(daten, "ks", nummer)) return "Die Kostenstelle " + nummer + " gibt es nicht.";
+    e = e || {};
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(e.stand || "") || !/^\d{4}-(0[1-9]|1[0-2])$/.test(e.monat || "")) return "Datenstand oder Abrechnungsmonat fehlen.";
+    var akt = istTeil(e.aktuell), vz = istTeil(e.vorjahrZeitraum), vj = istTeil(e.vorjahr);
+    if (!akt || vz === undefined || vj === undefined) return "Die IST-Werte sind unvollständig.";
+    if (Number(e.monat.slice(0, 4)) !== akt.jahr) return "Abrechnungsmonat und IST-Jahr passen nicht zusammen.";
+    var zeit = jetztZeit || jetzt();
+    sichereIst(daten, nummer, kennung, zeit, "Import");
+    daten.ist["ks-" + nummer] = {
+      stand: e.stand, monat: e.monat, aktuell: akt, vorjahrZeitraum: vz, vorjahr: vj,
+      datei: String(e.datei || "").slice(0, 120), importiert: zeit, von: kennung || ""
+    };
+    return "";
+  }
+
+  function sichereIst(daten, nummer, kennung, zeit, anlass) {
+    var vorher = daten.ist["ks-" + nummer] || null;
+    daten.istSicherungen.unshift({
+      id: "s" + Date.parse(zeit).toString(36) + Math.random().toString(36).slice(2, 7),
+      zeit: zeit, von: kennung || "", nummer: nummer, anlass: anlass, vorher: vorher ? kopie(vorher) : null
+    });
+    daten.istSicherungen = daten.istSicherungen.slice(0, MAX_SICHERUNGEN);
+  }
+
+  /* Stellt den Stand vor einem Import wieder her; der ersetzte Stand wird dabei selbst gesichert. */
+  function stelleIstWiederHer(daten, id, kennung) {
+    var s = daten.istSicherungen.filter(function (x) { return x.id === id; })[0];
+    if (!s) return "Diese Sicherung gibt es nicht mehr.";
+    if (!findeNummer(daten, "ks", s.nummer)) return "Die Kostenstelle " + s.nummer + " gibt es nicht mehr.";
+    var vorher = s.vorher;
+    sichereIst(daten, s.nummer, kennung, jetzt(), "Wiederherstellung");
+    if (vorher) daten.ist["ks-" + s.nummer] = kopie(vorher);
+    else delete daten.ist["ks-" + s.nummer];
+    return "";
+  }
+
+  function mitSummen(w) {
+    var aus = {};
+    POSITIONEN.forEach(function (p) { aus[p.id] = w ? Number(w[p.id]) || 0 : 0; });
+    aus.sachkosten = runde(aus.werbung + aus.reise + aus.sonstiges);
+    aus.personalkosten = runde(aus.pkId + aus.pkAd);
+    aus.gesamt = runde(aus.personalkosten + aus.sachkosten);
+    return aus;
+  }
+
+  /* IST einer Kostenstelle in einem Jahr: bisMonat (12 = ganzes Jahr), vergleich = Vorjahr im gleichen Zeitraum */
+  function istVon(daten, jahr, nummer) {
+    var e = (daten.ist || {})["ks-" + nummer];
+    jahr = Number(jahr);
+    if (e && e.aktuell && e.aktuell.jahr === jahr) {
+      var w = mitSummen(e.aktuell.werte);
+      w.vorhanden = true; w.bisMonat = Number(e.monat.slice(5)); w.stand = e.stand; w.monat = e.monat;
+      w.vergleich = e.vorjahrZeitraum ? mitSummen(e.vorjahrZeitraum.werte) : null;
+      return w;
+    }
+    if (e && e.vorjahr && e.vorjahr.jahr === jahr) {
+      var v = mitSummen(e.vorjahr.werte);
+      v.vorhanden = true; v.bisMonat = 12; v.stand = e.stand; v.monat = jahr + "-12"; v.vergleich = null;
+      return v;
+    }
+    var leer = mitSummen(null);
+    leer.vorhanden = false; leer.bisMonat = 0; leer.stand = ""; leer.monat = ""; leer.vergleich = null;
+    return leer;
+  }
+
+  /* IST einer übergreifenden Kostenstelle = eigenes IST plus IST der zugeordneten. Stand und Monat: der älteste Teil. */
+  function gesamtIstVon(daten, jahr, art, nummer) {
+    if (art !== "ks") { var l = mitSummen(null); l.vorhanden = false; return { uebergreifend: false, eigen: l, unter: [], gesamt: l }; }
+    var eigen = istVon(daten, jahr, nummer);
+    var e = findeNummer(daten, "ks", nummer);
+    var unter = (e && e.unter || []).map(function (u) { return { nummer: u, ist: istVon(daten, jahr, u) }; });
+    var teile = [eigen].concat(unter.map(function (u) { return u.ist; })).filter(function (t) { return t.vorhanden; });
+    var g = summe(teile);
+    g.vorhanden = teile.length > 0;
+    g.bisMonat = teile.length ? Math.min.apply(null, teile.map(function (t) { return t.bisMonat; })) : 0;
+    var aeltester = teile.slice().sort(function (a, b) { return a.stand < b.stand ? -1 : a.stand > b.stand ? 1 : 0; })[0];
+    g.stand = aeltester ? aeltester.stand : "";
+    g.monat = teile.length ? teile.map(function (t) { return t.monat; }).sort()[0] : "";
+    g.unterschiedlich = teile.some(function (t) { return t.stand !== g.stand || t.monat !== g.monat; });
+    var vgl = teile.filter(function (t) { return t.vergleich; });
+    g.vergleich = vgl.length === teile.length && teile.length ? summe(vgl.map(function (t) { return t.vergleich; })) : null;
+    g.fehlend = 1 + unter.length - teile.length;
+    return { uebergreifend: unter.length > 0, eigen: eigen, unter: unter, gesamt: g };
+  }
+
+  /* Kennzahlen IST gegen Plan */
+  function kennzahlen(plan, ist) {
+    var p = plan.gesamt, i = ist.gesamt, monate = ist.bisMonat || 12;
+    var hoch = ist.bisMonat >= 12 ? i : runde(i / monate * 12);
+    var k = {
+      ist: i, plan: p,
+      quote: p > 0 ? i / p : null,
+      rest: runde(p - i),
+      zeitanteil: monate / 12,
+      hochrechnung: hoch,
+      hochQuote: p > 0 ? hoch / p : null,
+      abweichung: runde(hoch - p),
+      vorjahr: ist.vergleich ? ist.vergleich.gesamt : null,
+      vorjahrDiff: ist.vergleich ? runde(i - ist.vergleich.gesamt) : null,
+      vorjahrQuote: ist.vergleich && ist.vergleich.gesamt ? (i - ist.vergleich.gesamt) / ist.vergleich.gesamt : null
+    };
+    k.ampel = k.hochQuote === null ? "" : k.hochQuote > 1 ? "rot" : k.hochQuote > 0.95 ? "gelb" : "gruen";
+    return k;
+  }
+
+  function prozentText(q, mitVorzeichen) {
+    if (q === null || q === undefined || !isFinite(q)) return "–";
+    var t = (q * 100).toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " %";
+    return mitVorzeichen && q > 0 ? "+" + t : t;
+  }
+
   /* ---------- Begrüßung ---------- */
 
   function begruessung(datum) {
@@ -524,6 +751,14 @@
         });
       });
     }
+    /* IST wie Planbudgets; Sicherungen nur als Liste ohne Werte für Abteilungsleitung und Administrator */
+    d.ist = {};
+    if (ich.rolle !== "admin") Object.keys(daten.ist || {}).forEach(function (s) {
+      if (ich.rolle === "al" || (s.indexOf("ks-") === 0 && d.kostenstellen.some(function (n) { return "ks-" + n.nummer === s; }))) d.ist[s] = kopie(daten.ist[s]);
+    });
+    d.istSicherungen = verwaltet ? (daten.istSicherungen || []).map(function (x) {
+      return { id: x.id, zeit: x.zeit, von: x.von, nummer: x.nummer, anlass: x.anlass, vorherStand: x.vorher ? x.vorher.stand : "", vorherMonat: x.vorher ? x.vorher.monat : "" };
+    }) : [];
     return d;
   }
 
@@ -600,6 +835,16 @@
     uebergeordnete: uebergeordnete,
     pruefeUnter: pruefeUnter,
     gesamtBudgetVon: gesamtBudgetVon,
+    MONATE: MONATE,
+    istAuslesen: istAuslesen,
+    monatName: monatName,
+    standText: standText,
+    setzeIst: setzeIst,
+    stelleIstWiederHer: stelleIstWiederHer,
+    istVon: istVon,
+    gesamtIstVon: gesamtIstVon,
+    kennzahlen: kennzahlen,
+    prozentText: prozentText,
     nummernVon: nummernVon,
     setzeNummernFuer: setzeNummernFuer,
     leseBetrag: leseBetrag,

@@ -100,6 +100,26 @@ curl -s -c "$K" -H "$H" -H "$J" -d '{"kennung":"xv10004","passwort":"Dq9#mRz4-wK
 post "$K" passwort '{"alt":null,"neu":"Key-Account#2026"}' >/dev/null
 pruefe "Key Account Manager sieht nur Projektnummern" "[]|['41000101']|['2025']" "$(curl -s -b "$K" -H "$H" "$U?aktion=sitzung" | py 'str(d["daten"]["kostenstellen"])+"|"+str([n["nummer"] for n in d["daten"]["projekte"]])+"|"+str(list(d["daten"]["budgets"].keys()))')"
 
+# IST-Daten je Kostenstelle
+IST='{"nummer":"411","eintrag":{"stand":"2026-10-22","monat":"2026-09","aktuell":{"jahr":2026,"werte":{"pkId":100.5,"pkAd":200,"werbung":10,"reise":20,"sonstiges":-5.25}},"vorjahrZeitraum":{"jahr":2025,"werte":{"pkId":90,"pkAd":180,"werbung":9,"reise":18,"sonstiges":3}},"vorjahr":null,"datei":"KST 411.xlsx"}}'
+pruefe "Gruppenleitung darf keine IST-Daten importieren 403" "403" "$(code -b "$G" -H "$H" -H "$J" -d "$IST" "$U?aktion=ist-importieren")"
+pruefe "IST für unbekannte Kostenstelle 404" "404" "$(code -b "$L" -H "$H" -H "$J" -d "${IST/411/999}" "$U?aktion=ist-importieren")"
+pruefe "IST mit Text statt Zahl 400" "unvollständig" "$(post "$L" ist-importieren "${IST/100.5/\"abc\"}")"
+pruefe "Monat passt nicht zum Jahr 400" "passen nicht zusammen" "$(post "$L" ist-importieren "${IST/2026-09/2025-09}")"
+pruefe "IST importieren" "2026-10-22|2026-09|100.5|-5.25|None|Import|" "$(post "$L" ist-importieren "$IST" | py 'd["daten"]["ist"]["ks-411"]["stand"]+"|"+d["daten"]["ist"]["ks-411"]["monat"]+"|"+str(d["daten"]["ist"]["ks-411"]["aktuell"]["werte"]["pkId"])+"|"+str(d["daten"]["ist"]["ks-411"]["aktuell"]["werte"]["sonstiges"])+"|"+str(d["daten"]["ist"]["ks-411"]["vorjahr"])+"|"+d["daten"]["istSicherungen"][0]["anlass"]+"|"+d["daten"]["istSicherungen"][0]["vorherStand"]')"
+pruefe "zweiter Import sichert den ersten" "2|2026-10-22" "$(post "$L" ist-importieren "${IST/2026-10-22/2026-11-05}" | py 'str(len(d["daten"]["istSicherungen"]))+"|"+d["daten"]["istSicherungen"][0]["vorherStand"]')"
+pruefe "Sicherungen ohne Werte" "False" "$(curl -s -b "$L" -H "$H" "$U?aktion=sitzung" | py 'str("vorher" in d["daten"]["istSicherungen"][0])')"
+pruefe "Gruppenleitung sieht IST ihrer Kostenstelle, keine Sicherungen" "['ks-411']|[]" "$(curl -s -b "$G" -H "$H" "$U?aktion=sitzung" | py 'str(sorted(d["daten"]["ist"].keys()))+"|"+str(d["daten"]["istSicherungen"])')"
+pruefe "Key Account Manager sieht kein IST" "{}" "$(curl -s -b "$K" -H "$H" "$U?aktion=sitzung" | py 'json.dumps(d["daten"]["ist"])')"
+pruefe "Administrator sieht Sicherungen, aber kein IST" "{}|2" "$(curl -s -b "$A" -H "$H" "$U?aktion=sitzung" | py 'json.dumps(d["daten"]["ist"])+"|"+str(len(d["daten"]["istSicherungen"]))')"
+SID="$(curl -s -b "$A" -H "$H" "$U?aktion=sitzung" | py 'd["daten"]["istSicherungen"][0]["id"]')"
+pruefe "Administrator stellt Sicherung wieder her" "2026-10-22|Wiederherstellung|3" "$(post "$A" ist-wiederherstellen "{\"id\":\"$SID\"}" >/dev/null; curl -s -b "$L" -H "$H" "$U?aktion=sitzung" | py 'd["daten"]["ist"]["ks-411"]["stand"]+"|"+d["daten"]["istSicherungen"][0]["anlass"]+"|"+str(len(d["daten"]["istSicherungen"]))')"
+SID="$(curl -s -b "$L" -H "$H" "$U?aktion=sitzung" | py 'd["daten"]["istSicherungen"][-1]["id"]')"
+pruefe "Wiederherstellen vor dem ersten Import entfernt IST" "[]" "$(post "$L" ist-wiederherstellen "{\"id\":\"$SID\"}" | py 'str(list(d["daten"]["ist"].keys()))')"
+post "$L" ist-importieren "$IST" >/dev/null
+pruefe "Umbenennen nimmt IST mit" "['ks-419']" "$(post "$L" nummer-speichern '{"art":"ks","alt":"411","nummer":"419","benutzer":["xv10002"]}' | py 'str(sorted(d["daten"]["ist"].keys()))')"
+post "$L" nummer-speichern '{"art":"ks","alt":"419","nummer":"411","benutzer":["xv10002"]}' >/dev/null
+
 # Verwaltung
 pruefe "neues Einmalpasswort beendet Sitzungen" "401" "$(post "$A" passwort-zuruecksetzen '{"kennung":"xv10004","passwort":"Neu-Start#2026x"}' >/dev/null; code -b "$K" -H "$H" "$U?aktion=sitzung")"
 pruefe "Rollenwechsel nimmt Kostenstellen" "['xv10001']" "$(post "$L" benutzer-aendern '{"kennung":"xv10002","vorname":"Tom","nachname":"Becker","rolle":"kam","nummern":{"ks":["420"],"pn":[]}}' | py 'str([n["benutzer"] for n in d["daten"]["kostenstellen"] if n["nummer"]=="420"][0])')"

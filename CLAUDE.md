@@ -8,6 +8,7 @@ Internes Tool der R+V (Training und Entwicklung Vertrieb). Sprache Deutsch, Anre
 - Regeln gibt es in `daten.js` und in `api.ashx` (`BdKern`): Passwortregeln, Rechte, Nummern, Beträge, Sicht je Rolle. Beide müssen gleich bleiben (Tests in `tests/logik.test.js` und `server-test.sh`).
 - `api.ashx` muss als C# 5 kompilieren (IIS-Compiler): kein `?? throw`, keine String-Interpolation. Datei als UTF-8 mit BOM speichern. CSP verbietet Inline-Skripte und `onclick`. Kein HTTPS: Im Serverbetrieb rechnet nur der Server Passwort-Hashes.
 - Iconnamen vor Gebrauch in `app/css/icons.css` prüfen.
+- IST-Daten: `js/excel.js` liest .xlsx im Browser, `istAuslesen` in `daten.js` deutet den KST-Bericht (Kostenstelle aus `KST1xxx00`, Datenstand, Abrechnungsmonat, Spalten „Ist“, Zeilen über die Bezeichnung in Spalte A). Der Server prüft nur die übergebenen Werte (`ist-importieren`). Testdatei mit erfundenen Zahlen: `tests/daten/kst-bericht-beispiel.xlsx` (`tools/beispiel_kst_bericht.py`). Echte KST-Berichte enthalten Namen: nie ins Repo, ins Artefakt oder in die Demo.
 
 ## Bei jeder Änderung
 1. `node --test tests/logik.test.js`, `node tests/browser-test.js`, `bash tests/server/server-test.sh` (braucht mono-mcs und mono-xsp4) sowie `UI_TEST=1 PORT=8099 bash tests/server/server-test.sh &` mit `node tests/server-ui-test.js http://localhost:8099/`.

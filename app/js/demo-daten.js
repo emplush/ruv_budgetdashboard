@@ -17,6 +17,13 @@
     return { pkId: pkId, pkAd: pkAd, werbung: werbung, reise: reise, sonstiges: sonstiges };
   }
 
+  /* Erfundene IST-Werte: Plan je Position mal Faktor, anteilig bis zum Vormonat */
+  function istAus(plan, faktor, anteil) {
+    var w = {};
+    Object.keys(plan).forEach(function (k, i) { w[k] = Math.round(plan[k] * faktor * anteil * (0.94 + (i % 3) * 0.05) * 100) / 100; });
+    return w;
+  }
+
   function fuelle(daten) {
     var jahr = new Date().getFullYear();
     daten.benutzer.push(
@@ -50,6 +57,21 @@
       "ks-412": werte(190000, 205000, 8000, 39000, 10500),
       "pn-41000101": werte(60000, 35000, 20000, 14000, 3500)
     };
+    var heute = new Date(), m = heute.getMonth(), istJahr = m === 0 ? jahr - 1 : jahr, monat = m === 0 ? 12 : m;
+    var stand = new Date(heute.getTime() - 3 * 864e5).toISOString().slice(0, 10);
+    daten.ist = {};
+    [["410", 0.97, 1.0], ["411", 0.91, 0.96], ["412", 1.09, 1.04]].forEach(function (x) {
+      var plan = daten.budgets[String(istJahr)] && daten.budgets[String(istJahr)]["ks-" + x[0]];
+      var vorPlan = daten.budgets[String(istJahr - 1)] && daten.budgets[String(istJahr - 1)]["ks-" + x[0]];
+      if (!plan || !vorPlan) return;
+      daten.ist["ks-" + x[0]] = {
+        stand: stand, monat: istJahr + "-" + ("0" + monat).slice(-2),
+        aktuell: { jahr: istJahr, werte: istAus(plan, x[1], monat / 12) },
+        vorjahrZeitraum: { jahr: istJahr - 1, werte: istAus(vorPlan, x[2], monat / 12) },
+        vorjahr: { jahr: istJahr - 1, werte: istAus(vorPlan, x[2], 1) },
+        datei: "KST-Bericht " + x[0] + " (Beispiel).xlsx", importiert: new Date().toISOString(), von: "xv10001"
+      };
+    });
   }
 
   wurzel.BDDemo = { fuelle: fuelle, PASSWORT: PASSWORT };

@@ -89,6 +89,25 @@ function pruefe(bedingung, text) {
   pruefe(await page.locator("dialog input[name=unter][value='411']").isDisabled() && await page.isVisible("dialog >> text=gehört zu 410"), "zugeordnete Kostenstellen sind gesperrt");
   await page.click("dialog [data-schliessen]");
 
+  // IST-Daten importieren (Beispieldatei mit erfundenen Zahlen, Kostenstelle 413)
+  await page.goto(url + "#/verwaltung/ist");
+  await page.waitForSelector("[data-import]");
+  await page.selectOption("#i-ks", "411");
+  await page.setInputFiles("#i-datei", path.join(__dirname, "daten", "kst-bericht-beispiel.xlsx"));
+  await page.waitForSelector("text=gewählt ist 411");
+  pruefe(await page.locator("[data-importieren]").isDisabled(), "falsche Kostenstelle wird abgewiesen");
+  await page.selectOption("#i-ks", "413");
+  pruefe(await page.isVisible(".vorschau >> text=Stand 22.10.2026 · gebucht bis September 2026") && await page.isVisible("text=Die Summen stimmen"), "Vorschau mit Stand und Prüfsummen");
+  await bild("03c-ist-import");
+  await page.click("[data-importieren]");
+  await page.click("dialog button[type=submit]");
+  await page.waitForSelector("text=sind importiert");
+  pruefe(await page.isVisible("tr:has(th:has-text('413')) >> text=September 2026") && await page.isVisible("text=Import"), "IST-Stand und Sicherung erscheinen");
+  await page.goto(url + "#/uebersicht");
+  await page.waitForSelector("text=IST gegen Plan");
+  pruefe(await page.isVisible("text=IST in % vom Plan") && await page.isVisible("tr:has(th:has-text('413')) >> text=22.10.2026"), "Übersicht zeigt IST gegen Plan mit Stand");
+  await bild("03d-ist-uebersicht");
+
   // Benutzer anlegen mit Einmalpasswort
   await page.goto(url + "#/verwaltung/benutzer");
   await page.waitForSelector("[data-kopfaktion] [data-neu]");
