@@ -111,7 +111,7 @@ function pruefe(bedingung, text) {
   // Projektkosten manuell erfassen (Projektnummer 41000101 geht von Kostenstelle 410 ab)
   await page.goto(url + "#/projekt/41000101");
   await page.waitForSelector("[data-kosten-neu]");
-  pruefe(await page.isVisible("text=gehen von der Kostenstelle"), "Projektseite nennt die Kostenstelle");
+  pruefe(await page.isVisible("text=gehören zur Kostenstelle"), "Projektseite nennt die Kostenstelle");
   const zeilenVorher = await page.locator("tr[data-kosten]").count();
   await page.click("[data-kosten-neu]");
   await page.fill("#k-betrag", "1.234,56");

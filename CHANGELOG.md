@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.4.1 (29.10.2026)
+- IST nach dem KST-Bericht: Der Bericht einer Kostenstelle enthält schon die Kosten ihrer Projektnummern, der Bericht einer übergreifenden Kostenstelle auch die zugeordneten Kostenstellen. Das Tool rechnet deshalb nichts mehr dazu.
+- IST einer übergreifenden Kostenstelle = ihr eigener KST-Bericht. Was nach Abzug der zugeordneten Kostenstellen auf ihr selbst liegt, steht als eigener Rest in Übersicht und Bericht (Beispiel: 50.000 € gesamt, 30.000 € auf der zugeordneten, 5.000 € Projektkosten, 15.000 € auf der übergreifenden selbst).
+- Projektkosten werden nur aufgeschlüsselt: „davon Projektkosten“ und „IST ohne Projektkosten“ im Bericht, einzeln je Projektnummer für die Key Account Manager.
+- Hinweise im Bericht, wenn ein KST-Bericht fehlt, die Stände abweichen oder die zugeordneten zusammen mehr IST haben als die übergreifende. Die Gesamtsumme der Übersicht zählt nichts mehr doppelt.
+
 ## 0.4.0 (29.10.2026)
 - Projektkosten: Für Projektnummern gibt es keinen KST-Bericht. Die Abteilungsleitung erfasst die Kosten je Projektnummer von Hand mit Datum, Kostenart (Personalkosten ID oder AD, Werbung, Reise/KfZ, Sonstiges), Betrag und Beschreibung und kann sie ändern oder löschen.
 - Jede Projektnummer ist einer Kostenstelle zugeordnet (Verwaltung → Projektnummern). Ihre Kosten gehen dort ab: Sie zählen zum IST dieser Kostenstelle und damit auch zur übergreifenden Kostenstelle. Übersicht, Karten und Bericht weisen „davon Projektkosten“ aus.

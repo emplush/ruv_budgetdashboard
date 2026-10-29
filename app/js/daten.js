@@ -663,9 +663,6 @@
 
   /* ---------- Projektkosten (manuell erfasst, je Projektnummer und Kostenart) ---------- */
 
-  /* Zählen die Projektkosten zusätzlich zum IST aus dem KST-Bericht der zugeordneten Kostenstelle? */
-  var PROJEKTKOSTEN_ZUSAETZLICH = true;
-
   function istDatum(t) {
     var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(t || ""));
     if (!m || !istJahr(m[1])) return false;
@@ -720,47 +717,57 @@
     return aus;
   }
 
-  /* IST einer Kostenstelle: KST-Bericht plus die Kosten der Projektnummern, die von ihr abgehen */
+  /* IST einer Kostenstelle aus ihrem KST-Bericht. Die Projektkosten der Projektnummern dieser Kostenstelle sind darin
+     schon enthalten und stehen nur zur Aufschlüsselung in .projekte. */
   function istVon(daten, jahr, nummer) {
     var basis = importIstVon(daten, jahr, nummer);
-    var pns = PROJEKTKOSTEN_ZUSAETZLICH ? (daten.projekte || []).filter(function (n) { return n.ks === nummer; }) : [];
-    var teile = pns.map(function (n) { return projektIstVon(daten, jahr, n.nummer); }).filter(function (t) { return t.vorhanden; });
-    basis.projekte = summe(teile);
+    var pns = (daten.projekte || []).filter(function (n) { return n.ks === nummer; });
+    basis.projekte = summe(pns.map(function (n) { return projektIstVon(daten, jahr, n.nummer); }).filter(function (t) { return t.vorhanden; }));
     basis.projektNummern = pns.map(function (n) { return n.nummer; });
-    if (!teile.length) return basis;
-    var aus = summe([basis].concat(teile));
-    aus.projekte = basis.projekte;
-    aus.projektNummern = basis.projektNummern;
-    aus.vorhanden = true;
-    aus.importiert = basis.vorhanden;
-    if (basis.vorhanden) {
-      aus.bisMonat = basis.bisMonat; aus.stand = basis.stand; aus.monat = basis.monat;
-      aus.vergleich = basis.vergleich ? summe([basis.vergleich].concat(pns.map(function (n) { return projektIstVon(daten, Number(jahr) - 1, n.nummer, basis.bisMonat); }))) : null;
-    } else {
-      aus.bisMonat = teile[0].bisMonat; aus.stand = teile.reduce(function (m, t) { return t.stand > m ? t.stand : m; }, ""); aus.monat = ""; aus.vergleich = null;
-    }
-    return aus;
+    return basis;
   }
 
-  /* IST einer übergreifenden Kostenstelle = eigenes IST plus IST der zugeordneten. Stand und Monat: der älteste Teil. */
+  function differenz(a, b) {
+    var d = summe([a]);
+    Object.keys(d).forEach(function (k) { d[k] = runde(d[k] - (b[k] || 0)); });
+    return d;
+  }
+
+  /* IST einer übergreifenden Kostenstelle. Ihr KST-Bericht enthält schon die zugeordneten Kostenstellen und alle Projektkosten.
+     gesamt = eigener KST-Bericht; eigen = was nach Abzug der zugeordneten Kostenstellen auf ihr selbst liegt (mit ihren Projektkosten).
+     Fehlt der eigene KST-Bericht, ist gesamt nur die Summe der zugeordneten (ohneEigenImport). */
   function gesamtIstVon(daten, jahr, art, nummer) {
-    if (art !== "ks") { var p = projektIstVon(daten, jahr, nummer); return { uebergreifend: false, eigen: p, unter: [], gesamt: p }; }
-    var eigen = istVon(daten, jahr, nummer);
+    if (art !== "ks") { var p = projektIstVon(daten, jahr, nummer); return { uebergreifend: false, eigen: p, unter: [], gesamt: p, fehlend: 0 }; }
+    var bericht = istVon(daten, jahr, nummer);
     var e = findeNummer(daten, "ks", nummer);
     var unter = (e && e.unter || []).map(function (u) { return { nummer: u, ist: istVon(daten, jahr, u) }; });
-    var teile = [eigen].concat(unter.map(function (u) { return u.ist; })).filter(function (t) { return t.vorhanden; });
-    var g = summe(teile);
-    g.vorhanden = teile.length > 0;
-    g.bisMonat = teile.length ? Math.min.apply(null, teile.map(function (t) { return t.bisMonat; })) : 0;
-    var aeltester = teile.slice().sort(function (a, b) { return a.stand < b.stand ? -1 : a.stand > b.stand ? 1 : 0; })[0];
-    g.stand = aeltester ? aeltester.stand : "";
-    g.monat = teile.length ? teile.map(function (t) { return t.monat; }).sort()[0] : "";
-    g.unterschiedlich = teile.some(function (t) { return t.stand !== g.stand || t.monat !== g.monat; });
-    var vgl = teile.filter(function (t) { return t.vergleich; });
-    g.vergleich = vgl.length === teile.length && teile.length ? summe(vgl.map(function (t) { return t.vergleich; })) : null;
-    g.fehlend = 1 + unter.length - teile.length;
-    g.projekte = summe(teile.map(function (t) { return t.projekte || {}; }));
-    return { uebergreifend: unter.length > 0, eigen: eigen, unter: unter, gesamt: g };
+    if (!unter.length) return { uebergreifend: false, eigen: bericht, unter: [], gesamt: bericht, fehlend: bericht.vorhanden ? 0 : 1 };
+    var da = unter.map(function (u) { return u.ist; }).filter(function (t) { return t.vorhanden; });
+    var projekte = summe([bericht.projekte].concat(unter.map(function (u) { return u.ist.projekte; })));
+    var g, eigen;
+    if (bericht.vorhanden) {
+      g = bericht;
+      g.unterschiedlich = da.some(function (t) { return t.stand !== g.stand || t.monat !== g.monat; });
+      eigen = differenz(bericht, summe(da));
+      eigen.vorhanden = true; eigen.bisMonat = bericht.bisMonat; eigen.stand = bericht.stand; eigen.monat = bericht.monat;
+      eigen.unterschiedlich = g.unterschiedlich;
+      eigen.vergleich = bericht.vergleich && da.every(function (t) { return t.vergleich; }) ? differenz(bericht.vergleich, summe(da.map(function (t) { return t.vergleich; }))) : null;
+      eigen.projekte = bericht.projekte; eigen.projektNummern = bericht.projektNummern;
+      g.widerspruch = eigen.gesamt < 0;
+    } else {
+      eigen = bericht;
+      g = summe(da);
+      g.vorhanden = da.length > 0;
+      g.ohneEigenImport = true;
+      g.bisMonat = da.length ? Math.min.apply(null, da.map(function (t) { return t.bisMonat; })) : 0;
+      g.stand = da.map(function (t) { return t.stand; }).sort()[0] || "";
+      g.monat = da.map(function (t) { return t.monat; }).sort()[0] || "";
+      g.unterschiedlich = da.some(function (t) { return t.stand !== g.stand || t.monat !== g.monat; });
+      g.vergleich = da.length && da.every(function (t) { return t.vergleich; }) ? summe(da.map(function (t) { return t.vergleich; })) : null;
+      g.widerspruch = false;
+    }
+    g.projekte = projekte;
+    return { uebergreifend: true, eigen: eigen, unter: unter, gesamt: g, fehlend: (bericht.vorhanden ? 0 : 1) + unter.length - da.length };
   }
 
   /* Kennzahlen IST gegen Plan */

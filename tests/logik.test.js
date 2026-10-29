@@ -162,7 +162,7 @@ test("IST: KST-Bericht lesen, importieren, sichern, wiederherstellen", async () 
   assert.deepStrictEqual([d.ist, d.istSicherungen], [{}, []]);
 });
 
-test("Projektkosten: erfassen, gehen von der Kostenstelle ab, Sicht", () => {
+test("Projektkosten: erfassen, im IST der Kostenstelle enthalten, Sicht", () => {
   const d = daten();
   D.speichereNummer(d, "ks", "", "410", []);
   D.speichereNummer(d, "ks", "", "411", ["xv10002"]);
@@ -182,10 +182,10 @@ test("Projektkosten: erfassen, gehen von der Kostenstelle ab, Sicht", () => {
   assert.deepStrictEqual(d.kosten.map((x) => x.datum), ["2025-07-10", "2025-07-10", "2025-03-01"]);
   const p = D.projektIstVon(d, 2025, "41000101");
   assert.deepStrictEqual([p.gesamt, p.werbung, p.reise, p.sachkosten, p.anzahl, p.bisMonat], [1200.5, 1000.5, 200, 1200.5, 2, 12]);
-  /* ohne KST-Bericht: IST der Kostenstelle nur aus Projektkosten, die nicht zugeordnete Projektnummer zählt nicht */
+  /* Projektkosten stecken schon im KST-Bericht: ohne Bericht kein IST, sie werden nur aufgeschlüsselt */
   const i = D.istVon(d, 2025, "411");
-  assert.deepStrictEqual([i.vorhanden, i.importiert, i.gesamt, i.projekte.gesamt], [true, false, 1200.5, 1200.5]);
-  assert.strictEqual(D.gesamtIstVon(d, 2025, "ks", "410").gesamt.gesamt, 1200.5);
+  assert.deepStrictEqual([i.vorhanden, i.gesamt, i.projekte.gesamt], [false, 0, 1200.5]);
+  assert.strictEqual(D.gesamtIstVon(d, 2025, "ks", "410").gesamt.vorhanden, false);
   assert.strictEqual(D.gesamtIstVon(d, 2025, "pn", "41000102").gesamt.gesamt, 999);
   /* Sicht: Gruppenleitung sieht die Projektnummer ihrer Kostenstelle ohne Zuweisung, Admin keine Kosten */
   const gl = D.sicht(d, "xv10002");
@@ -208,6 +208,28 @@ test("Projektkosten: erfassen, gehen von der Kostenstelle ab, Sicht", () => {
   assert.strictEqual(D.findeNummer(d, "pn", "41000109").ks, "");
   D.loescheNummer(d, "pn", "41000109");
   assert.deepStrictEqual(d.kosten.map((x) => x.pn), ["41000102"]);
+});
+
+test("IST der übergreifenden Kostenstelle: KST-Bericht enthält zugeordnete und Projektkosten (Beispiel von Michael)", () => {
+  const d = daten();
+  ["001", "101", "102"].forEach((n) => D.speichereNummer(d, "ks", "", n, []));
+  D.speichereNummer(d, "ks", "001", "001", [], ["101", "102"]);
+  D.speichereNummer(d, "pn", "", "20100000", [], "001");
+  D.speichereKosten(d, "", { pn: "20100000", datum: "2026-02-01", kostenart: "werbung", betrag: 5000 }, "xv10001");
+  const bericht = (gesamt, monat) => ({ stand: "2026-10-22", monat: monat || "2026-09", aktuell: { jahr: 2026, werte: { pkId: gesamt, pkAd: 0, werbung: 0, reise: 0, sonstiges: 0 } },
+    vorjahrZeitraum: { jahr: 2025, werte: { pkId: gesamt / 2, pkAd: 0, werbung: 0, reise: 0, sonstiges: 0 } }, vorjahr: null });
+  D.setzeIst(d, "101", bericht(30000), "xv10001");
+  /* Ohne eigenen Bericht: nur die Summe der zugeordneten */
+  let g = D.gesamtIstVon(d, 2026, "ks", "001");
+  assert.deepStrictEqual([g.gesamt.vorhanden, g.gesamt.ohneEigenImport, g.gesamt.gesamt, g.fehlend], [true, true, 30000, 2]);
+  D.setzeIst(d, "001", bericht(50000), "xv10001");
+  g = D.gesamtIstVon(d, 2026, "ks", "001");
+  /* 50.000 gesamt, 30.000 auf 101, 5.000 Projektkosten: auf 001 selbst bleiben 15.000 */
+  assert.deepStrictEqual([g.gesamt.gesamt, g.unter[0].ist.gesamt, g.eigen.gesamt, g.eigen.projekte.gesamt, g.eigen.gesamt - g.eigen.projekte.gesamt], [50000, 30000, 20000, 5000, 15000]);
+  assert.deepStrictEqual([g.gesamt.projekte.gesamt, g.eigen.vergleich.gesamt, g.fehlend, g.gesamt.widerspruch, g.gesamt.unterschiedlich], [5000, 10000, 1, false, false]);
+  D.setzeIst(d, "102", bericht(25000, "2026-08"), "xv10001");
+  g = D.gesamtIstVon(d, 2026, "ks", "001");
+  assert.deepStrictEqual([g.eigen.gesamt, g.gesamt.widerspruch, g.gesamt.unterschiedlich], [-5000, true, true]);
 });
 
 test("Rechte der Rollen", () => {

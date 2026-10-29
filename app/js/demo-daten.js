@@ -83,6 +83,21 @@
         datei: "KST-Bericht " + x[0] + " (Beispiel).xlsx", importiert: new Date().toISOString(), von: "xv10001"
       };
     });
+    /* Der KST-Bericht der übergreifenden 410 enthält schon 411, 412 und die Projektkosten auf 410 */
+    var oben = daten.ist["ks-410"];
+    if (oben) {
+      ["411", "412"].forEach(function (u) {
+        var e = daten.ist["ks-" + u];
+        if (!e) return;
+        ["aktuell", "vorjahrZeitraum", "vorjahr"].forEach(function (t) {
+          Object.keys(e[t].werte).forEach(function (k) { oben[t].werte[k] = Math.round((oben[t].werte[k] + e[t].werte[k]) * 100) / 100; });
+        });
+      });
+      daten.kosten.forEach(function (x) {
+        if (x.datum.slice(0, 4) !== String(istJahr) || Number(x.datum.slice(5, 7)) > monat) return;
+        oben.aktuell.werte[x.kostenart] = Math.round((oben.aktuell.werte[x.kostenart] + x.betrag) * 100) / 100;
+      });
+    }
   }
 
   wurzel.BDDemo = { fuelle: fuelle, PASSWORT: PASSWORT };

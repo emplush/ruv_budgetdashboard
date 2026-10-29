@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "0.4.0";
+  var VERSION = "0.4.1";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -387,7 +387,7 @@
 
   function standHtml(ist) {
     return '<p class="stand">' + icon("calendar") + "<span>" + esc(D.standText(ist.stand, ist.monat)) +
-      (ist.unterschiedlich ? " (ältester Teil)" : "") + "</span></p>";
+      (ist.unterschiedlich ? (ist.ohneEigenImport ? " (ältester Teil)" : ", zugeordnete mit anderem Stand") : "") + "</span></p>";
   }
 
   /* Balken: IST in Prozent vom Plan, Strich = verstrichener Anteil des Jahres */
@@ -441,7 +441,7 @@
       '<p class="topline">' + (g.uebergreifend ? "Übergreifende Kostenstelle" : esc(D.ARTEN[art].name)) + "</p>" +
       '<h2 class="budget__nummer">' + esc(nummer) + "</h2>" +
       (oben ? '<p class="leise klein">Gehört zur übergreifenden Kostenstelle ' + esc(oben) + ".</p>" : "") +
-      (pnKs ? '<p class="leise klein">Die Kosten gehen von der Kostenstelle ' + esc(pnKs) + " ab.</p>" : "") +
+      (pnKs ? '<p class="leise klein">Die Kosten sind im IST der Kostenstelle ' + esc(pnKs) + " enthalten.</p>" : "") +
       (w.vorhanden
         ? '<p class="budget__gesamt"><span class="leise klein">Planbudget ' + zustand.jahr + (g.uebergreifend ? " inklusive zugeordneter Kostenstellen" : "") + "</span><strong>" + euro(w.gesamt) + "</strong></p>" +
           anteilHtml(w) + (ist ? istBlockHtml(w, ist) : "") + (ist && ist.vorhanden ? planIstHtml(w, ist) : positionenHtml(w)) + (g.uebergreifend ? zusammensetzungHtml(g) : "")
@@ -568,10 +568,12 @@
   /* Summe über alle Kostenstellen mit IST-Daten; Plan nur dieser Kostenstellen */
   function istGesamt() {
     var s = { ist: 0, plan: 0, hoch: 0, anzahl: 0, stand: "", monat: "" };
+    /* Nur oberste Kostenstellen: Der KST-Bericht einer übergreifenden enthält die zugeordneten schon */
     D.liste(zustand.daten, "ks").forEach(function (n) {
-      var ist = D.istVon(zustand.daten, zustand.jahr, n.nummer);
+      if (D.uebergeordnete(zustand.daten, n.nummer)) return;
+      var ist = D.gesamtIstVon(zustand.daten, zustand.jahr, "ks", n.nummer).gesamt;
       if (!ist.vorhanden) return;
-      var k = D.kennzahlen(D.budgetVon(zustand.daten, zustand.jahr, "ks", n.nummer), ist);
+      var k = D.kennzahlen(D.gesamtBudgetVon(zustand.daten, zustand.jahr, "ks", n.nummer).gesamt, ist);
       s.ist += k.ist; s.plan += k.plan; s.hoch += k.hochrechnung; s.anzahl++;
       if (!s.stand || ist.stand < s.stand) s.stand = ist.stand;
       if (!s.monat || ist.monat < s.monat) s.monat = ist.monat;
@@ -584,7 +586,7 @@
     if (!s.anzahl) return '<p class="leer-hinweis">Für ' + zustand.jahr + ' gibt es noch keine IST-Daten. <a href="#/verwaltung/ist">IST-Daten importieren</a></p>';
     return '<div class="kennzahlen kennzahlen--ist">' +
       kennzahl("IST " + zustand.jahr, euro(s.ist), esc(D.standText(s.stand, s.monat)) + (s.anzahl > 1 ? " (ältester Stand)" : "")) +
-      kennzahl("IST in % vom Plan", prozent(s.plan > 0 ? s.ist / s.plan : null), "bei " + s.anzahl + (s.anzahl === 1 ? " Kostenstelle" : " Kostenstellen") + " mit IST-Daten") +
+      kennzahl("IST in % vom Plan", prozent(s.plan > 0 ? s.ist / s.plan : null), "bei " + s.anzahl + (s.anzahl === 1 ? " Kostenstelle" : " Kostenstellen") + " mit IST-Daten, übergreifende mit zugeordneten") +
       kennzahl("Restbudget", euro(s.plan - s.ist), "Plan " + euro(s.plan)) +
       kennzahl("Hochrechnung Jahresende", euro(s.hoch), prozent(s.plan > 0 ? s.hoch / s.plan : null) + " vom Plan") + "</div>";
   }
@@ -596,10 +598,11 @@
       var nr = r.n.nummer, plan, ist;
       if (r.art === "teilsumme") { plan = D.gesamtBudgetVon(daten, jahr, "ks", nr).gesamt; ist = D.gesamtIstVon(daten, jahr, "ks", nr).gesamt; }
       else if (art === "pn") { plan = D.budgetVon(daten, jahr, "pn", nr); ist = D.projektIstVon(daten, jahr, nr); }
+      else if (r.art === "oben") { plan = D.budgetVon(daten, jahr, "ks", nr); ist = D.gesamtIstVon(daten, jahr, "ks", nr).eigen; }
       else { plan = D.budgetVon(daten, jahr, "ks", nr); ist = D.istVon(daten, jahr, nr); }
       var kopf = r.art === "teilsumme" ? '<th scope="row">Gesamt übergreifende Kostenstelle ' + esc(nr) + "</th>"
         : '<th scope="row"><strong>' + (art === "pn" ? '<a href="#/projekt/' + esc(nr) + '">' + esc(nr) + "</a>" : esc(nr)) + "</strong>" +
-          (r.art === "oben" ? ' <span class="leise klein">eigenes Budget</span>' : "") + (art === "pn" && r.n.ks ? '<br><span class="leise klein">geht ab von ' + esc(r.n.ks) + "</span>" : "") + "</th>";
+          (r.art === "oben" ? ' <span class="leise klein">eigenes Budget, IST ohne zugeordnete</span>' : "") + (art === "pn" && r.n.ks ? '<br><span class="leise klein">gehört zu ' + esc(r.n.ks) + "</span>" : "") + "</th>";
       var klasse = r.art === "teilsumme" ? "teilsumme" : r.art === "unter" ? "unter" : "";
       if (!ist.vorhanden) return "<tr" + (klasse ? ' class="' + klasse + ' ohne"' : ' class="ohne"') + ">" + kopf + '<td colspan="8" class="leise klein">' + (art === "pn" ? "noch keine Kosten erfasst" : "keine IST-Daten") + "</td></tr>";
       var k = D.kennzahlen(plan, ist);
@@ -611,13 +614,13 @@
         '<td><span class="ampel ampel--' + (k.ampel || "leer") + '" title="' + esc(ampelText(k)) + '">' + esc(prozent(k.hochQuote)) + "</span></td></tr>";
     }).join("");
     if (art === "pn") return '<section class="karte bereich-tabelle"><div class="bereich-tabelle__kopf"><h2>Projektnummern: IST gegen Plan ' + jahr + "</h2></div>" +
-      '<p class="leise klein">Das IST der Projektnummern sind die manuell erfassten Projektkosten. Sie gehen zusätzlich von der zugeordneten Kostenstelle ab.</p>' +
+      '<p class="leise klein">Das IST der Projektnummern sind die manuell erfassten Projektkosten. Sie sind im IST der zugeordneten Kostenstelle aus dem KST-Bericht schon enthalten und stehen hier einzeln.</p>' +
       (zeilen ? '<div class="tabelle-huelle"><table class="budgettabelle"><thead><tr><th>Projektnummer</th><th>Stand</th><th class="zahl">Plan</th><th class="zahl">IST</th><th class="zahl">IST in %</th>' +
         '<th class="zahl">Restbudget</th><th class="zahl">Hochrechnung</th><th class="zahl">zum Vorjahr</th><th>Ampel</th></tr></thead><tbody>' + zeilen + "</tbody></table></div>"
         : '<p class="leer-hinweis">Noch keine Projektnummern angelegt.</p>') + "</section>";
     return '<section class="karte bereich-tabelle"><div class="bereich-tabelle__kopf"><h2>Kostenstellen: IST gegen Plan ' + jahr + "</h2>" +
       (D.Rechte.budgets(zustand.benutzer) ? '<a class="leise klein" href="#/verwaltung/ist">IST-Daten importieren</a>' : "") + "</div>" +
-      '<p class="leise klein">IST-Daten gibt es je Kostenstelle aus dem KST-Bericht, dazu kommen die Kosten der Projektnummern, die von ihr abgehen. Die Hochrechnung schreibt das IST bis zum gebuchten Monat gleichmäßig aufs Jahr fort. Die Ampel zeigt die Hochrechnung in % vom Plan: grün bis 95 %, gelb bis 100 %, rot darüber.</p>' +
+      '<p class="leise klein">IST-Daten gibt es je Kostenstelle aus dem KST-Bericht. Er enthält schon die Kosten ihrer Projektnummern, bei übergreifenden Kostenstellen auch die der zugeordneten. Die Zeile mit dem eigenen Budget zeigt, was nach Abzug der zugeordneten Kostenstellen auf der übergreifenden selbst liegt. Die Hochrechnung schreibt das IST bis zum gebuchten Monat gleichmäßig aufs Jahr fort. Die Ampel zeigt die Hochrechnung in % vom Plan: grün bis 95 %, gelb bis 100 %, rot darüber.</p>' +
       (zeilen ? '<div class="tabelle-huelle"><table class="budgettabelle"><thead><tr><th>Kostenstelle</th><th>Stand · gebucht bis</th><th class="zahl">Plan</th><th class="zahl">IST</th><th class="zahl">IST in %</th>' +
         '<th class="zahl">Restbudget</th><th class="zahl">Hochrechnung</th><th class="zahl">zum Vorjahr</th><th>Ampel</th></tr></thead><tbody>' + zeilen + "</tbody></table></div>"
         : '<p class="leer-hinweis">Noch keine Kostenstellen angelegt.</p>') + "</section>";
@@ -725,6 +728,17 @@
     { id: "gesamt", name: "Planbudget gesamt", gesamt: true }
   ];
 
+  /* Hinweise für den Abgleich: fehlende KST-Berichte, unterschiedliche Stände, Rest unter 0 */
+  function berichtHinweise(nummer, gi) {
+    var h = [];
+    if (gi.gesamt.ohneEigenImport && gi.gesamt.vorhanden) h.push("Der KST-Bericht der Kostenstelle " + nummer + " fehlt noch. „Gesamt“ ist deshalb nur die Summe der zugeordneten Kostenstellen.");
+    var ohne = gi.unter.filter(function (u) { return !u.ist.vorhanden; }).map(function (u) { return u.nummer; });
+    if (ohne.length && !gi.gesamt.ohneEigenImport) h.push("Für " + ohne.join(", ") + " gibt es noch keine IST-Daten. Ihre Kosten stecken deshalb noch im eigenen Rest von " + nummer + ".");
+    if (gi.gesamt.unterschiedlich) h.push("Die KST-Berichte haben unterschiedliche Stände. Für einen genauen Abgleich importiere sie bitte zum gleichen Monat.");
+    if (gi.gesamt.widerspruch) h.push("Die zugeordneten Kostenstellen haben zusammen mehr IST als der KST-Bericht von " + nummer + ". Bitte prüfe die Stände der Berichte.");
+    return h.length ? '<ul class="warnungen">' + h.map(function (t) { return "<li>" + icon("warning") + "<span>" + esc(t) + "</span></li>"; }).join("") + "</ul>" : "";
+  }
+
   function zeigeBericht(nummer) {
     var daten = zustand.daten, jahr = zustand.jahr;
     var g = D.gesamtBudgetVon(daten, jahr, "ks", nummer), gi = D.gesamtIstVon(daten, jahr, "ks", nummer);
@@ -773,12 +787,14 @@
       '<section class="karte bereich-tabelle"><div class="bereich-tabelle__kopf"><h2>Bericht ' + jahr + "</h2>" +
       '<button type="button" class="btn btn--rahmen" data-kopieren>' + icon("copy") + " Bericht kopieren</button></div>" +
       '<p class="leise klein">Mit „Bericht kopieren“ fügst Du alle Tabellen direkt in Excel ein und kannst sie dort mit Deinen KST-Berichten abgleichen. ' +
-      "„IST gesamt“ entspricht den Primärkosten I im KST-Bericht plus den Projektkosten, die von der Kostenstelle abgehen.</p>" +
+      "„IST gesamt“ in der Spalte Gesamt entspricht den Primärkosten I im KST-Bericht der Kostenstelle " + esc(nummer) + ". Er enthält die zugeordneten Kostenstellen und alle Projektkosten. " +
+      "In der Spalte „Eigenes Budget“ steht, was nach Abzug der zugeordneten Kostenstellen auf " + esc(nummer) + " selbst liegt.</p>" + berichtHinweise(nummer, gi) +
       "<h3>Planbudget nach Positionen</h3>" + tabelle("Planbudget nach Positionen", positionen("w", "Planbudget gesamt"), "Position") +
       (mitIst
         ? "<h3>" + esc(istUeberschrift(gi.gesamt)) + " nach Positionen</h3>" +
           tabelle("IST nach Positionen", zeile("Stand", "standzeile", function (sp) { return sp.i.vorhanden ? esc(D.standText(sp.i.stand, sp.i.monat).replace("Stand ", "")) : '<span class="leise">keine IST-Daten</span>'; }) +
-            positionen("i", "IST gesamt") + zeile("davon Projektkosten", "standzeile", function (sp) { return sp.i.vorhanden && sp.i.projekte ? euro(sp.i.projekte.gesamt || 0) : '<span class="leise">–</span>'; }), "Position") +
+            positionen("i", "IST gesamt") + zeile("davon Projektkosten", "standzeile", function (sp) { return sp.i.vorhanden && sp.i.projekte ? euro(sp.i.projekte.gesamt || 0) : '<span class="leise">–</span>'; }) +
+            zeile("IST ohne Projektkosten", "standzeile", function (sp) { return sp.i.vorhanden ? euro(sp.i.gesamt - (sp.i.projekte ? sp.i.projekte.gesamt || 0 : 0)) : '<span class="leise">–</span>'; }), "Position") +
           "<h3>Plan gegen IST</h3>" + tabelle("Plan gegen IST", VERGLEICH.map(function (v) {
             return zeile(v.name, v.klasse || "", function (sp) { var k = kz(sp); return k ? v.wert(k) : '<span class="leise">–</span>'; });
           }).join(""), "Kennzahl")
@@ -794,7 +810,8 @@
       if (mitIst) {
         teile.push(block(istUeberschrift(gi.gesamt) + " Kostenstelle " + nummer, [["Stand"].concat(spalten.map(function (sp) { return sp.i.vorhanden ? D.standText(sp.i.stand, sp.i.monat).replace("Stand ", "") : ""; })).join("\t")]
           .concat(BERICHT_ZEILEN.map(function (z) { return [z.gesamt ? "IST gesamt" : z.name].concat(spalten.map(function (sp) { return sp.i.vorhanden ? zahl(sp.i[z.id]) : ""; })).join("\t"); }))
-          .concat([["davon Projektkosten"].concat(spalten.map(function (sp) { return sp.i.vorhanden && sp.i.projekte ? zahl(sp.i.projekte.gesamt || 0) : ""; })).join("\t")])));
+          .concat([["davon Projektkosten"].concat(spalten.map(function (sp) { return sp.i.vorhanden && sp.i.projekte ? zahl(sp.i.projekte.gesamt || 0) : ""; })).join("\t")])
+          .concat([["IST ohne Projektkosten"].concat(spalten.map(function (sp) { return sp.i.vorhanden ? zahl(sp.i.gesamt - (sp.i.projekte ? sp.i.projekte.gesamt || 0 : 0)) : ""; })).join("\t")])));
         teile.push(block("Plan gegen IST", VERGLEICH.map(function (v) {
           return [v.name].concat(spalten.map(function (sp) { var k = kz(sp), r = k ? v.roh(k) : null; return r === null ? "" : v.prozent ? pz(r) : zahl(r); })).join("\t");
         })));
@@ -975,7 +992,7 @@
     var jahr = new Date().getFullYear();
     ziel.innerHTML = '<div class="karte"><p class="leise klein">' + esc(a.mehrzahl) + " haben genau " + a.stellen + " Ziffern. Zuweisen kannst Du sie " +
       (art === "ks" ? "Gruppenleitungen und Abteilungsleitungen" : "Key Account Managern") + ", gern auch mehreren Personen.</p>" +
-      (l.length ? '<div class="tabelle-huelle"><table><thead><tr><th>' + esc(a.name) + "</th><th>Zugewiesen</th>" + (art === "ks" ? "<th>Übergreifend</th>" : "<th>Kosten gehen ab von</th>") +
+      (l.length ? '<div class="tabelle-huelle"><table><thead><tr><th>' + esc(a.name) + "</th><th>Zugewiesen</th>" + (art === "ks" ? "<th>Übergreifend</th>" : "<th>Kostenstelle</th>") +
         (D.Rechte.budgets(ich) ? '<th class="zahl">Planbudget ' + jahr + "</th>" : "") + '<th><span class="sr">Aktionen</span></th></tr></thead><tbody>' +
         l.map(function (n) {
           var namen = namenVon(n.benutzer);
@@ -1027,9 +1044,9 @@
   /* Kostenstelle, von der die Kosten einer Projektnummer abgehen */
   function pnKsHtml(daten, eintrag) {
     var ks = daten.kostenstellen.slice().sort(function (a, b) { return ((b.unter || []).length ? 1 : 0) - ((a.unter || []).length ? 1 : 0) || (a.nummer < b.nummer ? -1 : 1); });
-    return '<div class="feld"><label for="n-pnks">Kosten gehen ab von Kostenstelle</label><select id="n-pnks" name="pnks"><option value="">keiner Kostenstelle</option>' +
+    return '<div class="feld"><label for="n-pnks">Gehört zu Kostenstelle</label><select id="n-pnks" name="pnks"><option value="">keiner Kostenstelle</option>' +
       ks.map(function (n) { return '<option value="' + esc(n.nummer) + '"' + (eintrag && eintrag.ks === n.nummer ? " selected" : "") + ">" + esc(n.nummer) + ((n.unter || []).length ? " (übergreifend)" : "") + "</option>"; }).join("") +
-      '</select><p class="hilfe">Die manuell erfassten Projektkosten zählen zusätzlich zum IST dieser Kostenstelle, in der Regel der übergreifenden.</p></div>';
+      '</select><p class="hilfe">Die Projektkosten sind im KST-Bericht dieser Kostenstelle schon enthalten. Das Tool weist sie einzeln aus und zieht sie beim Rest der Kostenstelle ab.</p></div>';
   }
 
   function nummerDialog(art, eintrag) {
@@ -1076,7 +1093,7 @@
     var k = D.kennzahlen(plan, ist);
     var liste = D.kostenVon(daten, jahr, nummer);
     var html = '<div class="seite__kopf"><div><p class="topline">Projektkosten</p><h1>Projektnummer ' + esc(nummer) + " · " + jahr + "</h1></div>" + jahrwahlHtml() + "</div>" +
-      '<p class="einleitung">' + (n.ks ? "Die Kosten dieser Projektnummer gehen von der Kostenstelle <strong>" + esc(n.ks) + "</strong> ab und zählen dort zum IST."
+      '<p class="einleitung">' + (n.ks ? "Die Kosten dieser Projektnummer gehören zur Kostenstelle <strong>" + esc(n.ks) + "</strong> und sind in deren IST aus dem KST-Bericht schon enthalten. Hier stehen sie einzeln."
         : "Diese Projektnummer ist noch keiner Kostenstelle zugeordnet. Das legst Du unter Verwaltung → Projektnummern fest.") + "</p>" +
       '<div class="kennzahlen">' +
       kennzahl("Planbudget " + jahr, plan.vorhanden ? euro(plan.gesamt) : "–", plan.vorhanden ? "" : "noch nicht eingetragen") +
