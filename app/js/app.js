@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "0.9.0";
+  var VERSION = "0.9.1";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -343,6 +343,7 @@
 
   function seite(aktiv, titel, inhalt, breit) {
     document.title = (titel ? titel + " · " : "") + zustand.daten.einstellungen.titel;
+    breit = true; // alle Seiten nutzen die ganze Breite
     app.innerHTML = kopfHtml(aktiv) + '<main class="seite' + (breit ? " seite--breit" : "") + '" id="inhalt">' + druckkopfHtml(titel) + inhalt + "</main>" + fussHtml();
     app.querySelectorAll("[data-design]").forEach(function (k) {
       k.addEventListener("click", function () {
@@ -1710,9 +1711,9 @@
     var daten = zustand.daten, ich = zustand.benutzer;
     var heute = new Date(), vorschlag = zustand.jahr === heute.getFullYear() ? heute.toISOString().slice(0, 10) : zustand.jahr + "-12-31";
     oeffneDialog(x ? "Eintrag bearbeiten" : "Kosten erfassen · Projektnummer " + nummer,
-      '<div class="feld"><label for="k-datum">Datum</label><input id="k-datum" name="datum" type="date" value="' + esc(x ? x.datum : vorschlag) + '"></div>' +
-      '<div class="feld feld--betrag"><label for="k-betrag">Betrag</label><div class="betrag"><input id="k-betrag" name="betrag" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" value="' +
-      esc(x ? betragFeld(x.betrag) : "") + '"><span>EUR</span></div></div>' +
+      '<div class="feldreihe"><div class="feld"><label for="k-datum">Datum</label><input id="k-datum" name="datum" type="date" value="' + esc(x ? x.datum : vorschlag) + '"></div>' +
+      '<div class="feld"><label for="k-betrag">Betrag</label><div class="betrag"><input id="k-betrag" name="betrag" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" value="' +
+      esc(x ? betragFeld(x.betrag) : "") + '"><span>EUR</span></div></div></div>' +
       '<div class="feld"><label for="k-text">Beschreibung</label><input id="k-text" name="text" type="text" maxlength="120" value="' + esc(x ? x.text : "") + '"></div>' +
       '<p class="fehlertext" hidden></p>',
       '<button type="button" class="btn btn--rahmen" data-schliessen>Abbrechen</button><button type="submit" class="btn btn--primaer">' + (x ? "Änderungen speichern" : "Kosten speichern") + "</button>",

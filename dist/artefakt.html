@@ -882,7 +882,7 @@ img { max-width: 100%; display: block; }
 .feld { margin-bottom: 1.1rem; }
 .feld label, .feld .label { font-weight: 700; display: block; margin-bottom: .3rem; }
 .feld .hilfe { font-size: .875rem; color: var(--text-2); margin-top: .3rem; }
-input[type=text], input[type=password], textarea, select {
+input[type=text], input[type=password], input[type=date], input[type=email], input[type=number], textarea, select {
   width: 100%; padding: .7rem .8rem; font: inherit; color: var(--text);
   background: var(--eingabe); border: 1px solid var(--eingabe-rand); border-radius: var(--ruv-radius);
 }
@@ -1118,7 +1118,8 @@ th.zahl, td.zahl { text-align: right; font-variant-numeric: tabular-nums; }
 .positionen tfoot th, .positionen tfoot td { font-weight: 900; border-bottom: 0; border-top: 2px solid var(--text); font-size: 1rem; color: var(--text); }
 
 .bereich-tabelle { margin-top: 1.25rem; }
-.bereich-tabelle__kopf { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.bereich-tabelle__kopf { display: flex; align-items: center; justify-content: space-between; gap: .6rem 1rem; flex-wrap: wrap; margin-bottom: 1.1rem; }
+.bereich-tabelle__kopf h2 { margin: 0; }
 .budgettabelle th, .budgettabelle td { white-space: nowrap; }
 .budgettabelle td.klein { white-space: normal; min-width: 9rem; }
 .budgettabelle tr.ohne td, .budgettabelle tr.ohne th { color: var(--text-2); }
@@ -1429,6 +1430,34 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
   .prognose__label { display: block; }
   a { color: inherit; text-decoration: none; }
 }
+
+/* Datumsfeld: gleiche Höhe und Form wie die anderen Felder, Kalendersymbol in Akzentfarbe */
+input[type=date] { max-width: 15rem; min-height: 2.9rem; font-variant-numeric: tabular-nums; cursor: pointer; }
+input[type=date]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .75; padding: .2rem; border-radius: 6px; }
+input[type=date]::-webkit-calendar-picker-indicator:hover { opacity: 1; background: var(--flaeche-2); }
+:root[data-theme="dunkel"] input[type=date]::-webkit-calendar-picker-indicator { filter: invert(1); }
+
+/* Schmale Bildschirme: Karten und Felder nie breiter als die Spalte */
+.karte, .raster > *, .import-felder > * { min-width: 0; }
+select, input[type=file] { max-width: 100%; }
+
+/* Zwei Felder nebeneinander (Datum und Betrag), schmal untereinander */
+.feldreihe { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: 0 1rem; }
+.feldreihe input[type=date] { max-width: none; }
+
+/* Durchsicht 0.9.1 */
+/* Reiter der Verwaltung: auf dem Handy in einer Zeile zum Wischen statt umgebrochen */
+@media (max-width: 700px) {
+  .reiter { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .reiter::-webkit-scrollbar { display: none; }
+  .reiter a { white-space: nowrap; flex: none; }
+}
+/* Prognose-Diagramm auf großen Bildschirmen nicht übergroß */
+.prognose__svg { max-height: 21rem; }
+/* Dateiauswahl wie die übrigen Knöpfe */
+input[type=file] { font: inherit; font-size: .9rem; color: var(--text-2); }
+input[type=file]::file-selector-button { font: inherit; font-weight: 700; color: var(--text); background: var(--flaeche); border: 2px solid var(--text); border-radius: var(--ruv-radius); padding: .45rem .9rem; margin-right: .8rem; cursor: pointer; }
+input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
 
 </style>
 <script>
@@ -3226,7 +3255,7 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
 (function () {
   "use strict";
 
-  var VERSION = "0.9.0";
+  var VERSION = "0.9.1";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -3567,6 +3596,7 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
 
   function seite(aktiv, titel, inhalt, breit) {
     document.title = (titel ? titel + " · " : "") + zustand.daten.einstellungen.titel;
+    breit = true; // alle Seiten nutzen die ganze Breite
     app.innerHTML = kopfHtml(aktiv) + '<main class="seite' + (breit ? " seite--breit" : "") + '" id="inhalt">' + druckkopfHtml(titel) + inhalt + "</main>" + fussHtml();
     app.querySelectorAll("[data-design]").forEach(function (k) {
       k.addEventListener("click", function () {
@@ -4934,9 +4964,9 @@ td.minus, dd.minus, .minus { color: var(--fehler); }
     var daten = zustand.daten, ich = zustand.benutzer;
     var heute = new Date(), vorschlag = zustand.jahr === heute.getFullYear() ? heute.toISOString().slice(0, 10) : zustand.jahr + "-12-31";
     oeffneDialog(x ? "Eintrag bearbeiten" : "Kosten erfassen · Projektnummer " + nummer,
-      '<div class="feld"><label for="k-datum">Datum</label><input id="k-datum" name="datum" type="date" value="' + esc(x ? x.datum : vorschlag) + '"></div>' +
-      '<div class="feld feld--betrag"><label for="k-betrag">Betrag</label><div class="betrag"><input id="k-betrag" name="betrag" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" value="' +
-      esc(x ? betragFeld(x.betrag) : "") + '"><span>EUR</span></div></div>' +
+      '<div class="feldreihe"><div class="feld"><label for="k-datum">Datum</label><input id="k-datum" name="datum" type="date" value="' + esc(x ? x.datum : vorschlag) + '"></div>' +
+      '<div class="feld"><label for="k-betrag">Betrag</label><div class="betrag"><input id="k-betrag" name="betrag" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" value="' +
+      esc(x ? betragFeld(x.betrag) : "") + '"><span>EUR</span></div></div></div>' +
       '<div class="feld"><label for="k-text">Beschreibung</label><input id="k-text" name="text" type="text" maxlength="120" value="' + esc(x ? x.text : "") + '"></div>' +
       '<p class="fehlertext" hidden></p>',
       '<button type="button" class="btn btn--rahmen" data-schliessen>Abbrechen</button><button type="submit" class="btn btn--primaer">' + (x ? "Änderungen speichern" : "Kosten speichern") + "</button>",

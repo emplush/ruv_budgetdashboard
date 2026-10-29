@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.9.1 (29.10.2026)
+- Alle Seiten nutzen die ganze Breite, auch Verwaltung, Einstellungen, Profil und die Startseite des Administrators.
+- Projektkosten: Mehr Abstand unter „Kosten erfassen“. Im Dialog stehen Datum und Betrag nebeneinander, das Datumsfeld sieht aus wie die übrigen Felder.
+- Durchsicht aller Ansichten für Administrator, Abteilungsleitung, Gruppenleitung und Key Account Manager, breit, schmal, hell und dunkel: Das Prognose-Diagramm wird auf großen Bildschirmen nicht mehr übergroß, die Reiter der Verwaltung lassen sich auf dem Handy wischen, die Dateiauswahl beim KST-Bericht hat einen richtigen Knopf, und der Import von KST-Berichten passt jetzt auch auf schmale Bildschirme.
+
 ## 0.9.0 (29.10.2026)
 - Auswertungen als PDF: Auf Startseite, Planbudgets, IST-Werten, Detailseiten, Bericht und Projektkosten gibt es „Als PDF speichern“. Der Knopf öffnet den Druckdialog, dort wählst Du „Als PDF speichern“.
 - Eigenes Drucklayout auf A4 quer: immer hell, ohne Kopf- und Fußleiste und ohne Knöpfe, mit Logo, Titel, Datum und Name oben. Tabellen passen in die Breite, Kacheln, Diagramme und Tabellenzeilen werden nicht zerschnitten, jede Kostenstelle beginnt auf einer neuen Seite.
