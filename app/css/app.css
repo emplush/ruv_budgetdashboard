@@ -293,7 +293,8 @@ td .liste__aktionen { justify-content: flex-end; }
 }
 .fuss span:first-child { font-weight: 700; }
 body:has(.fuss) { padding-bottom: 3.5rem; }
-@media (max-width: 640px) { body:has(.fuss) { padding-bottom: 4.75rem; } }
+/* Auf dem Handy kostet die feste Fußzeile zu viel Platz: dort steht sie am Ende der Seite */
+@media (max-width: 640px) { body:has(.fuss) { padding-bottom: 0; } .fuss { position: static; } }
 
 /* Logo je nach Design */
 .logo-dunkel { display: none; }

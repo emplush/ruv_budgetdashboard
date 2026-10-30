@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.10.1 (30.10.2026)
+- Detailseite einer Kostenstelle ohne IST-Werte zeigt jetzt trotzdem ihr Planbudget je Kostenart, zum Beispiel beim Planen für das nächste Jahr.
+- Gruppenleitung und Key Account Manager ohne Zuweisung sehen keine leere Jahreswahl und keinen PDF-Knopf mehr.
+- Auf dem Handy steht die Fußzeile am Ende der Seite statt fest am unteren Rand. So bleibt mehr Platz für Tabellen.
+- Projektkosten: Liegt das Datum in einem anderen Jahr als dem gewählten, sagt das Tool nach dem Speichern, wo der Eintrag zu finden ist. Das vorgeschlagene Datum ist jetzt immer der heutige Tag, auch kurz nach Mitternacht.
+
 ## 0.10.0 (29.10.2026)
 - Neues Handbuch für alle Funktionen: im Menü oben rechts unter „Handbuch“. Es erklärt Rollen, Anmeldung, Begriffe und Rechnungen, alle Seiten und die Verwaltung Schritt für Schritt, mit Bildern aus den Beispieldaten.
 - „Handbuch als PDF herunterladen“ speichert dasselbe Handbuch als PDF (A4 hoch, mit Deckblatt, Inhalt und Seitenzahlen). Auf dem Server liegt es in `handbuch/Handbuch.pdf`.

@@ -1045,7 +1045,8 @@ td .liste__aktionen { justify-content: flex-end; }
 }
 .fuss span:first-child { font-weight: 700; }
 body:has(.fuss) { padding-bottom: 3.5rem; }
-@media (max-width: 640px) { body:has(.fuss) { padding-bottom: 4.75rem; } }
+/* Auf dem Handy kostet die feste Fußzeile zu viel Platz: dort steht sie am Ende der Seite */
+@media (max-width: 640px) { body:has(.fuss) { padding-bottom: 0; } .fuss { position: static; } }
 
 /* Logo je nach Design */
 .logo-dunkel { display: none; }
@@ -3604,7 +3605,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
 (function () {
   "use strict";
 
-  var VERSION = "0.10.0";
+  var VERSION = "0.10.1";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -4407,9 +4408,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
 
   function zeigeStart() {
     var b = zustand.benutzer, daten = zustand.daten;
-    var kopf = '<div class="seite__kopf"><div><p class="topline">' + esc(D.rollenName(b.rolle)) + "</p><h1>" + esc(D.begruessung()) + ", " + esc(b.vorname || b.kennung) + "</h1></div>" +
-      (b.rolle !== "admin" ? jahrwahlHtml() : "") + "</div>";
-    var inhalt = "";
+    var inhalt = "", leer = false;
     if (b.rolle === "admin") {
       inhalt = '<p class="einleitung">Hier pflegst Du die Grundlagen des Tools: Benutzer, Kostenstellen, Projektnummern und Einstellungen.</p>' +
         '<div class="kacheln">' +
@@ -4421,9 +4420,13 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
       inhalt = abteilungHtml() + einzelbudgetsHtml();
     } else {
       var eigen = eigeneBereiche(b);
+      leer = !eigen;
       inhalt = eigen || '<div class="karte leer-karte"><h2>Noch nichts zugewiesen</h2><p>Dir ist noch keine ' + esc(b.rolle === "kam" ? "Projektnummer" : "Kostenstelle") +
         " zugewiesen. Wende Dich bitte an Deine Abteilungsleitung.</p></div>";
     }
+    /* Jahr und PDF nur, wenn es etwas zu zeigen gibt */
+    var kopf = '<div class="seite__kopf"><div><p class="topline">' + esc(D.rollenName(b.rolle)) + "</p><h1>" + esc(D.begruessung()) + ", " + esc(b.vorname || b.kennung) + "</h1></div>" +
+      (b.rolle !== "admin" && !leer ? jahrwahlHtml() : "") + "</div>";
     seite("start", "", kopf + inhalt, b.rolle !== "admin");
     verbindeJahrwahl();
     verbindeSprunglinks();
@@ -4920,6 +4923,10 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
       (oben ? " · Unterkostenstelle von " : "") + (oben ? ksLink(oben) : "") +
       (g.uebergreifend ? " · Unterkostenstellen " + g.unter.map(function (u) { return ksLink(u.nummer); }).join(", ") : "") + "</p></div>" + jahrwahlHtml() + "</div>" + umschalter;
     if (!ist.vorhanden) {
+      /* Ohne IST trotzdem das Planbudget zeigen */
+      html += '<section class="karte"><h2>' + (nurEigen ? "Einzelbudget " : "Planbudget ") + jahr + "</h2>" +
+        (plan.vorhanden ? '<p class="budget__gesamt"><strong>' + euro(plan.gesamt) + "</strong></p>" + anteilHtml(plan) + planKostenartenHtml(plan)
+          : '<p class="leer-hinweis">Für ' + jahr + " ist noch kein Planbudget eingetragen." + (D.Rechte.budgets(zustand.benutzer) ? ' <a href="#/uebersicht">Planbudgets eintragen</a>' : "") + "</p>") + "</section>";
       html += '<p class="leer-hinweis">Für ' + jahr + " gibt es noch keine IST-Werte für die Kostenstelle " + esc(nummer) + (nurEigen ? ". Den eigenen Teil rechnet das Tool aus dem KST-Bericht von " + esc(nummer) + " aus" : "") + '. <a href="#/verwaltung/ist">KST-Bericht importieren</a></p>';
       seite("ist", "Kostenstelle " + nummer, html, true);
       verbindeJahrwahl();
@@ -5341,7 +5348,8 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
 
   function kostenDialog(nummer, x) {
     var daten = zustand.daten, ich = zustand.benutzer;
-    var heute = new Date(), vorschlag = zustand.jahr === heute.getFullYear() ? heute.toISOString().slice(0, 10) : zustand.jahr + "-12-31";
+    var heute = new Date(), vorschlag = zustand.jahr === heute.getFullYear()
+      ? heute.getFullYear() + "-" + ("0" + (heute.getMonth() + 1)).slice(-2) + "-" + ("0" + heute.getDate()).slice(-2) : zustand.jahr + "-12-31";
     oeffneDialog(x ? "Eintrag bearbeiten" : "Kosten erfassen · Projektnummer " + nummer,
       '<div class="feldreihe"><div class="feld"><label for="k-datum">Datum</label><input id="k-datum" name="datum" type="date" value="' + esc(x ? x.datum : vorschlag) + '"></div>' +
       '<div class="feld"><label for="k-betrag">Betrag</label><div class="betrag"><input id="k-betrag" name="betrag" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" value="' +
@@ -5354,7 +5362,10 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
         if (!D.istDatum(felder.datum)) { zeigeFehler(f, "Gib bitte ein gültiges Datum ein."); return; }
         var b = D.leseBetrag(felder.betrag);
         if (b === null || b === 0) { zeigeFehler(f, "Gib bitte einen Betrag größer als 0,00 EUR ein, zum Beispiel 1.250,00 EUR."); return; }
-        Dienst.kostenSpeichern(daten, ich, x ? x.id : "", felder).then(nachAenderung(x ? "Der Eintrag ist gespeichert." : "Die Kosten sind erfasst."), function (e) { serverFehler(e, f); });
+        var text = x ? "Der Eintrag ist gespeichert." : "Die Kosten sind erfasst.";
+        /* Datum in einem anderen Jahr: Der Eintrag verschwindet aus der Liste, deshalb Hinweis */
+        if (felder.datum.slice(0, 4) !== String(zustand.jahr)) text += (x ? " Er zählt" : " Sie zählen") + " zum Jahr " + felder.datum.slice(0, 4) + ". Wähle oben dieses Kalenderjahr, um " + (x ? "ihn" : "sie") + " zu sehen.";
+        Dienst.kostenSpeichern(daten, ich, x ? x.id : "", felder).then(nachAenderung(text), function (e) { serverFehler(e, f); });
       });
   }
 
