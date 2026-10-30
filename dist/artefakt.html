@@ -1524,6 +1524,18 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
   .hb-begriffe dt { break-after: avoid; }
 }
 
+/* Änderungsprotokoll, Datensicherung (seit 0.11.0) */
+.protokolltabelle { min-width: 46rem; }
+.protokolltabelle th, .protokolltabelle td { padding: .6rem .6rem; vertical-align: top; font-size: .9rem; }
+.protokolltabelle tbody th { font-weight: 400; white-space: nowrap; }
+.protokolltabelle td:first-child { white-space: nowrap; }
+#protokoll .knopfreihe { margin-top: 1rem; }
+.sicherungsliste { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.sicherungsliste li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; padding: .5rem 0; border-bottom: 1px solid var(--linie); }
+[data-sicherung] .untertitel { margin-top: 1.25rem; }
+@media print { [data-uebernahme], [data-excel], [data-protokoll-mehr] { display: none !important; } }
+[data-ampel] { max-width: 46rem; }
+
 </style>
 <script>
 /* Design vor dem ersten Zeichnen setzen, damit nichts aufblitzt (eigene Datei wegen Content-Security-Policy).
@@ -1655,7 +1667,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
 <script>
 /*
  * Budgetdashboard: Excel-Dateien (.xlsx) lesen, ohne Fremdbibliothek.
- * Übernommen aus der Lernprogrammübersicht (emplush/ruv_lernprogramme_uebersicht), nur der Leseteil.
+ * Leseteil übernommen aus der Lernprogrammübersicht (emplush/ruv_lernprogramme_uebersicht); dazu ein einfacher Schreibteil für den Export.
  * Wie ein KST-Bericht gedeutet wird, regelt BDDaten.istAuslesen.
  */
 (function (root, factory) {
@@ -1791,7 +1803,115 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
     });
   }
 
-  return { arbeitsmappeLesen: arbeitsmappeLesen, spalteName: spalteName };
+  /* ---------- Excel schreiben (für den Export, ohne Komprimierung) ---------- */
+
+  var CRC_TABELLE = (function () {
+    var t = [];
+    for (var n = 0; n < 256; n++) {
+      var c = n;
+      for (var k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+
+  function crc32(b) {
+    var c = 0xffffffff;
+    for (var i = 0; i < b.length; i++) c = CRC_TABELLE[(c ^ b[i]) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  }
+
+  function utf8(text) {
+    if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(text);
+    return new Uint8Array(Buffer.from(text, 'utf8'));
+  }
+
+  /** ZIP ohne Komprimierung (Methode 0): [{ pfad, text }] -> Uint8Array */
+  function zipSchreiben(dateien) {
+    var teile = [], verzeichnis = [], pos = 0;
+    function w16(a, o, v) { a[o] = v & 0xff; a[o + 1] = (v >>> 8) & 0xff; }
+    function w32(a, o, v) { a[o] = v & 0xff; a[o + 1] = (v >>> 8) & 0xff; a[o + 2] = (v >>> 16) & 0xff; a[o + 3] = (v >>> 24) & 0xff; }
+    dateien.forEach(function (d) {
+      var name = utf8(d.pfad), daten = utf8(d.text), crc = crc32(daten);
+      var kopf = new Uint8Array(30 + name.length);
+      w32(kopf, 0, 0x04034b50); w16(kopf, 4, 20); w16(kopf, 6, 0x0800); w16(kopf, 8, 0); w16(kopf, 10, 0); w16(kopf, 12, 0x21);
+      w32(kopf, 14, crc); w32(kopf, 18, daten.length); w32(kopf, 22, daten.length); w16(kopf, 26, name.length); w16(kopf, 28, 0);
+      kopf.set(name, 30);
+      var z = new Uint8Array(46 + name.length);
+      w32(z, 0, 0x02014b50); w16(z, 4, 20); w16(z, 6, 20); w16(z, 8, 0x0800); w16(z, 10, 0); w16(z, 12, 0); w16(z, 14, 0x21);
+      w32(z, 16, crc); w32(z, 20, daten.length); w32(z, 24, daten.length); w16(z, 28, name.length);
+      w32(z, 42, pos); z.set(name, 46);
+      teile.push(kopf, daten); verzeichnis.push(z);
+      pos += kopf.length + daten.length;
+    });
+    var groesse = verzeichnis.reduce(function (s, z) { return s + z.length; }, 0);
+    var ende = new Uint8Array(22);
+    w32(ende, 0, 0x06054b50); w16(ende, 8, dateien.length); w16(ende, 10, dateien.length); w32(ende, 12, groesse); w32(ende, 16, pos);
+    var alle = teile.concat(verzeichnis, [ende]), laenge = alle.reduce(function (s, t) { return s + t.length; }, 0);
+    var aus = new Uint8Array(laenge), o = 0;
+    alle.forEach(function (t) { aus.set(t, o); o += t.length; });
+    return aus;
+  }
+
+  function xml(text) {
+    return String(text).replace(/[&<>"]/g, function (z) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[z]; })
+      .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '');
+  }
+
+  /* Formate: 0 Text, 1 fett, 2 EUR, 3 EUR fett, 4 Prozent, 5 Prozent fett, 6 Kopfzeile */
+  var STILE = { text: 0, fett: 1, eur: 2, eurFett: 3, prozent: 4, prozentFett: 5, kopf: 6 };
+
+  function zelleXml(z, ref) {
+    if (z === null || z === undefined || z === '') return '';
+    var wert = z, stil = 0;
+    if (typeof z === 'object') { wert = z.wert; stil = STILE[z.stil] || 0; }
+    if (wert === null || wert === undefined || wert === '') return stil ? '<c r="' + ref + '" s="' + stil + '"/>' : '';
+    if (typeof wert === 'number' && isFinite(wert)) return '<c r="' + ref + '"' + (stil ? ' s="' + stil + '"' : '') + '><v>' + wert + '</v></c>';
+    return '<c r="' + ref + '" t="inlineStr"' + (stil ? ' s="' + stil + '"' : '') + '><is><t xml:space="preserve">' + xml(wert) + '</t></is></c>';
+  }
+
+  function blattXml(b) {
+    var spalten = (b.breiten || []).map(function (w, i) { return '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>'; }).join('');
+    var zeilen = b.zeilen.map(function (z, r) {
+      return '<row r="' + (r + 1) + '">' + z.map(function (c, i) { return zelleXml(c, spalteName(i) + (r + 1)); }).join('') + '</row>';
+    }).join('');
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      (b.kopfzeilen ? '<sheetViews><sheetView workbookViewId="0"><pane ySplit="' + b.kopfzeilen + '" topLeftCell="A' + (b.kopfzeilen + 1) + '" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' : '') +
+      (spalten ? '<cols>' + spalten + '</cols>' : '') + '<sheetData>' + zeilen + '</sheetData></worksheet>';
+  }
+
+  /** blaetter: [{ name, breiten:[Zeichen], kopfzeilen, zeilen:[[wert | {wert, stil}]] }] -> Uint8Array (.xlsx) */
+  function arbeitsmappeSchreiben(blaetter) {
+    var dateien = [
+      { pfad: '[Content_Types].xml', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+        '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+        blaetter.map(function (b, i) { return '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'; }).join('') + '</Types>' },
+      { pfad: '_rels/.rels', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>' },
+      { pfad: 'xl/workbook.xml', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' +
+        blaetter.map(function (b, i) { return '<sheet name="' + xml(String(b.name).replace(/[\\\/?*\[\]:]/g, ' ').slice(0, 31)) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>'; }).join('') + '</sheets></workbook>' },
+      { pfad: 'xl/_rels/workbook.xml.rels', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        blaetter.map(function (b, i) { return '<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>'; }).join('') +
+        '<Relationship Id="rId' + (blaetter.length + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>' },
+      { pfad: 'xl/styles.xml', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        '<numFmts count="2"><numFmt numFmtId="164" formatCode="#,##0.00 &quot;EUR&quot;"/><numFmt numFmtId="165" formatCode="0.0 %"/></numFmts>' +
+        '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE6ECF5"/></patternFill></fill></fills>' +
+        '<borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="7"><xf xfId="0" numFmtId="0" fontId="0" fillId="0" borderId="0"/><xf xfId="0" numFmtId="0" fontId="1" fillId="0" borderId="0" applyFont="1"/>' +
+        '<xf xfId="0" numFmtId="164" fontId="0" fillId="0" borderId="0" applyNumberFormat="1"/><xf xfId="0" numFmtId="164" fontId="1" fillId="0" borderId="0" applyNumberFormat="1" applyFont="1"/>' +
+        '<xf xfId="0" numFmtId="165" fontId="0" fillId="0" borderId="0" applyNumberFormat="1"/><xf xfId="0" numFmtId="165" fontId="1" fillId="0" borderId="0" applyNumberFormat="1" applyFont="1"/>' +
+        '<xf xfId="0" numFmtId="0" fontId="1" fillId="2" borderId="0" applyFont="1" applyFill="1"/></cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>' }
+    ];
+    blaetter.forEach(function (b, i) { dateien.push({ pfad: 'xl/worksheets/sheet' + (i + 1) + '.xml', text: blattXml(b) }); });
+    return zipSchreiben(dateien);
+  }
+
+  return { arbeitsmappeLesen: arbeitsmappeLesen, arbeitsmappeSchreiben: arbeitsmappeSchreiben, spalteName: spalteName };
 });
 
 </script>
@@ -1952,6 +2072,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
       ist: {},
       istSicherungen: [],
       kosten: [],
+      budgetProtokoll: [],
       geaendert: jetzt()
     };
   }
@@ -1983,6 +2104,8 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
     if (!daten.ist || typeof daten.ist !== "object" || Array.isArray(daten.ist)) daten.ist = {};
     if (!Array.isArray(daten.istSicherungen)) daten.istSicherungen = [];
     if (!Array.isArray(daten.kosten)) daten.kosten = [];
+    if (!Array.isArray(daten.budgetProtokoll)) daten.budgetProtokoll = [];
+    AMPEL = ampelAus(daten.einstellungen.ampel);
     daten.projekte.forEach(function (n) { if (typeof n.ks !== "string") n.ks = ""; });
     daten.benutzer.forEach(function (b) {
       var muster = neuerBenutzer(b.kennung);
@@ -2182,6 +2305,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
         var j = daten.budgets[jahr];
         if (j[art + "-" + alt]) { j[art + "-" + nummer] = j[art + "-" + alt]; delete j[art + "-" + alt]; }
       });
+      (daten.budgetProtokoll || []).forEach(function (x) { if (x.art === art && x.nummer === alt) x.nummer = nummer; });
       if (art === "ks") {
         daten.kostenstellen.forEach(function (n) {
           var i = (n.unter || []).indexOf(alt);
@@ -2290,7 +2414,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
 
   /* werte: bei Kostenstellen {pkId, pkAd, werbung, reise, sonstiges}, bei Projektnummern {betrag}, als Zahl oder Text.
      Liefert Fehlertext oder "". */
-  function setzeBudget(daten, jahr, art, nummer, werte) {
+  function setzeBudget(daten, jahr, art, nummer, werte, kennung, zeit) {
     if (!istJahr(jahr)) return "Wähle bitte ein Kalenderjahr.";
     if (!findeNummer(daten, art, nummer)) return "Die " + (ARTEN[art] ? ARTEN[art].name : "Nummer") + " " + nummer + " gibt es nicht mehr.";
     werte = werte || {};
@@ -2299,6 +2423,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
       var b = leseBetrag(werte.betrag);
       if (b === null) return "Prüfe bitte den Betrag. Erlaubt sind Beträge ab 0,00 EUR, zum Beispiel 12.500,00 EUR.";
       neu.betrag = b;
+      protokolliere(daten, jahr, art, nummer, neu, kennung, "Eintrag", zeit);
       (daten.budgets[String(jahr)] || (daten.budgets[String(jahr)] = {}))[art + "-" + nummer] = neu;
       return "";
     }
@@ -2307,10 +2432,94 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
       if (z === null) return "Prüfe bitte den Betrag bei „" + POSITIONEN[i].name + "“. Erlaubt sind Beträge ab 0,00 EUR, zum Beispiel 12.500,00 EUR.";
       neu[POSITIONEN[i].id] = z;
     }
+    protokolliere(daten, jahr, art, nummer, neu, kennung, "Eintrag", zeit);
     var j = daten.budgets[String(jahr)] || (daten.budgets[String(jahr)] = {});
     j[art + "-" + nummer] = neu;
     return "";
   }
+
+  /* ---------- Änderungsprotokoll der Planbudgets (gleich wie Protokollieren in api.ashx) ---------- */
+
+  var MAX_PROTOKOLL = 1000;
+
+  function gleicheWerte(a, b) { return JSON.stringify(a || null) === JSON.stringify(b || null); }
+
+  /* Schreibt einen Eintrag, wenn sich das Planbudget ändert; neueste zuerst, höchstens MAX_PROTOKOLL */
+  function protokolliere(daten, jahr, art, nummer, nachher, kennung, anlass, zeit) {
+    var j = daten.budgets[String(jahr)] || {};
+    var vorher = j[art + "-" + nummer] || null;
+    if (gleicheWerte(vorher, nachher)) return;
+    if (!Array.isArray(daten.budgetProtokoll)) daten.budgetProtokoll = [];
+    daten.budgetProtokoll.unshift({
+      id: "p" + Math.random().toString(16).slice(2, 14), zeit: zeit || jetzt(), von: kennung || "",
+      jahr: String(jahr), art: art, nummer: nummer, anlass: anlass, vorher: vorher ? kopie(vorher) : null, nachher: nachher ? kopie(nachher) : null
+    });
+    if (daten.budgetProtokoll.length > MAX_PROTOKOLL) daten.budgetProtokoll.length = MAX_PROTOKOLL;
+  }
+
+  /* Planbudgets eines Jahres als Vorlage für ein anderes. Ohne ueberschreiben bleiben vorhandene Einträge.
+     Liefert die Schlüssel, die übernommen würden (nur Nummern, die es noch gibt). */
+  function uebernahmeListe(daten, von, nach, ueberschreiben) {
+    var quelle = daten.budgets[String(von)] || {}, ziel = daten.budgets[String(nach)] || {};
+    return Object.keys(quelle).filter(function (s) {
+      var teile = s.split("-");
+      if (!findeNummer(daten, teile[0], teile[1])) return false;
+      if (ziel[s] && !ueberschreiben) return false;
+      return !gleicheWerte(ziel[s], quelle[s]);
+    }).sort();
+  }
+
+  function uebernehmeBudgets(daten, von, nach, ueberschreiben, kennung, zeit) {
+    if (!istJahr(von) || !istJahr(nach) || String(von) === String(nach)) return "Wähle bitte zwei verschiedene Kalenderjahre.";
+    var liste = uebernahmeListe(daten, von, nach, ueberschreiben);
+    if (!liste.length) return "Aus " + von + " gibt es nichts zu übernehmen.";
+    var ziel = daten.budgets[String(nach)] || (daten.budgets[String(nach)] = {});
+    liste.forEach(function (s) {
+      var teile = s.split("-"), werte = kopie(daten.budgets[String(von)][s]);
+      protokolliere(daten, nach, teile[0], teile[1], werte, kennung, "Übernahme aus " + von, zeit);
+      ziel[s] = werte;
+    });
+    return "";
+  }
+
+  /* ---------- Ampel: Grenzen legt die Abteilungsleitung fest (einstellungen.ampel, gleich wie in api.ashx) ---------- */
+
+  var AMPEL_STANDARD = { imPlanBis: 95, knappBis: 100 };
+  var AMPEL = { imPlanBis: 95, knappBis: 100 };
+
+  function ampelAus(a) {
+    a = a || {};
+    var g = Number(a.imPlanBis), r = Number(a.knappBis);
+    if (pruefeAmpel(g, r)) return { imPlanBis: AMPEL_STANDARD.imPlanBis, knappBis: AMPEL_STANDARD.knappBis };
+    return { imPlanBis: g, knappBis: r };
+  }
+
+  /* Ganze Prozent: im Plan bis 50 bis 150, knapp bis darüber und höchstens 200 */
+  function pruefeAmpel(imPlanBis, knappBis) {
+    if (!(Math.floor(imPlanBis) === imPlanBis && Math.floor(knappBis) === knappBis)) return "Gib bitte ganze Prozentwerte ein.";
+    if (imPlanBis < 50 || imPlanBis > 150) return "„Im Plan bis“ liegt zwischen 50 % und 150 %.";
+    if (knappBis <= imPlanBis || knappBis > 200) return "„Knapp bis“ liegt über „Im Plan bis“ und höchstens bei 200 %.";
+    return "";
+  }
+
+  function setzeAmpel(daten, imPlanBis, knappBis) {
+    var g = Number(imPlanBis), r = Number(knappBis);
+    var text = pruefeAmpel(g, r);
+    if (text) return text;
+    daten.einstellungen.ampel = { imPlanBis: g, knappBis: r };
+    AMPEL = { imPlanBis: g, knappBis: r };
+    return "";
+  }
+
+  function ampelGrenzen() { return { imPlanBis: AMPEL.imPlanBis, knappBis: AMPEL.knappBis }; }
+
+  /* Hochrechnung geteilt durch Plan → "gruen", "gelb", "rot" oder "" ohne Plan */
+  function ampelVon(q) {
+    if (q === null || q === undefined || !isFinite(q)) return "";
+    return q > AMPEL.knappBis / 100 ? "rot" : q > AMPEL.imPlanBis / 100 ? "gelb" : "gruen";
+  }
+
+  function ampelText() { return "im Plan bis " + AMPEL.imPlanBis + " %, knapp bis " + AMPEL.knappBis + " %, darüber über Plan"; }
 
   /* Planbudget einer Kostenstelle. Eingetragen wird ihr eigenes Budget inklusive ihrer Projektnummern.
      Bei einer übergreifenden Kostenstelle ist gesamt = eingetragenes Budget plus die Planbudgets der Unterkostenstellen
@@ -2661,7 +2870,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
       vorjahrDiff: ist.vergleich ? runde(i - ist.vergleich.gesamt) : null,
       vorjahrQuote: ist.vergleich && ist.vergleich.gesamt ? (i - ist.vergleich.gesamt) / ist.vergleich.gesamt : null
     };
-    k.ampel = k.hochQuote === null ? "" : k.hochQuote > 1 ? "rot" : k.hochQuote > 0.95 ? "gelb" : "gruen";
+    k.ampel = ampelVon(k.hochQuote);
     return k;
   }
 
@@ -2743,10 +2952,29 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
     if (ich.rolle !== "admin") Object.keys(daten.ist || {}).forEach(function (s) {
       if (ich.rolle === "al" || (s.indexOf("ks-") === 0 && d.kostenstellen.some(function (n) { return "ks-" + n.nummer === s; }))) d.ist[s] = kopie(daten.ist[s]);
     });
+    d.budgetProtokoll = ich.rolle === "al" ? kopie(daten.budgetProtokoll || []) : [];
     d.istSicherungen = verwaltet ? (daten.istSicherungen || []).map(function (x) {
       return { id: x.id, zeit: x.zeit, von: x.von, nummer: x.nummer, anlass: x.anlass, vorherStand: x.vorher ? x.vorher.stand : "", vorherMonat: x.vorher ? x.vorher.monat : "" };
     }) : [];
     return d;
+  }
+
+  /* ---------- Gesamtsicherung (gleich wie PruefeSicherung in api.ashx) ---------- */
+
+  /* Nimmt eine heruntergeladene Sicherung ({art:"budgetdashboard-sicherung", daten}) oder eine daten.json vom Server.
+     Liefert {daten} oder {fehler}. kennung: Diese Person muss darin Administrator sein. */
+  function pruefeSicherung(obj, kennung) {
+    var d = obj && obj.art === "budgetdashboard-sicherung" ? obj.daten : obj;
+    if (!d || typeof d !== "object" || !Array.isArray(d.benutzer) || !Array.isArray(d.kostenstellen) || !Array.isArray(d.projekte) || !d.budgets || typeof d.budgets !== "object")
+      return { fehler: "Das ist keine Sicherung des Budgetdashboards." };
+    var ich = d.benutzer.filter(function (b) { return b && normalisiereKennung(b.kennung) === normalisiereKennung(kennung); })[0];
+    if (!ich || ich.rolle !== "admin") return { fehler: "In der Sicherung bist Du nicht als Administrator enthalten. So würdest Du Dich aussperren." };
+    if (!d.benutzer.every(function (b) { return b && istGueltigeKennung(b.kennung) && b.hash && b.salz; }))
+      return { fehler: "In der Sicherung fehlen Konten oder Passwörter." };
+    /* vervollstaendige setzt die Ampel; die gilt erst nach dem Einspielen */
+    var ampel = AMPEL, aus = vervollstaendige(kopie(d));
+    AMPEL = ampel;
+    return { daten: aus };
   }
 
   /* ---------- Speicher ---------- */
@@ -2846,6 +3074,17 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
     istJahr: istJahr,
     budgetVon: budgetVon,
     setzeBudget: setzeBudget,
+    uebernahmeListe: uebernahmeListe,
+    uebernehmeBudgets: uebernehmeBudgets,
+    pruefeAmpel: pruefeAmpel,
+    AMPEL_STANDARD: AMPEL_STANDARD,
+    setzeAmpel: setzeAmpel,
+    ampelAus: ampelAus,
+    ampelGrenzen: ampelGrenzen,
+    ampelVon: ampelVon,
+    ampelText: ampelText,
+    pruefeSicherung: pruefeSicherung,
+    MAX_PROTOKOLL: MAX_PROTOKOLL,
     summe: summe,
     jahre: jahre,
     begruessung: begruessung,
@@ -3202,7 +3441,31 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
       });
     },
     budgetSpeichern: function (daten, b, jahr, art, nummer, werte) {
-      return aendern(function (ich) { return recht(D.Rechte.budgets(ich)) || D.setzeBudget(speicher, jahr, art, nummer, werte); });
+      return aendern(function (ich) { return recht(D.Rechte.budgets(ich)) || D.setzeBudget(speicher, jahr, art, nummer, werte, ich.kennung); });
+    },
+    budgetsUebernehmen: function (daten, b, von, nach, ueberschreiben) {
+      return aendern(function (ich) { return recht(D.Rechte.budgets(ich)) || D.uebernehmeBudgets(speicher, von, nach, !!ueberschreiben, ich.kennung); });
+    },
+    ampelSpeichern: function (daten, b, imPlanBis, knappBis) {
+      return aendern(function (ich) { return (ich.rolle === "al" ? "" : "Die Ampel stellt nur die Abteilungsleitung ein.") || D.setzeAmpel(speicher, imPlanBis, knappBis); });
+    },
+    /* Gesamtsicherung: vollständiger Stand zum Herunterladen (nur Administrator) */
+    sicherungHolen: function () {
+      try { if (ich().rolle !== "admin") return Promise.reject(fehler("Sicherungen verwaltet nur ein Administrator.", "eingabe")); } catch (f) { return Promise.reject(f); }
+      return Promise.resolve({ art: "budgetdashboard-sicherung", version: "", erstellt: new Date().toISOString(), daten: D.kopie(speicher) });
+    },
+    /* Im Browser gibt es keine automatischen Sicherungen */
+    sicherungenListe: function () { return Promise.resolve([]); },
+    sicherungEinspielen: function (daten, b, quelle) {
+      var echt;
+      try { echt = ich(); } catch (f) { return Promise.reject(f); }
+      if (echt.rolle !== "admin") return Promise.reject(fehler("Sicherungen verwaltet nur ein Administrator.", "eingabe"));
+      var r = D.pruefeSicherung(quelle.daten, echt.kennung);
+      if (r.fehler) return Promise.reject(fehler(r.fehler, "eingabe"));
+      var vorher = speicher;
+      speicher = D.vervollstaendige(r.daten);
+      speicher.stand = Math.max(vorher.stand || 0, speicher.stand || 0) + 1;
+      return D.Speicher.speichern(speicher).then(function () { return ergebnis(echt.kennung); }, function (f) { speicher = vorher; D.vervollstaendige(speicher); throw f; });
     },
     istImportieren: function (daten, b, nummer, eintrag) {
       return aendern(function (ich) { return recht(D.Rechte.budgets(ich)) || D.setzeIst(speicher, nummer, eintrag, ich.kennung); });
@@ -3327,6 +3590,13 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
       return anfrage("kosten-speichern", { id: id || "", pn: felder.pn, datum: felder.datum, betrag: felder.betrag, text: felder.text || "" }).then(uebernehmen);
     },
     kostenLoeschen: function (daten, b, id) { return anfrage("kosten-loeschen", { id: id }).then(uebernehmen); },
+    budgetsUebernehmen: function (daten, b, von, nach, ueberschreiben) {
+      return anfrage("budgets-uebernehmen", { von: String(von), nach: String(nach), ueberschreiben: !!ueberschreiben }).then(uebernehmen);
+    },
+    ampelSpeichern: function (daten, b, imPlanBis, knappBis) { return anfrage("ampel-speichern", { imPlanBis: imPlanBis, knappBis: knappBis }).then(uebernehmen); },
+    sicherungHolen: function () { return anfrage("sicherung"); },
+    sicherungenListe: function () { return anfrage("sicherungen").then(function (r) { return r.liste || []; }); },
+    sicherungEinspielen: function (daten, b, quelle) { return anfrage("sicherung-einspielen", quelle).then(uebernehmen); },
     istWiederherstellen: function (daten, b, id) { return anfrage("ist-wiederherstellen", { id: id }).then(uebernehmen); }
   };
 
@@ -3400,6 +3670,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
         "<li><strong>Mond-Symbol:</strong> wechselt zwischen hellem und dunklem Design.</li>" +
         "<li><strong>Kreis mit Deinen Initialen:</strong> öffnet das Menü mit „Mein Profil“, „Handbuch“ und „Abmelden“.</li>" +
         "<li><strong>Kalenderjahr:</strong> Jede Ansicht startet mit dem aktuellen Jahr. Ein anderes Jahr wählst Du oben rechts. Die Wahl gilt nur für diese Ansicht.</li>" +
+        "<li><strong>Als Excel herunterladen:</strong> speichert Planbudgets, IST-Werte und Projektkosten des Kalenderjahres als Excel-Datei, siehe Kapitel „Excel-Export“.</li>" +
         "<li><strong>Als PDF speichern:</strong> speichert die aktuelle Auswertung als PDF, siehe Kapitel „Als PDF speichern“.</li>" +
         "<li><strong>Zurück zur Übersicht:</strong> Auf Detailseiten führt Dich der Link oben zurück zur Seite, von der Du gekommen bist.</li></ul>" +
         "<h3>Zahlen und Farben</h3>" +
@@ -3408,8 +3679,9 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
         '<div class="hb-tabelle"><table><thead><tr><th>Anzeige</th><th>Bedeutung</th></tr></thead><tbody>' +
         '<tr><td><span class="ampel ampel--gruen">im Plan</span></td><td>Die Hochrechnung liegt bei höchstens 95 % des Planbudgets.</td></tr>' +
         '<tr><td><span class="ampel ampel--gelb">knapp</span></td><td>Die Hochrechnung liegt zwischen 95 % und 100 %.</td></tr>' +
-        '<tr><td><span class="ampel ampel--rot">über Plan</span></td><td>Die Hochrechnung liegt über dem Planbudget.</td></tr>' +
-        "</tbody></table></div>"
+        '<tr><td><span class="ampel ampel--rot">über Plan</span></td><td>Die Hochrechnung liegt über 100 % des Planbudgets.</td></tr>' +
+        "</tbody></table></div>" +
+        "<p>Das sind die Standardgrenzen. Die Abteilungsleitung kann sie unter Verwaltung → Einstellungen ändern, siehe Kapitel „Ampel einstellen“. Die geltenden Grenzen stehen in der Hilfe neben der Ampel.</p>"
     },
     {
       id: "begriffe", titel: "Begriffe und Rechnungen", fuer: "Alle",
@@ -3459,7 +3731,19 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
         bild("planbudget-eintragen", "Planbudget einer Kostenstelle eintragen", true) +
         "<p>Für eine übergreifende Kostenstelle trägst Du nur ihr Einzelbudget ein, inklusive ihrer Projektnummern. Das Gesamtbudget rechnet das Tool aus Einzelbudget und Unterkostenstellen.</p>" +
         "<p>Für eine Projektnummer gibt es nur einen Betrag ohne Kostenarten.</p>" +
-        tipp("Fehlt einer Kostenstelle oder Projektnummer noch ein Planbudget, weist Dich die Startseite darauf hin.")
+        tipp("Fehlt einer Kostenstelle oder Projektnummer noch ein Planbudget, weist Dich die Startseite darauf hin.") +
+        "<h3>Planbudgets aus dem Vorjahr übernehmen</h3>" +
+        "<p>Für ein neues Kalenderjahr musst Du nicht alles neu eintragen. Gibt es im Vorjahr Planbudgets, steht über den Kennzahlen der Knopf „Planbudgets aus … übernehmen“.</p>" +
+        "<ol><li>Wähle oben das neue Kalenderjahr.</li><li>Klicke auf „Planbudgets aus … übernehmen“.</li>" +
+        "<li>Sind für das neue Jahr schon Planbudgets eingetragen, entscheidest Du: Ohne Haken bleiben sie, wie sie sind. Mit Haken bei „Vorhandene Planbudgets überschreiben“ ersetzt das Tool sie durch die Werte aus dem Vorjahr.</li>" +
+        "<li>Klicke auf „Jetzt übernehmen“ und passe danach einzelne Werte wie gewohnt an.</li></ol>" +
+        bild("uebernahme", "Planbudgets aus dem Vorjahr übernehmen", true) +
+        "<p>Das Tool übernimmt nur Kostenstellen und Projektnummern, die es noch gibt.</p>" +
+        "<h3>Änderungsprotokoll</h3>" +
+        "<p>Unter den Tabellen steht das Änderungsprotokoll des gewählten Kalenderjahres: wer wann welches Planbudget eingetragen oder geändert hat, mit den Beträgen vorher und nachher. " +
+        "Bei einer Übernahme steht als Anlass „Übernahme aus …“. Neue Einträge stehen oben, „Weitere anzeigen“ lädt ältere nach.</p>" +
+        bild("aenderungsprotokoll", "Änderungsprotokoll der Planbudgets") +
+        tipp("Das Tool hebt die letzten 1.000 Einträge über alle Kalenderjahre auf. Das Änderungsprotokoll sieht nur die Abteilungsleitung.")
     },
     {
       id: "ist", titel: "IST-Werte", fuer: "Abteilungsleitung",
@@ -3546,10 +3830,24 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
         bild("verwaltung-projektnummern", "Verwaltung, Reiter Projektnummern")
     },
     {
-      id: "einstellungen", titel: "Einstellungen", fuer: "Administrator",
+      id: "ampel", titel: "Ampel einstellen", fuer: "Abteilungsleitung",
+      html:
+        "<p>Unter Verwaltung → Einstellungen legst Du fest, ab wann die Ampel gelb und rot zeigt. Die Ampel vergleicht die Hochrechnung zum Jahresende mit dem Planbudget.</p>" +
+        bild("ampel", "Ampelgrenzen einstellen") +
+        "<ul><li><strong>Im Plan bis:</strong> Bis zu diesem Wert zeigt die Ampel grün. Erlaubt sind 50 % bis 150 %, Standard 95 %.</li>" +
+        "<li><strong>Knapp bis:</strong> Bis zu diesem Wert zeigt sie gelb, darüber rot. Der Wert liegt über „Im Plan bis“ und höchstens bei 200 %, Standard 100 %.</li></ul>" +
+        "<p>Unter den Feldern siehst Du, wie die Ampel mit Deinen Werten schaltet. „Auf Standard zurücksetzen“ stellt 95 % und 100 % wieder her. Die Grenzen gelten für alle im Tool.</p>"
+    },
+    {
+      id: "einstellungen", titel: "Einstellungen und Datensicherung", fuer: "Administrator",
       html:
         "<p>Unter Verwaltung → Einstellungen änderst Du den Titel der Anwendung. Er steht in der Kopfzeile und im Tab des Browsers.</p>" +
-        bild("einstellungen", "Einstellungen mit dem Titel der Anwendung") +
+        bild("einstellungen", "Einstellungen mit Titel und Datensicherung") +
+        "<h3>Datensicherung</h3>" +
+        "<ul><li><strong>Sicherung herunterladen:</strong> speichert den vollständigen Datenstand als JSON-Datei: Konten, Nummern, Planbudgets, IST-Werte, Projektkosten, Änderungsprotokoll und Einstellungen. Die Datei enthält auch die Passwort-Hashes. Bewahre sie sicher auf.</li>" +
+        "<li><strong>Sicherung einspielen:</strong> Wähle eine Sicherungsdatei und bestätige. Das Tool ersetzt dann alle Daten durch den Stand aus der Datei. Im Serverbetrieb sichert der Server vorher den aktuellen Stand.</li>" +
+        "<li><strong>Automatische Sicherungen</strong> (nur Serverbetrieb): Der Server sichert vor jeder Änderung den alten Stand. Die zehn neuesten stehen in der Liste, „Wiederherstellen“ setzt die Daten auf diesen Stand zurück.</li></ul>" +
+        tipp("Eine Sicherung, in der Dein eigenes Administratorkonto fehlt, spielt das Tool nicht ein. So sperrst Du Dich nicht aus.") +
         "<p>Im Browserbetrieb setzt „Auf Beispieldaten zurücksetzen“ alle Daten in diesem Browser zurück.</p>"
     },
     {
@@ -3560,6 +3858,15 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
         "<ul><li><strong>Deine Angaben:</strong> Vorname und Nachname ändern. XV-Nummer, Rolle und Zuweisungen ändert die Abteilungsleitung.</li>" +
         "<li><strong>Passwort ändern:</strong> aktuelles Passwort und zweimal das neue eingeben.</li>" +
         "<li><strong>Design:</strong> Automatisch (wie Dein Betriebssystem), Hell oder Dunkel. Dazu zehn Farbdesigns im R+V-Stil. Deine Wahl gilt für Dein Konto.</li></ul>"
+    },
+    {
+      id: "excel", titel: "Excel-Export", fuer: "Abteilungsleitung, Gruppenleitung, Key Account Manager",
+      html:
+        "<p>Auf der Startseite, unter Planbudgets und IST-Werte, auf den Detailseiten, im Bericht und bei den Projektkosten steht oben rechts „Als Excel herunterladen“. Die Excel-Datei enthält alles, was Du im gewählten Kalenderjahr siehst, auf drei Blättern:</p>" +
+        "<ul><li><strong>Planbudgets:</strong> je Kostenstelle und Projektnummer die Positionen, das eingetragene Planbudget und das Gesamtbudget.</li>" +
+        "<li><strong>IST-Werte:</strong> Stand des KST-Berichts, gebucht bis, die Positionen, IST, Gesamtbudget und IST in % vom Plan. Bei Projektnummern die Summe der erfassten Kosten.</li>" +
+        "<li><strong>Projektkosten:</strong> jeder Eintrag mit Datum, Betrag, Beschreibung und wer ihn erfasst hat.</li></ul>" +
+        "<p>Der Dateiname enthält Kalenderjahr und Datum, zum Beispiel „Budgetdashboard_2026_2026-10-30.xlsx“. Beträge sind echte Zahlen, Du kannst in Excel also direkt weiterrechnen.</p>"
     },
     {
       id: "pdf", titel: "Als PDF speichern", fuer: "Alle",
@@ -3605,7 +3912,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
 (function () {
   "use strict";
 
-  var VERSION = "0.10.1";
+  var VERSION = "0.11.0";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -3990,14 +4297,89 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
     return '<div class="kopfaktionen"><label class="jahrwahl"><span>Kalenderjahr</span><select data-jahr>' + D.jahre(zustand.daten).map(function (j) {
       return '<option value="' + j + '"' + (j === zustand.jahr ? " selected" : "") + ">" + j + "</option>";
     }).join("") + "</select></label>" +
+      '<button type="button" class="btn btn--rahmen" data-excel title="Planbudgets, IST-Werte und Projektkosten des Kalenderjahres als Excel-Datei">' + icon("documentXls") + " Als Excel herunterladen</button>" +
       (imRahmen ? "" : '<button type="button" class="btn btn--rahmen" data-pdf title="Öffnet den Druckdialog. Wähle dort „Als PDF speichern“.">' + icon("documentPdf") + " Als PDF speichern</button>") + "</div>";
   }
 
   function verbindeJahrwahl() {
     var s = app.querySelector("[data-jahr]");
-    if (s) s.addEventListener("change", function () { zustand.jahr = Number(s.value); zeige(); });
+    if (s) s.addEventListener("change", function () { zustand.jahr = Number(s.value); protokollAnzahl = 30; zeige(); });
+    var xls = app.querySelector("[data-excel]");
+    if (xls) xls.addEventListener("click", excelHerunterladen);
     var pdf = app.querySelector("[data-pdf]");
     if (pdf) pdf.addEventListener("click", function () { window.print(); });
+  }
+
+  /* Datei speichern: im Claude-Artefakt über die Plattform (mit Rückfrage), sonst über einen Download-Link */
+  function dateiSpeichern(name, blob, fehlerText) {
+    if (window.claude && typeof window.claude.use === "function") {
+      return window.claude.use("downloads").then(function (dl) {
+        if (!dl) { meldung("Hier kann das Tool keine Dateien speichern.", true); return; }
+        return dl.save({ filename: name, data: blob }).catch(function (f) { if (!f || f.code !== "declined") meldung(fehlerText, true); });
+      });
+    }
+    var url = URL.createObjectURL(blob), a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+    return Promise.resolve();
+  }
+
+  function heuteIso() { var d = new Date(); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
+
+  function datumDe(iso) { var t = String(iso || "").slice(0, 10).split("-"); return t.length === 3 ? t[2] + "." + t[1] + "." + t[0] : ""; }
+
+  /* Excel-Datei mit drei Blättern aus allem, was die angemeldete Person im gewählten Kalenderjahr sieht */
+  function excelBlaetter() {
+    var daten = zustand.daten, jahr = zustand.jahr;
+    function eur(v, fett) { return { wert: v, stil: fett ? "eurFett" : "eur" }; }
+    function k(t) { return { wert: t, stil: "kopf" }; }
+    var posten = D.POSITIONEN.map(function (p) { return p.name; });
+    var plan = [[k("Art"), k("Nummer"), k("Gehört zu")].concat(posten.map(k), [k("Sachkosten"), k("Planbudget (eingetragen)"), k("Gesamtbudget")])];
+    var ist = [[k("Art"), k("Nummer"), k("Stand"), k("Gebucht bis")].concat(posten.map(k), [k("Sachkosten"), k("IST"), k("Gesamtbudget"), k("IST in % vom Plan")])];
+    D.liste(daten, "ks").forEach(function (n) {
+      var w = D.budgetVon(daten, jahr, "ks", n.nummer), g = D.gesamtBudgetVon(daten, jahr, "ks", n.nummer).gesamt;
+      var oben = D.uebergeordnete(daten, n.nummer);
+      plan.push(["Kostenstelle", n.nummer, oben ? "Kostenstelle " + oben : ""].concat(w.vorhanden
+        ? D.POSITIONEN.map(function (p) { return eur(w[p.id]); }).concat([eur(w.sachkosten), eur(w.gesamt, true), eur(g.gesamt, true)])
+        : ["kein Planbudget"]));
+      var i = D.gesamtIstVon(daten, jahr, "ks", n.nummer).gesamt;
+      ist.push(["Kostenstelle", n.nummer].concat(i.vorhanden
+        ? [datumDe(i.stand), i.monat ? String(i.monat).slice(5) + "." + String(i.monat).slice(0, 4) : ""].concat(D.POSITIONEN.map(function (p) { return eur(i[p.id]); }),
+          [eur(i.sachkosten), eur(i.gesamt, true), g.gesamt > 0 ? eur(g.gesamt) : "", g.gesamt > 0 ? { wert: i.gesamt / g.gesamt, stil: "prozent" } : ""])
+        : ["keine IST-Werte"]));
+    });
+    D.liste(daten, "pn").forEach(function (n) {
+      var w = D.budgetVon(daten, jahr, "pn", n.nummer), i = D.projektIstVon(daten, jahr, n.nummer);
+      plan.push(["Projektnummer", n.nummer, n.ks ? "Kostenstelle " + n.ks : ""].concat(w.vorhanden ? ["", "", "", "", "", "", eur(w.gesamt, true), eur(w.gesamt, true)] : ["kein Planbudget"]));
+      ist.push(["Projektnummer", n.nummer].concat(i.vorhanden
+        ? [datumDe(i.stand), "", "", "", "", "", "", "", eur(i.gesamt, true), w.gesamt > 0 ? eur(w.gesamt) : "", w.gesamt > 0 ? { wert: i.gesamt / w.gesamt, stil: "prozent" } : ""]
+        : ["noch keine Kosten erfasst"]));
+    });
+    var kosten = [[k("Projektnummer"), k("Kostenstelle"), k("Datum"), k("Betrag"), k("Beschreibung"), k("Erfasst von")]];
+    (daten.kosten || []).filter(function (x) { return x.datum.slice(0, 4) === String(jahr); }).sort(function (a, b) {
+      return a.pn === b.pn ? (a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : 0) : a.pn < b.pn ? -1 : 1;
+    }).forEach(function (x) {
+      var n = D.findeNummer(daten, "pn", x.pn);
+      kosten.push([x.pn, n && n.ks ? n.ks : "", datumDe(x.datum), eur(x.betrag), x.text || "", nameVon(x.von)]);
+    });
+    var breitePosten = posten.map(function () { return 16; });
+    return [
+      { name: "Planbudgets " + jahr, kopfzeilen: 1, breiten: [15, 12, 17].concat(breitePosten, [16, 22, 18]), zeilen: plan },
+      { name: "IST-Werte " + jahr, kopfzeilen: 1, breiten: [15, 12, 12, 12].concat(breitePosten, [16, 18, 18, 16]), zeilen: ist },
+      { name: "Projektkosten " + jahr, kopfzeilen: 1, breiten: [15, 13, 12, 16, 50, 24], zeilen: kosten }
+    ];
+  }
+
+  function excelHerunterladen() {
+    var blob;
+    try {
+      blob = new Blob([window.BDExcel.arbeitsmappeSchreiben(excelBlaetter())], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    } catch (f) { meldung("Die Excel-Datei ließ sich gerade nicht erstellen. Probiere es bitte noch einmal.", true); return; }
+    dateiSpeichern("Budgetdashboard_" + zustand.jahr + "_" + heuteIso() + ".xlsx", blob, "Die Excel-Datei ließ sich gerade nicht speichern. Probiere es bitte noch einmal.");
   }
 
   /* Drucken und PDF: immer im hellen Standarddesign, danach zurück zum gewählten Design */
@@ -4122,7 +4504,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
   }
 
   /* IST zum zeitanteiligen Plan (wie „IST / Plan ZZV“ in der bisherigen Excel-Liste): IST / (Plan × gebuchte Monate / 12) */
-  function zzvAus(q) { return { hochQuote: q, ampel: q === null ? null : q > 1 ? "rot" : q > 0.95 ? "gelb" : "gruen" }; }
+  function zzvAus(q) { return { hochQuote: q, ampel: q === null ? null : D.ampelVon(q) }; }
 
   function zzvHtml(k) {
     if (!k || k.hochQuote === null) return '<span class="leise">–</span>';
@@ -4219,7 +4601,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
     function zeile(z, klasse) {
       var p = plan.vorhanden ? plan[z.id] : 0, i = ist[z.id], rest = p - i;
       var q = p > 0 ? i / p : null, zq = p > 0 ? i / (p * mon / 12) : null;
-      var kk = { quote: q, zeitanteil: mon / 12, ampel: zq === null ? "" : zq > 1 ? "rot" : zq > 0.95 ? "gelb" : "gruen" };
+      var kk = { quote: q, zeitanteil: mon / 12, ampel: zq === null ? "" : D.ampelVon(zq) };
       var hoch = mon >= 12 ? i : i / mon * 12, prog = p - hoch;
       return "<tr" + (klasse ? ' class="' + klasse + '"' : "") + '><th scope="row">' + esc(z.name) + "</th>" +
         '<td class="zahl"><strong>' + euro(i) + "</strong></td>" +
@@ -4529,7 +4911,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
           zeilen + "</tbody></table></div>" : '<p class="leer-hinweis">' + leer + "</p>") + "</section>";
     }
     return tabelle("Einzelbudgets der Kostenstellen " + jahr, "Kostenstelle", ks, "Noch keine Kostenstellen angelegt.",
-        "Unterkostenstellen hängen eingerückt an ihrer Kostenstelle, die erste eingerückte Zeile ist deren Einzelbudget. Mit Klick auf die Nummer öffnest Du die Details. „Zeitanteilig“ vergleicht das IST mit dem Plan bis zum gebuchten Monat: im Plan bis 95 %, knapp bis 100 %, darüber über Plan.") +
+        "Unterkostenstellen hängen eingerückt an ihrer Kostenstelle, die erste eingerückte Zeile ist deren Einzelbudget. Mit Klick auf die Nummer öffnest Du die Details. „Zeitanteilig“ vergleicht das IST mit dem Plan bis zum gebuchten Monat: " + esc(D.ampelText()) + ".") +
       tabelle("Projektnummern " + jahr, "Projektnummer", pn, "Noch keine Projektnummern angelegt.", "Planbudget und Kosten einer Projektnummer sind Teil ihrer Kostenstelle. IST sind die erfassten Projektkosten; im KST-Bericht der Kostenstelle sind sie schon enthalten.");
   }
 
@@ -4543,20 +4925,90 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
     var ap = D.abteilungsPlan(zustand.daten, zustand.jahr), p = ap.gesamt;
     var html = '<div class="seite__kopf"><div><p class="topline">Abteilungsleitung</p><h1>Planbudgets ' + zustand.jahr + "</h1></div>" + jahrwahlHtml() + "</div>" +
       '<p class="einleitung">Hier trägst Du die Planbudgets ein: Klicke in der Zeile auf den Stift oder das Plus. Die IST-Werte findest Du unter <a href="#/ist">IST-Werte</a>.</p>' +
+      (D.uebernahmeListe(zustand.daten, zustand.jahr - 1, zustand.jahr, true).length ? '<div class="knopfreihe knopfreihe--oben"><button type="button" class="btn btn--rahmen" data-uebernahme>' + icon("copy") +
+        " Planbudgets aus " + (zustand.jahr - 1) + " übernehmen</button></div>" : "") +
       '<div class="kennzahlen">' +
       kennzahl("Abteilungsbudget", euro(p.gesamt), ap.projekteOhneKs.gesamt ? "davon Projektnummern ohne Kostenstelle " + euro(ap.projekteOhneKs.gesamt) : "Gesamtbudgets der Kostenstellen") +
       kennzahl("Personalkosten", euro(p.personalkosten), "ID " + euro(p.pkId) + " · AD " + euro(p.pkAd)) +
       kennzahl("Sachkosten", euro(p.sachkosten), "Werbung, Reise/KfZ, Sonstiges") +
       kennzahl("Ohne Planbudget", String(ohnePlan()), "Kostenstellen und Projektnummern") + "</div>" +
-      tabelleHtml("ks") + tabelleHtml("pn");
+      tabelleHtml("ks") + tabelleHtml("pn") + protokollHtml();
     seite("uebersicht", "Planbudgets", html, true);
     verbindeJahrwahl();
+    var ueb = app.querySelector("[data-uebernahme]");
+    if (ueb) ueb.addEventListener("click", uebernahmeDialog);
+    var mehr = app.querySelector("[data-protokoll-mehr]");
+    if (mehr) mehr.addEventListener("click", function () { protokollAnzahl += 30; zeige(); });
     app.querySelectorAll("[data-budget]").forEach(function (k) {
       k.addEventListener("click", function () {
         var t = k.getAttribute("data-budget").split("-");
         budgetDialog(t[0], t[1]);
       });
     });
+  }
+
+  function uebernahmeDialog() {
+    var daten = zustand.daten, nach = zustand.jahr, von = nach - 1;
+    var vorhanden = Object.keys(daten.budgets[String(nach)] || {}).length;
+    var form = oeffneDialog("Planbudgets aus " + von + " übernehmen",
+      "<p>Das Tool trägt die Planbudgets aus " + von + " für " + nach + " ein. Danach passt Du einzelne Werte wie gewohnt an. Jede Übernahme steht im Änderungsprotokoll.</p>" +
+      (vorhanden ? '<label class="check"><input type="checkbox" name="ueberschreiben"> Vorhandene Planbudgets für ' + nach + " überschreiben</label>" : "") +
+      '<p class="hinweis-box klein" data-anzahl></p><p class="fehlertext" hidden></p>',
+      '<button type="button" class="btn btn--rahmen" data-schliessen>Abbrechen</button><button type="submit" class="btn btn--primaer">Jetzt übernehmen</button>',
+      function (f) {
+        var ueberschreiben = !!(f.ueberschreiben && f.ueberschreiben.checked), n = D.uebernahmeListe(daten, von, nach, ueberschreiben).length;
+        if (!n) { zeigeFehler(f, "Es gibt nichts zu übernehmen. Alle Planbudgets für " + nach + " sind schon eingetragen."); return; }
+        Dienst.budgetsUebernehmen(daten, zustand.benutzer, von, nach, ueberschreiben)
+          .then(nachAenderung(n === 1 ? "Ein Planbudget aus " + von + " ist übernommen." : n + " Planbudgets aus " + von + " sind übernommen."), function (x) { serverFehler(x, f); });
+      });
+    function zaehle() {
+      var u = form.ueberschreiben && form.ueberschreiben.checked, n = D.uebernahmeListe(daten, von, nach, u).length;
+      form.querySelector("[data-anzahl]").textContent = n === 0 ? "Alle Planbudgets aus " + von + " sind für " + nach + " schon eingetragen."
+        : (n === 1 ? "Ein Planbudget wird übernommen." : n + " Planbudgets werden übernommen.") + (vorhanden && !u ? " Bereits eingetragene Planbudgets für " + nach + " bleiben, wie sie sind." : "");
+    }
+    if (form.ueberschreiben) form.ueberschreiben.addEventListener("change", zaehle);
+    zaehle();
+  }
+
+  /* ---------- Änderungsprotokoll der Planbudgets (nur Abteilungsleitung) ---------- */
+
+  var protokollAnzahl = 30;
+
+  function protokollWerte(art, w) {
+    if (!w) return null;
+    if (art === "pn") return { gesamt: w.betrag !== undefined ? Number(w.betrag) || 0 : D.POSITIONEN.reduce(function (s, p) { return s + (Number(w[p.id]) || 0); }, 0) };
+    var aus = { gesamt: 0 };
+    D.POSITIONEN.forEach(function (p) { aus[p.id] = Number(w[p.id]) || 0; aus.gesamt += aus[p.id]; });
+    aus.gesamt = Math.round(aus.gesamt * 100) / 100;
+    return aus;
+  }
+
+  function protokollAenderung(e) {
+    var v = protokollWerte(e.art, e.vorher), n = protokollWerte(e.art, e.nachher);
+    if (!v) return "neu eingetragen";
+    if (!n) return "entfernt";
+    if (e.art === "pn") return "Budget " + euro(v.gesamt) + " → " + euro(n.gesamt);
+    var teile = D.POSITIONEN.filter(function (p) { return v[p.id] !== n[p.id]; }).map(function (p) { return esc(p.name) + " " + euro(v[p.id]) + " → " + euro(n[p.id]); });
+    return teile.length ? teile.join("<br>") : "keine Änderung der Beträge";
+  }
+
+  function protokollHtml() {
+    var jahr = String(zustand.jahr);
+    var alle = (zustand.daten.budgetProtokoll || []).filter(function (e) { return e.jahr === jahr; });
+    var kopf = '<section class="karte bereich-tabelle" id="protokoll"><div class="bereich-tabelle__kopf"><h2>Änderungsprotokoll ' + esc(jahr) + "</h2>" +
+      (alle.length ? '<span class="leise klein">' + (alle.length === 1 ? "1 Eintrag" : alle.length + " Einträge") + "</span>" : "") + "</div>" +
+      '<p class="leise klein">Wer hat wann welches Planbudget eingetragen oder geändert. Das Tool hebt die letzten ' + D.MAX_PROTOKOLL.toLocaleString("de-DE") + " Einträge über alle Kalenderjahre auf.</p>";
+    if (!alle.length) return kopf + '<p class="leer-hinweis">Für ' + esc(jahr) + " hat noch niemand ein Planbudget eingetragen oder geändert.</p></section>";
+    var zeilen = alle.slice(0, protokollAnzahl).map(function (e) {
+      var v = protokollWerte(e.art, e.vorher), n = protokollWerte(e.art, e.nachher);
+      return "<tr><td>" + esc(datumZeit(e.zeit)) + "</td><td>" + esc(nameVon(e.von)) + "</td>" +
+        '<th scope="row">' + esc(D.ARTEN[e.art].name) + " <strong>" + esc(e.nummer) + "</strong></th>" +
+        '<td class="klein">' + protokollAenderung(e) + '</td><td class="zahl">' + (n ? euro(n.gesamt) : "–") + (v ? '<br><span class="leise klein">vorher ' + euro(v.gesamt) + "</span>" : "") + "</td>" +
+        '<td class="klein">' + esc(e.anlass || "Eingabe") + "</td></tr>";
+    }).join("");
+    return kopf + '<div class="tabelle-huelle"><table class="budgettabelle protokolltabelle"><thead><tr><th>Zeitpunkt</th><th>Wer</th><th>Nummer</th><th>Änderung</th><th class="zahl">Planbudget</th><th>Anlass</th></tr></thead><tbody>' +
+      zeilen + "</tbody></table></div>" +
+      (alle.length > protokollAnzahl ? '<div class="knopfreihe"><button type="button" class="btn btn--rahmen" data-protokoll-mehr>Weitere anzeigen (' + (alle.length - protokollAnzahl) + " mehr)</button></div>" : "") + "</section>";
   }
 
   function zeigeIstWerte() {
@@ -4626,7 +5078,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
         : '<p class="leer-hinweis">Noch keine Projektnummern angelegt.</p>') + "</section>";
     return '<section class="karte bereich-tabelle"><div class="bereich-tabelle__kopf"><h2>Kostenstellen: IST gegen Plan ' + jahr + "</h2>" +
       (D.Rechte.budgets(zustand.benutzer) ? '<a class="leise klein" href="#/verwaltung/ist">IST-Werte importieren</a>' : "") + "</div>" +
-      '<p class="leise klein">Die IST-Werte kommen aus dem KST-Bericht je Kostenstelle. Mit Klick auf die Nummer öffnest Du die Details. „Zeitanteilig“ vergleicht das IST mit dem Plan bis zum gebuchten Monat: im Plan bis 95 %, knapp bis 100 %, darüber über Plan. Die Hochrechnung schreibt das IST gleichmäßig bis Dezember fort.</p>' +
+      '<p class="leise klein">Die IST-Werte kommen aus dem KST-Bericht je Kostenstelle. Mit Klick auf die Nummer öffnest Du die Details. „Zeitanteilig“ vergleicht das IST mit dem Plan bis zum gebuchten Monat: ' + esc(D.ampelText()) + ". Die Hochrechnung schreibt das IST gleichmäßig bis Dezember fort.</p>" +
       (zeilen ? '<div class="tabelle-huelle"><table class="budgettabelle"><thead><tr><th>Kostenstelle</th><th>Stand · gebucht bis</th><th class="zahl">Plan</th><th class="zahl">IST</th><th class="zahl">IST in %</th>' +
         '<th class="zahl">Restbudget</th><th class="zahl">Hochrechnung</th><th class="zahl">zum Vorjahr</th><th>zeitanteilig</th></tr></thead><tbody>' + zeilen + "</tbody></table></div>"
         : '<p class="leer-hinweis">Noch keine Kostenstellen angelegt.</p>') + "</section>";
@@ -5006,7 +5458,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
       { id: "projekte", name: "Projektnummern", icon: "briefcase" },
       { id: "ist", name: "KST-Berichte", icon: "documentXls" }
     ];
-    if (D.Rechte.einstellungen(b)) r.push({ id: "einstellungen", name: "Einstellungen", icon: "settings" });
+    if (D.Rechte.einstellungen(b) || D.Rechte.budgets(b)) r.push({ id: "einstellungen", name: "Einstellungen", icon: "settings" });
     return r;
   }
 
@@ -5482,15 +5934,24 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
   }
 
   function verwaltungEinstellungen(ziel) {
+    if (D.Rechte.budgets(zustand.benutzer)) { einstellungenAmpel(ziel); return; }
     var daten = zustand.daten, ich = zustand.benutzer;
     ziel.innerHTML = '<div class="raster">' +
-      '<form class="karte" novalidate data-titel><h2>Titel der Anwendung</h2>' +
+      '<div><form class="karte" novalidate data-titel><h2>Titel der Anwendung</h2>' +
       '<div class="feld"><label for="e-titel">Titel</label><input id="e-titel" name="titel" type="text" maxlength="60" value="' + esc(daten.einstellungen.titel) + '">' +
       '<p class="hilfe">Steht in der Kopfzeile, auf der Anmeldeseite und im Tab des Browsers.</p></div>' +
       '<p class="fehlertext" hidden></p><button type="submit" class="btn btn--primaer">Titel speichern</button></form>' +
       (Dienst.modus === "browser" ? '<div class="karte"><h2>Beispieldaten</h2><p>Setze das Tool auf die Beispieldaten zurück. Alle Änderungen in diesem Browser gehen dabei verloren.</p>' +
-        '<button type="button" class="btn btn--gefahr" data-zuruecksetzen>Auf Beispieldaten zurücksetzen</button></div>' : "") +
-      "</div>";
+        '<button type="button" class="btn btn--gefahr" data-zuruecksetzen>Auf Beispieldaten zurücksetzen</button></div>' : "") + "</div>" +
+      '<div class="karte" data-sicherung><h2>Datensicherung</h2>' +
+      "<p>Lade den vollständigen Datenstand als Datei herunter: alle Konten, Nummern, Planbudgets, IST-Werte, Projektkosten und Einstellungen. Bewahre die Datei sicher auf, sie enthält auch die Passwort-Hashes.</p>" +
+      '<div class="knopfreihe"><button type="button" class="btn btn--primaer" data-sicherung-holen>' + icon("floppyDisk") + " Sicherung herunterladen</button></div>" +
+      '<h3 class="untertitel">Sicherung einspielen</h3>' +
+      "<p>Ersetzt alle Daten durch den Stand aus einer Sicherungsdatei. " + (Dienst.modus === "server" ? "Vorher sichert der Server den aktuellen Stand automatisch." : "Lade vorher am besten eine Sicherung des aktuellen Stands herunter.") + "</p>" +
+      '<div class="feld"><label for="e-sicherung">Sicherungsdatei (.json)</label><input id="e-sicherung" type="file" accept=".json,application/json" data-sicherung-datei></div>' +
+      '<p class="fehlertext" hidden></p>' +
+      (Dienst.modus === "server" ? '<h3 class="untertitel">Automatische Sicherungen</h3><p class="leise klein">Der Server sichert vor jeder Änderung den alten Stand. Hier siehst Du die neuesten.</p><div data-auto-sicherungen><p class="leise klein">Lädt …</p></div>' : "") +
+      "</div></div>";
     var tf = ziel.querySelector("[data-titel]");
     tf.addEventListener("submit", function (e) {
       e.preventDefault();
@@ -5511,6 +5972,85 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
         });
       });
     });
+    verbindeSicherung(ziel.querySelector("[data-sicherung]"));
+  }
+
+  function verbindeSicherung(karte) {
+    karte.querySelector("[data-sicherung-holen]").addEventListener("click", function () {
+      Dienst.sicherungHolen().then(function (s) {
+        var blob = new Blob([JSON.stringify(s, null, 1)], { type: "application/json" });
+        return dateiSpeichern("Budgetdashboard_Sicherung_" + heuteIso() + ".json", blob, "Die Sicherung ließ sich gerade nicht speichern. Probiere es bitte noch einmal.");
+      }, serverFehler);
+    });
+    function einspielen(text, quelle) {
+      bestaetige("Sicherung einspielen", text, "Jetzt einspielen").then(function (ja) {
+        if (!ja) return;
+        Dienst.sicherungEinspielen(zustand.daten, zustand.benutzer, quelle).then(nachAenderung("Die Sicherung ist eingespielt."), function (x) { serverFehler(x, karte); });
+      });
+    }
+    var datei = karte.querySelector("[data-sicherung-datei]");
+    datei.addEventListener("change", function () {
+      var f = datei.files && datei.files[0];
+      if (!f) return;
+      zeigeFehler(karte, "");
+      f.text().then(function (t) {
+        var obj;
+        try { obj = JSON.parse(t); } catch (x) { obj = null; }
+        datei.value = "";
+        var r = obj ? D.pruefeSicherung(obj, zustand.benutzer.kennung) : { fehler: "Diese Datei ist keine Sicherung des Budgetdashboards." };
+        if (r.fehler) { zeigeFehler(karte, r.fehler); return; }
+        var erstellt = obj.erstellt ? " vom " + datumZeit(obj.erstellt) : "";
+        einspielen("Möchtest Du alle Daten durch die Sicherung „" + f.name + "“" + erstellt + " ersetzen? Änderungen seit dieser Sicherung gehen verloren.", { daten: obj.art ? obj.daten : obj });
+      });
+    });
+    var liste = karte.querySelector("[data-auto-sicherungen]");
+    if (!liste) return;
+    Dienst.sicherungenListe().then(function (l) {
+      if (!l.length) { liste.innerHTML = '<p class="leise klein">Noch keine automatischen Sicherungen.</p>'; return; }
+      liste.innerHTML = '<ul class="sicherungsliste">' + l.slice(0, 10).map(function (x) {
+        return "<li><span>" + esc(datumZeit(x.zeit)) + ' <span class="leise klein">(' + esc(Math.max(1, Math.round(x.groesse / 1024)).toLocaleString("de-DE")) + " KB)</span></span>" +
+          '<button type="button" class="btn btn--rahmen btn--klein" data-wiederherstellen="' + esc(x.name) + '">Wiederherstellen</button></li>';
+      }).join("") + "</ul>";
+      liste.querySelectorAll("[data-wiederherstellen]").forEach(function (k) {
+        k.addEventListener("click", function () {
+          var x = l.filter(function (y) { return y.name === k.getAttribute("data-wiederherstellen"); })[0];
+          einspielen("Möchtest Du alle Daten auf den Stand vom " + datumZeit(x.zeit) + " zurücksetzen? Änderungen seit diesem Zeitpunkt gehen verloren.", { name: x.name });
+        });
+      });
+    }, function (f) { liste.innerHTML = '<p class="leise klein">' + esc(f.message) + "</p>"; });
+  }
+
+  /* Ampelgrenzen: nur die Abteilungsleitung */
+  function einstellungenAmpel(ziel) {
+    var g = D.ampelGrenzen(), std = D.AMPEL_STANDARD;
+    ziel.innerHTML = '<div class="raster"><form class="karte" novalidate data-ampel><h2>Ampel</h2>' +
+      "<p>Die Ampel vergleicht die Hochrechnung zum Jahresende mit dem Planbudget. Lege fest, ab wann sie gelb und rot zeigt. Die Grenzen gelten für alle im Tool.</p>" +
+      '<div class="zweispaltig"><div class="feld"><label for="a-gruen">Im Plan bis (%)</label><input id="a-gruen" name="gruen" type="number" min="50" max="150" step="1" inputmode="numeric" value="' + g.imPlanBis + '">' +
+      '<p class="hilfe">Bis hierhin zeigt die Ampel grün. Standard: ' + std.imPlanBis + " %.</p></div>" +
+      '<div class="feld"><label for="a-rot">Knapp bis (%)</label><input id="a-rot" name="rot" type="number" min="51" max="200" step="1" inputmode="numeric" value="' + g.knappBis + '">' +
+      '<p class="hilfe">Bis hierhin gelb, darüber rot. Standard: ' + std.knappBis + " %.</p></div></div>" +
+      '<p class="hinweis-box klein" data-ampel-vorschau></p><p class="fehlertext" hidden></p>' +
+      '<div class="knopfreihe"><button type="submit" class="btn btn--primaer">Ampel speichern</button>' +
+      '<button type="button" class="btn btn--rahmen" data-ampel-standard>Auf Standard zurücksetzen</button></div></form></div>';
+    var f = ziel.querySelector("[data-ampel]");
+    function werte() { return [Number(String(f.gruen.value).replace(",", ".")), Number(String(f.rot.value).replace(",", "."))]; }
+    function vorschau() {
+      var w = werte(), text = f.gruen.value === "" || f.rot.value === "" ? "Gib bitte beide Grenzen ein." : D.pruefeAmpel(w[0], w[1]);
+      f.querySelector("[data-ampel-vorschau]").textContent = text || "Grün: Hochrechnung bis " + w[0] + " % vom Plan · Gelb: bis " + w[1] + " % · Rot: darüber.";
+    }
+    f.gruen.addEventListener("input", vorschau);
+    f.rot.addEventListener("input", vorschau);
+    vorschau();
+    function speichern(a, b, text) {
+      Dienst.ampelSpeichern(zustand.daten, zustand.benutzer, a, b).then(nachAenderung(text), function (x) { serverFehler(x, f); });
+    }
+    f.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var w = werte(), fehler = f.gruen.value === "" || f.rot.value === "" ? "Gib bitte beide Grenzen ein." : D.pruefeAmpel(w[0], w[1]);
+      if (fehler) { zeigeFehler(f, fehler); return; }
+      speichern(w[0], w[1], "Die Ampel ist gespeichert.");
+    });
+    f.querySelector("[data-ampel-standard]").addEventListener("click", function () { speichern(std.imPlanBis, std.knappBis, "Die Ampel nutzt wieder die Standardgrenzen."); });
   }
 
   /* ---------- Profil ---------- */

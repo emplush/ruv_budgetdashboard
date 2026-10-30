@@ -53,6 +53,7 @@
         "<li><strong>Mond-Symbol:</strong> wechselt zwischen hellem und dunklem Design.</li>" +
         "<li><strong>Kreis mit Deinen Initialen:</strong> öffnet das Menü mit „Mein Profil“, „Handbuch“ und „Abmelden“.</li>" +
         "<li><strong>Kalenderjahr:</strong> Jede Ansicht startet mit dem aktuellen Jahr. Ein anderes Jahr wählst Du oben rechts. Die Wahl gilt nur für diese Ansicht.</li>" +
+        "<li><strong>Als Excel herunterladen:</strong> speichert Planbudgets, IST-Werte und Projektkosten des Kalenderjahres als Excel-Datei, siehe Kapitel „Excel-Export“.</li>" +
         "<li><strong>Als PDF speichern:</strong> speichert die aktuelle Auswertung als PDF, siehe Kapitel „Als PDF speichern“.</li>" +
         "<li><strong>Zurück zur Übersicht:</strong> Auf Detailseiten führt Dich der Link oben zurück zur Seite, von der Du gekommen bist.</li></ul>" +
         "<h3>Zahlen und Farben</h3>" +
@@ -61,8 +62,9 @@
         '<div class="hb-tabelle"><table><thead><tr><th>Anzeige</th><th>Bedeutung</th></tr></thead><tbody>' +
         '<tr><td><span class="ampel ampel--gruen">im Plan</span></td><td>Die Hochrechnung liegt bei höchstens 95 % des Planbudgets.</td></tr>' +
         '<tr><td><span class="ampel ampel--gelb">knapp</span></td><td>Die Hochrechnung liegt zwischen 95 % und 100 %.</td></tr>' +
-        '<tr><td><span class="ampel ampel--rot">über Plan</span></td><td>Die Hochrechnung liegt über dem Planbudget.</td></tr>' +
-        "</tbody></table></div>"
+        '<tr><td><span class="ampel ampel--rot">über Plan</span></td><td>Die Hochrechnung liegt über 100 % des Planbudgets.</td></tr>' +
+        "</tbody></table></div>" +
+        "<p>Das sind die Standardgrenzen. Die Abteilungsleitung kann sie unter Verwaltung → Einstellungen ändern, siehe Kapitel „Ampel einstellen“. Die geltenden Grenzen stehen in der Hilfe neben der Ampel.</p>"
     },
     {
       id: "begriffe", titel: "Begriffe und Rechnungen", fuer: "Alle",
@@ -112,7 +114,19 @@
         bild("planbudget-eintragen", "Planbudget einer Kostenstelle eintragen", true) +
         "<p>Für eine übergreifende Kostenstelle trägst Du nur ihr Einzelbudget ein, inklusive ihrer Projektnummern. Das Gesamtbudget rechnet das Tool aus Einzelbudget und Unterkostenstellen.</p>" +
         "<p>Für eine Projektnummer gibt es nur einen Betrag ohne Kostenarten.</p>" +
-        tipp("Fehlt einer Kostenstelle oder Projektnummer noch ein Planbudget, weist Dich die Startseite darauf hin.")
+        tipp("Fehlt einer Kostenstelle oder Projektnummer noch ein Planbudget, weist Dich die Startseite darauf hin.") +
+        "<h3>Planbudgets aus dem Vorjahr übernehmen</h3>" +
+        "<p>Für ein neues Kalenderjahr musst Du nicht alles neu eintragen. Gibt es im Vorjahr Planbudgets, steht über den Kennzahlen der Knopf „Planbudgets aus … übernehmen“.</p>" +
+        "<ol><li>Wähle oben das neue Kalenderjahr.</li><li>Klicke auf „Planbudgets aus … übernehmen“.</li>" +
+        "<li>Sind für das neue Jahr schon Planbudgets eingetragen, entscheidest Du: Ohne Haken bleiben sie, wie sie sind. Mit Haken bei „Vorhandene Planbudgets überschreiben“ ersetzt das Tool sie durch die Werte aus dem Vorjahr.</li>" +
+        "<li>Klicke auf „Jetzt übernehmen“ und passe danach einzelne Werte wie gewohnt an.</li></ol>" +
+        bild("uebernahme", "Planbudgets aus dem Vorjahr übernehmen", true) +
+        "<p>Das Tool übernimmt nur Kostenstellen und Projektnummern, die es noch gibt.</p>" +
+        "<h3>Änderungsprotokoll</h3>" +
+        "<p>Unter den Tabellen steht das Änderungsprotokoll des gewählten Kalenderjahres: wer wann welches Planbudget eingetragen oder geändert hat, mit den Beträgen vorher und nachher. " +
+        "Bei einer Übernahme steht als Anlass „Übernahme aus …“. Neue Einträge stehen oben, „Weitere anzeigen“ lädt ältere nach.</p>" +
+        bild("aenderungsprotokoll", "Änderungsprotokoll der Planbudgets") +
+        tipp("Das Tool hebt die letzten 1.000 Einträge über alle Kalenderjahre auf. Das Änderungsprotokoll sieht nur die Abteilungsleitung.")
     },
     {
       id: "ist", titel: "IST-Werte", fuer: "Abteilungsleitung",
@@ -199,10 +213,24 @@
         bild("verwaltung-projektnummern", "Verwaltung, Reiter Projektnummern")
     },
     {
-      id: "einstellungen", titel: "Einstellungen", fuer: "Administrator",
+      id: "ampel", titel: "Ampel einstellen", fuer: "Abteilungsleitung",
+      html:
+        "<p>Unter Verwaltung → Einstellungen legst Du fest, ab wann die Ampel gelb und rot zeigt. Die Ampel vergleicht die Hochrechnung zum Jahresende mit dem Planbudget.</p>" +
+        bild("ampel", "Ampelgrenzen einstellen") +
+        "<ul><li><strong>Im Plan bis:</strong> Bis zu diesem Wert zeigt die Ampel grün. Erlaubt sind 50 % bis 150 %, Standard 95 %.</li>" +
+        "<li><strong>Knapp bis:</strong> Bis zu diesem Wert zeigt sie gelb, darüber rot. Der Wert liegt über „Im Plan bis“ und höchstens bei 200 %, Standard 100 %.</li></ul>" +
+        "<p>Unter den Feldern siehst Du, wie die Ampel mit Deinen Werten schaltet. „Auf Standard zurücksetzen“ stellt 95 % und 100 % wieder her. Die Grenzen gelten für alle im Tool.</p>"
+    },
+    {
+      id: "einstellungen", titel: "Einstellungen und Datensicherung", fuer: "Administrator",
       html:
         "<p>Unter Verwaltung → Einstellungen änderst Du den Titel der Anwendung. Er steht in der Kopfzeile und im Tab des Browsers.</p>" +
-        bild("einstellungen", "Einstellungen mit dem Titel der Anwendung") +
+        bild("einstellungen", "Einstellungen mit Titel und Datensicherung") +
+        "<h3>Datensicherung</h3>" +
+        "<ul><li><strong>Sicherung herunterladen:</strong> speichert den vollständigen Datenstand als JSON-Datei: Konten, Nummern, Planbudgets, IST-Werte, Projektkosten, Änderungsprotokoll und Einstellungen. Die Datei enthält auch die Passwort-Hashes. Bewahre sie sicher auf.</li>" +
+        "<li><strong>Sicherung einspielen:</strong> Wähle eine Sicherungsdatei und bestätige. Das Tool ersetzt dann alle Daten durch den Stand aus der Datei. Im Serverbetrieb sichert der Server vorher den aktuellen Stand.</li>" +
+        "<li><strong>Automatische Sicherungen</strong> (nur Serverbetrieb): Der Server sichert vor jeder Änderung den alten Stand. Die zehn neuesten stehen in der Liste, „Wiederherstellen“ setzt die Daten auf diesen Stand zurück.</li></ul>" +
+        tipp("Eine Sicherung, in der Dein eigenes Administratorkonto fehlt, spielt das Tool nicht ein. So sperrst Du Dich nicht aus.") +
         "<p>Im Browserbetrieb setzt „Auf Beispieldaten zurücksetzen“ alle Daten in diesem Browser zurück.</p>"
     },
     {
@@ -213,6 +241,15 @@
         "<ul><li><strong>Deine Angaben:</strong> Vorname und Nachname ändern. XV-Nummer, Rolle und Zuweisungen ändert die Abteilungsleitung.</li>" +
         "<li><strong>Passwort ändern:</strong> aktuelles Passwort und zweimal das neue eingeben.</li>" +
         "<li><strong>Design:</strong> Automatisch (wie Dein Betriebssystem), Hell oder Dunkel. Dazu zehn Farbdesigns im R+V-Stil. Deine Wahl gilt für Dein Konto.</li></ul>"
+    },
+    {
+      id: "excel", titel: "Excel-Export", fuer: "Abteilungsleitung, Gruppenleitung, Key Account Manager",
+      html:
+        "<p>Auf der Startseite, unter Planbudgets und IST-Werte, auf den Detailseiten, im Bericht und bei den Projektkosten steht oben rechts „Als Excel herunterladen“. Die Excel-Datei enthält alles, was Du im gewählten Kalenderjahr siehst, auf drei Blättern:</p>" +
+        "<ul><li><strong>Planbudgets:</strong> je Kostenstelle und Projektnummer die Positionen, das eingetragene Planbudget und das Gesamtbudget.</li>" +
+        "<li><strong>IST-Werte:</strong> Stand des KST-Berichts, gebucht bis, die Positionen, IST, Gesamtbudget und IST in % vom Plan. Bei Projektnummern die Summe der erfassten Kosten.</li>" +
+        "<li><strong>Projektkosten:</strong> jeder Eintrag mit Datum, Betrag, Beschreibung und wer ihn erfasst hat.</li></ul>" +
+        "<p>Der Dateiname enthält Kalenderjahr und Datum, zum Beispiel „Budgetdashboard_2026_2026-10-30.xlsx“. Beträge sind echte Zahlen, Du kannst in Excel also direkt weiterrechnen.</p>"
     },
     {
       id: "pdf", titel: "Als PDF speichern", fuer: "Alle",

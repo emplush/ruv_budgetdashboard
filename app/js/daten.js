@@ -154,6 +154,7 @@
       ist: {},
       istSicherungen: [],
       kosten: [],
+      budgetProtokoll: [],
       geaendert: jetzt()
     };
   }
@@ -185,6 +186,8 @@
     if (!daten.ist || typeof daten.ist !== "object" || Array.isArray(daten.ist)) daten.ist = {};
     if (!Array.isArray(daten.istSicherungen)) daten.istSicherungen = [];
     if (!Array.isArray(daten.kosten)) daten.kosten = [];
+    if (!Array.isArray(daten.budgetProtokoll)) daten.budgetProtokoll = [];
+    AMPEL = ampelAus(daten.einstellungen.ampel);
     daten.projekte.forEach(function (n) { if (typeof n.ks !== "string") n.ks = ""; });
     daten.benutzer.forEach(function (b) {
       var muster = neuerBenutzer(b.kennung);
@@ -384,6 +387,7 @@
         var j = daten.budgets[jahr];
         if (j[art + "-" + alt]) { j[art + "-" + nummer] = j[art + "-" + alt]; delete j[art + "-" + alt]; }
       });
+      (daten.budgetProtokoll || []).forEach(function (x) { if (x.art === art && x.nummer === alt) x.nummer = nummer; });
       if (art === "ks") {
         daten.kostenstellen.forEach(function (n) {
           var i = (n.unter || []).indexOf(alt);
@@ -492,7 +496,7 @@
 
   /* werte: bei Kostenstellen {pkId, pkAd, werbung, reise, sonstiges}, bei Projektnummern {betrag}, als Zahl oder Text.
      Liefert Fehlertext oder "". */
-  function setzeBudget(daten, jahr, art, nummer, werte) {
+  function setzeBudget(daten, jahr, art, nummer, werte, kennung, zeit) {
     if (!istJahr(jahr)) return "Wähle bitte ein Kalenderjahr.";
     if (!findeNummer(daten, art, nummer)) return "Die " + (ARTEN[art] ? ARTEN[art].name : "Nummer") + " " + nummer + " gibt es nicht mehr.";
     werte = werte || {};
@@ -501,6 +505,7 @@
       var b = leseBetrag(werte.betrag);
       if (b === null) return "Prüfe bitte den Betrag. Erlaubt sind Beträge ab 0,00 EUR, zum Beispiel 12.500,00 EUR.";
       neu.betrag = b;
+      protokolliere(daten, jahr, art, nummer, neu, kennung, "Eintrag", zeit);
       (daten.budgets[String(jahr)] || (daten.budgets[String(jahr)] = {}))[art + "-" + nummer] = neu;
       return "";
     }
@@ -509,10 +514,94 @@
       if (z === null) return "Prüfe bitte den Betrag bei „" + POSITIONEN[i].name + "“. Erlaubt sind Beträge ab 0,00 EUR, zum Beispiel 12.500,00 EUR.";
       neu[POSITIONEN[i].id] = z;
     }
+    protokolliere(daten, jahr, art, nummer, neu, kennung, "Eintrag", zeit);
     var j = daten.budgets[String(jahr)] || (daten.budgets[String(jahr)] = {});
     j[art + "-" + nummer] = neu;
     return "";
   }
+
+  /* ---------- Änderungsprotokoll der Planbudgets (gleich wie Protokollieren in api.ashx) ---------- */
+
+  var MAX_PROTOKOLL = 1000;
+
+  function gleicheWerte(a, b) { return JSON.stringify(a || null) === JSON.stringify(b || null); }
+
+  /* Schreibt einen Eintrag, wenn sich das Planbudget ändert; neueste zuerst, höchstens MAX_PROTOKOLL */
+  function protokolliere(daten, jahr, art, nummer, nachher, kennung, anlass, zeit) {
+    var j = daten.budgets[String(jahr)] || {};
+    var vorher = j[art + "-" + nummer] || null;
+    if (gleicheWerte(vorher, nachher)) return;
+    if (!Array.isArray(daten.budgetProtokoll)) daten.budgetProtokoll = [];
+    daten.budgetProtokoll.unshift({
+      id: "p" + Math.random().toString(16).slice(2, 14), zeit: zeit || jetzt(), von: kennung || "",
+      jahr: String(jahr), art: art, nummer: nummer, anlass: anlass, vorher: vorher ? kopie(vorher) : null, nachher: nachher ? kopie(nachher) : null
+    });
+    if (daten.budgetProtokoll.length > MAX_PROTOKOLL) daten.budgetProtokoll.length = MAX_PROTOKOLL;
+  }
+
+  /* Planbudgets eines Jahres als Vorlage für ein anderes. Ohne ueberschreiben bleiben vorhandene Einträge.
+     Liefert die Schlüssel, die übernommen würden (nur Nummern, die es noch gibt). */
+  function uebernahmeListe(daten, von, nach, ueberschreiben) {
+    var quelle = daten.budgets[String(von)] || {}, ziel = daten.budgets[String(nach)] || {};
+    return Object.keys(quelle).filter(function (s) {
+      var teile = s.split("-");
+      if (!findeNummer(daten, teile[0], teile[1])) return false;
+      if (ziel[s] && !ueberschreiben) return false;
+      return !gleicheWerte(ziel[s], quelle[s]);
+    }).sort();
+  }
+
+  function uebernehmeBudgets(daten, von, nach, ueberschreiben, kennung, zeit) {
+    if (!istJahr(von) || !istJahr(nach) || String(von) === String(nach)) return "Wähle bitte zwei verschiedene Kalenderjahre.";
+    var liste = uebernahmeListe(daten, von, nach, ueberschreiben);
+    if (!liste.length) return "Aus " + von + " gibt es nichts zu übernehmen.";
+    var ziel = daten.budgets[String(nach)] || (daten.budgets[String(nach)] = {});
+    liste.forEach(function (s) {
+      var teile = s.split("-"), werte = kopie(daten.budgets[String(von)][s]);
+      protokolliere(daten, nach, teile[0], teile[1], werte, kennung, "Übernahme aus " + von, zeit);
+      ziel[s] = werte;
+    });
+    return "";
+  }
+
+  /* ---------- Ampel: Grenzen legt die Abteilungsleitung fest (einstellungen.ampel, gleich wie in api.ashx) ---------- */
+
+  var AMPEL_STANDARD = { imPlanBis: 95, knappBis: 100 };
+  var AMPEL = { imPlanBis: 95, knappBis: 100 };
+
+  function ampelAus(a) {
+    a = a || {};
+    var g = Number(a.imPlanBis), r = Number(a.knappBis);
+    if (pruefeAmpel(g, r)) return { imPlanBis: AMPEL_STANDARD.imPlanBis, knappBis: AMPEL_STANDARD.knappBis };
+    return { imPlanBis: g, knappBis: r };
+  }
+
+  /* Ganze Prozent: im Plan bis 50 bis 150, knapp bis darüber und höchstens 200 */
+  function pruefeAmpel(imPlanBis, knappBis) {
+    if (!(Math.floor(imPlanBis) === imPlanBis && Math.floor(knappBis) === knappBis)) return "Gib bitte ganze Prozentwerte ein.";
+    if (imPlanBis < 50 || imPlanBis > 150) return "„Im Plan bis“ liegt zwischen 50 % und 150 %.";
+    if (knappBis <= imPlanBis || knappBis > 200) return "„Knapp bis“ liegt über „Im Plan bis“ und höchstens bei 200 %.";
+    return "";
+  }
+
+  function setzeAmpel(daten, imPlanBis, knappBis) {
+    var g = Number(imPlanBis), r = Number(knappBis);
+    var text = pruefeAmpel(g, r);
+    if (text) return text;
+    daten.einstellungen.ampel = { imPlanBis: g, knappBis: r };
+    AMPEL = { imPlanBis: g, knappBis: r };
+    return "";
+  }
+
+  function ampelGrenzen() { return { imPlanBis: AMPEL.imPlanBis, knappBis: AMPEL.knappBis }; }
+
+  /* Hochrechnung geteilt durch Plan → "gruen", "gelb", "rot" oder "" ohne Plan */
+  function ampelVon(q) {
+    if (q === null || q === undefined || !isFinite(q)) return "";
+    return q > AMPEL.knappBis / 100 ? "rot" : q > AMPEL.imPlanBis / 100 ? "gelb" : "gruen";
+  }
+
+  function ampelText() { return "im Plan bis " + AMPEL.imPlanBis + " %, knapp bis " + AMPEL.knappBis + " %, darüber über Plan"; }
 
   /* Planbudget einer Kostenstelle. Eingetragen wird ihr eigenes Budget inklusive ihrer Projektnummern.
      Bei einer übergreifenden Kostenstelle ist gesamt = eingetragenes Budget plus die Planbudgets der Unterkostenstellen
@@ -863,7 +952,7 @@
       vorjahrDiff: ist.vergleich ? runde(i - ist.vergleich.gesamt) : null,
       vorjahrQuote: ist.vergleich && ist.vergleich.gesamt ? (i - ist.vergleich.gesamt) / ist.vergleich.gesamt : null
     };
-    k.ampel = k.hochQuote === null ? "" : k.hochQuote > 1 ? "rot" : k.hochQuote > 0.95 ? "gelb" : "gruen";
+    k.ampel = ampelVon(k.hochQuote);
     return k;
   }
 
@@ -945,10 +1034,29 @@
     if (ich.rolle !== "admin") Object.keys(daten.ist || {}).forEach(function (s) {
       if (ich.rolle === "al" || (s.indexOf("ks-") === 0 && d.kostenstellen.some(function (n) { return "ks-" + n.nummer === s; }))) d.ist[s] = kopie(daten.ist[s]);
     });
+    d.budgetProtokoll = ich.rolle === "al" ? kopie(daten.budgetProtokoll || []) : [];
     d.istSicherungen = verwaltet ? (daten.istSicherungen || []).map(function (x) {
       return { id: x.id, zeit: x.zeit, von: x.von, nummer: x.nummer, anlass: x.anlass, vorherStand: x.vorher ? x.vorher.stand : "", vorherMonat: x.vorher ? x.vorher.monat : "" };
     }) : [];
     return d;
+  }
+
+  /* ---------- Gesamtsicherung (gleich wie PruefeSicherung in api.ashx) ---------- */
+
+  /* Nimmt eine heruntergeladene Sicherung ({art:"budgetdashboard-sicherung", daten}) oder eine daten.json vom Server.
+     Liefert {daten} oder {fehler}. kennung: Diese Person muss darin Administrator sein. */
+  function pruefeSicherung(obj, kennung) {
+    var d = obj && obj.art === "budgetdashboard-sicherung" ? obj.daten : obj;
+    if (!d || typeof d !== "object" || !Array.isArray(d.benutzer) || !Array.isArray(d.kostenstellen) || !Array.isArray(d.projekte) || !d.budgets || typeof d.budgets !== "object")
+      return { fehler: "Das ist keine Sicherung des Budgetdashboards." };
+    var ich = d.benutzer.filter(function (b) { return b && normalisiereKennung(b.kennung) === normalisiereKennung(kennung); })[0];
+    if (!ich || ich.rolle !== "admin") return { fehler: "In der Sicherung bist Du nicht als Administrator enthalten. So würdest Du Dich aussperren." };
+    if (!d.benutzer.every(function (b) { return b && istGueltigeKennung(b.kennung) && b.hash && b.salz; }))
+      return { fehler: "In der Sicherung fehlen Konten oder Passwörter." };
+    /* vervollstaendige setzt die Ampel; die gilt erst nach dem Einspielen */
+    var ampel = AMPEL, aus = vervollstaendige(kopie(d));
+    AMPEL = ampel;
+    return { daten: aus };
   }
 
   /* ---------- Speicher ---------- */
@@ -1048,6 +1156,17 @@
     istJahr: istJahr,
     budgetVon: budgetVon,
     setzeBudget: setzeBudget,
+    uebernahmeListe: uebernahmeListe,
+    uebernehmeBudgets: uebernehmeBudgets,
+    pruefeAmpel: pruefeAmpel,
+    AMPEL_STANDARD: AMPEL_STANDARD,
+    setzeAmpel: setzeAmpel,
+    ampelAus: ampelAus,
+    ampelGrenzen: ampelGrenzen,
+    ampelVon: ampelVon,
+    ampelText: ampelText,
+    pruefeSicherung: pruefeSicherung,
+    MAX_PROTOKOLL: MAX_PROTOKOLL,
     summe: summe,
     jahre: jahre,
     begruessung: begruessung,

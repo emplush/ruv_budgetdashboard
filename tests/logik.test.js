@@ -376,3 +376,116 @@ test("Handbuch: Bilder und PDF vorhanden, Kapitel vollständig", () => {
   });
   assert.ok(fs.statSync(path.join(wurzel, "handbuch", "Handbuch.pdf")).size > 100000);
 });
+
+test("Änderungsprotokoll der Planbudgets", () => {
+  const d = daten();
+  D.speichereNummer(d, "ks", "", "410", []);
+  D.speichereNummer(d, "pn", "", "41000101", []);
+  assert.strictEqual(D.setzeBudget(d, 2026, "ks", "410", { pkId: "100", pkAd: 0, werbung: 0, reise: 0, sonstiges: 0 }, "xv10001", "2026-01-02T10:00:00Z"), "");
+  assert.strictEqual(d.budgetProtokoll.length, 1);
+  assert.strictEqual(d.budgetProtokoll[0].vorher, null);
+  assert.strictEqual(d.budgetProtokoll[0].von, "xv10001");
+  /* gleiche Werte: kein neuer Eintrag */
+  D.setzeBudget(d, 2026, "ks", "410", { pkId: "100,00", pkAd: 0, werbung: 0, reise: 0, sonstiges: 0 }, "xv10001");
+  assert.strictEqual(d.budgetProtokoll.length, 1);
+  D.setzeBudget(d, 2026, "ks", "410", { pkId: 100, pkAd: 0, werbung: 50, reise: 0, sonstiges: 0 }, "xv10001");
+  assert.strictEqual(d.budgetProtokoll.length, 2);
+  assert.strictEqual(d.budgetProtokoll[0].vorher.werbung, 0);
+  assert.strictEqual(d.budgetProtokoll[0].nachher.werbung, 50);
+  /* Umbenennen nimmt das Protokoll mit */
+  D.speichereNummer(d, "ks", "410", "420", []);
+  assert.ok(d.budgetProtokoll.every((e) => e.nummer === "420"));
+  /* Sicht: nur die Abteilungsleitung */
+  assert.strictEqual(D.sicht(d, "xv10001").budgetProtokoll.length, 2);
+  assert.deepStrictEqual(D.sicht(d, "xv10002").budgetProtokoll, []);
+  /* Obergrenze */
+  for (let i = 0; i < D.MAX_PROTOKOLL + 5; i++) D.setzeBudget(d, 2026, "pn", "41000101", { betrag: i + 1 }, "xv10001");
+  assert.strictEqual(d.budgetProtokoll.length, D.MAX_PROTOKOLL);
+});
+
+test("Planbudgets aus dem Vorjahr übernehmen", () => {
+  const d = daten();
+  D.speichereNummer(d, "ks", "", "410", []);
+  D.speichereNummer(d, "ks", "", "411", []);
+  D.speichereNummer(d, "pn", "", "41000101", []);
+  D.setzeBudget(d, 2025, "ks", "410", { pkId: 1, pkAd: 2, werbung: 3, reise: 4, sonstiges: 5 }, "xv10001");
+  D.setzeBudget(d, 2025, "ks", "411", { pkId: 9, pkAd: 0, werbung: 0, reise: 0, sonstiges: 0 }, "xv10001");
+  D.setzeBudget(d, 2025, "pn", "41000101", { betrag: 700 }, "xv10001");
+  D.setzeBudget(d, 2026, "ks", "411", { pkId: 50, pkAd: 0, werbung: 0, reise: 0, sonstiges: 0 }, "xv10001");
+  assert.deepStrictEqual(D.uebernahmeListe(d, 2025, 2026, false), ["ks-410", "pn-41000101"]);
+  assert.deepStrictEqual(D.uebernahmeListe(d, 2025, 2026, true), ["ks-410", "ks-411", "pn-41000101"]);
+  assert.match(D.uebernehmeBudgets(d, 2026, 2026, false, "xv10001"), /zwei verschiedene/);
+  const vorher = d.budgetProtokoll.length;
+  assert.strictEqual(D.uebernehmeBudgets(d, 2025, 2026, false, "xv10001"), "");
+  assert.strictEqual(D.budgetVon(d, 2026, "ks", "410").gesamt, 15);
+  assert.strictEqual(D.budgetVon(d, 2026, "ks", "411").gesamt, 50);
+  assert.strictEqual(D.budgetVon(d, 2026, "pn", "41000101").gesamt, 700);
+  assert.strictEqual(d.budgetProtokoll.length, vorher + 2);
+  assert.strictEqual(d.budgetProtokoll[0].anlass, "Übernahme aus 2025");
+  assert.match(D.uebernehmeBudgets(d, 2025, 2026, false, "xv10001"), /nichts zu übernehmen/);
+  assert.strictEqual(D.uebernehmeBudgets(d, 2025, 2026, true, "xv10001"), "");
+  assert.strictEqual(D.budgetVon(d, 2026, "ks", "411").gesamt, 9);
+  /* gelöschte Nummern werden nicht übernommen */
+  D.speichereNummer(d, "ks", "", "412", []);
+  D.setzeBudget(d, 2025, "ks", "412", { pkId: 1, pkAd: 0, werbung: 0, reise: 0, sonstiges: 0 }, "xv10001");
+  D.loescheNummer(d, "ks", "412");
+  assert.deepStrictEqual(D.uebernahmeListe(d, 2025, 2027, false), ["ks-410", "ks-411", "pn-41000101"]);
+});
+
+test("Ampelgrenzen", () => {
+  const d = daten();
+  D.vervollstaendige(d);
+  assert.deepStrictEqual(D.ampelGrenzen(), { imPlanBis: 95, knappBis: 100 });
+  assert.strictEqual(D.ampelVon(0.95), "gruen");
+  assert.strictEqual(D.ampelVon(0.99), "gelb");
+  assert.strictEqual(D.ampelVon(1.01), "rot");
+  assert.match(D.setzeAmpel(d, 90.5, 100), /ganze/);
+  assert.match(D.setzeAmpel(d, 40, 100), /zwischen 50/);
+  assert.match(D.setzeAmpel(d, 100, 100), /über/);
+  assert.match(D.setzeAmpel(d, 100, 201), /200/);
+  assert.strictEqual(D.setzeAmpel(d, 100, 110), "");
+  assert.strictEqual(D.ampelVon(0.99), "gruen");
+  assert.strictEqual(D.ampelVon(1.05), "gelb");
+  assert.strictEqual(D.ampelVon(1.11), "rot");
+  assert.match(D.ampelText(), /100 %.*110 %/);
+  /* ungültige gespeicherte Werte fallen auf den Standard zurück */
+  d.einstellungen.ampel = { imPlanBis: 300, knappBis: 10 };
+  D.vervollstaendige(d);
+  assert.deepStrictEqual(D.ampelGrenzen(), { imPlanBis: 95, knappBis: 100 });
+  /* Sicht: alle sehen die Grenzen */
+  D.setzeAmpel(d, 90, 100);
+  assert.deepStrictEqual(D.sicht(d, "xv10004").einstellungen.ampel, { imPlanBis: 90, knappBis: 100 });
+  D.setzeAmpel(d, 95, 100);
+});
+
+test("Gesamtsicherung prüfen", () => {
+  const d = daten();
+  d.benutzer.forEach((b) => { b.hash = "h"; b.salz = "s"; });
+  assert.match(D.pruefeSicherung({ a: 1 }, "xv00000").fehler, /keine Sicherung/);
+  assert.ok(D.pruefeSicherung({ art: "budgetdashboard-sicherung", daten: d }, "xv00000").daten);
+  assert.ok(D.pruefeSicherung(d, "XV00000").daten);
+  assert.match(D.pruefeSicherung(d, "xv10001").fehler, /aussperren/);
+  assert.match(D.pruefeSicherung(d, "xv99999").fehler, /aussperren/);
+  const ohne = JSON.parse(JSON.stringify(d));
+  ohne.benutzer[1].hash = "";
+  assert.match(D.pruefeSicherung(ohne, "xv00000").fehler, /Passwörter/);
+  /* Prüfen ändert die geltende Ampel nicht */
+  D.vervollstaendige(daten());
+  const mitAmpel = JSON.parse(JSON.stringify(d));
+  mitAmpel.einstellungen.ampel = { imPlanBis: 80, knappBis: 90 };
+  D.pruefeSicherung(mitAmpel, "xv00000");
+  assert.deepStrictEqual(D.ampelGrenzen(), { imPlanBis: 95, knappBis: 100 });
+});
+
+test("Excel-Datei schreiben und wieder lesen", async () => {
+  const X = require("../app/js/excel.js");
+  const bytes = X.arbeitsmappeSchreiben([
+    { name: "Planbudgets 2026", kopfzeilen: 1, breiten: [12, 16], zeilen: [[{ wert: "Nummer", stil: "kopf" }, { wert: "Betrag", stil: "kopf" }], ["410", { wert: 1234.5, stil: "eur" }], ["Ä & <ö>", { wert: 0.5, stil: "prozent" }]] },
+    { name: "Leer/mit:Zeichen", zeilen: [] }
+  ]);
+  const blaetter = await X.arbeitsmappeLesen(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+  assert.strictEqual(blaetter.length, 2);
+  assert.strictEqual(blaetter[0].name, "Planbudgets 2026");
+  const text = JSON.stringify(blaetter[0].zeilen);
+  assert.ok(text.includes("Nummer") && text.includes("1234.5") && text.includes("Ä & <ö>"), text);
+});

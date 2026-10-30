@@ -221,7 +221,31 @@
       });
     },
     budgetSpeichern: function (daten, b, jahr, art, nummer, werte) {
-      return aendern(function (ich) { return recht(D.Rechte.budgets(ich)) || D.setzeBudget(speicher, jahr, art, nummer, werte); });
+      return aendern(function (ich) { return recht(D.Rechte.budgets(ich)) || D.setzeBudget(speicher, jahr, art, nummer, werte, ich.kennung); });
+    },
+    budgetsUebernehmen: function (daten, b, von, nach, ueberschreiben) {
+      return aendern(function (ich) { return recht(D.Rechte.budgets(ich)) || D.uebernehmeBudgets(speicher, von, nach, !!ueberschreiben, ich.kennung); });
+    },
+    ampelSpeichern: function (daten, b, imPlanBis, knappBis) {
+      return aendern(function (ich) { return (ich.rolle === "al" ? "" : "Die Ampel stellt nur die Abteilungsleitung ein.") || D.setzeAmpel(speicher, imPlanBis, knappBis); });
+    },
+    /* Gesamtsicherung: vollständiger Stand zum Herunterladen (nur Administrator) */
+    sicherungHolen: function () {
+      try { if (ich().rolle !== "admin") return Promise.reject(fehler("Sicherungen verwaltet nur ein Administrator.", "eingabe")); } catch (f) { return Promise.reject(f); }
+      return Promise.resolve({ art: "budgetdashboard-sicherung", version: "", erstellt: new Date().toISOString(), daten: D.kopie(speicher) });
+    },
+    /* Im Browser gibt es keine automatischen Sicherungen */
+    sicherungenListe: function () { return Promise.resolve([]); },
+    sicherungEinspielen: function (daten, b, quelle) {
+      var echt;
+      try { echt = ich(); } catch (f) { return Promise.reject(f); }
+      if (echt.rolle !== "admin") return Promise.reject(fehler("Sicherungen verwaltet nur ein Administrator.", "eingabe"));
+      var r = D.pruefeSicherung(quelle.daten, echt.kennung);
+      if (r.fehler) return Promise.reject(fehler(r.fehler, "eingabe"));
+      var vorher = speicher;
+      speicher = D.vervollstaendige(r.daten);
+      speicher.stand = Math.max(vorher.stand || 0, speicher.stand || 0) + 1;
+      return D.Speicher.speichern(speicher).then(function () { return ergebnis(echt.kennung); }, function (f) { speicher = vorher; D.vervollstaendige(speicher); throw f; });
     },
     istImportieren: function (daten, b, nummer, eintrag) {
       return aendern(function (ich) { return recht(D.Rechte.budgets(ich)) || D.setzeIst(speicher, nummer, eintrag, ich.kennung); });
@@ -346,6 +370,13 @@
       return anfrage("kosten-speichern", { id: id || "", pn: felder.pn, datum: felder.datum, betrag: felder.betrag, text: felder.text || "" }).then(uebernehmen);
     },
     kostenLoeschen: function (daten, b, id) { return anfrage("kosten-loeschen", { id: id }).then(uebernehmen); },
+    budgetsUebernehmen: function (daten, b, von, nach, ueberschreiben) {
+      return anfrage("budgets-uebernehmen", { von: String(von), nach: String(nach), ueberschreiben: !!ueberschreiben }).then(uebernehmen);
+    },
+    ampelSpeichern: function (daten, b, imPlanBis, knappBis) { return anfrage("ampel-speichern", { imPlanBis: imPlanBis, knappBis: knappBis }).then(uebernehmen); },
+    sicherungHolen: function () { return anfrage("sicherung"); },
+    sicherungenListe: function () { return anfrage("sicherungen").then(function (r) { return r.liste || []; }); },
+    sicherungEinspielen: function (daten, b, quelle) { return anfrage("sicherung-einspielen", quelle).then(uebernehmen); },
     istWiederherstellen: function (daten, b, id) { return anfrage("ist-wiederherstellen", { id: id }).then(uebernehmen); }
   };
 

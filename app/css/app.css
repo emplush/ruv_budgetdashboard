@@ -771,3 +771,15 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
   .hb-tabelle tr, .hb-begriffe dt { break-inside: avoid; break-after: auto; }
   .hb-begriffe dt { break-after: avoid; }
 }
+
+/* Änderungsprotokoll, Datensicherung (seit 0.11.0) */
+.protokolltabelle { min-width: 46rem; }
+.protokolltabelle th, .protokolltabelle td { padding: .6rem .6rem; vertical-align: top; font-size: .9rem; }
+.protokolltabelle tbody th { font-weight: 400; white-space: nowrap; }
+.protokolltabelle td:first-child { white-space: nowrap; }
+#protokoll .knopfreihe { margin-top: 1rem; }
+.sicherungsliste { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.sicherungsliste li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; padding: .5rem 0; border-bottom: 1px solid var(--linie); }
+[data-sicherung] .untertitel { margin-top: 1.25rem; }
+@media print { [data-uebernahme], [data-excel], [data-protokoll-mehr] { display: none !important; } }
+[data-ampel] { max-width: 46rem; }

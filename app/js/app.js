@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "0.10.1";
+  var VERSION = "0.11.0";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -387,14 +387,89 @@
     return '<div class="kopfaktionen"><label class="jahrwahl"><span>Kalenderjahr</span><select data-jahr>' + D.jahre(zustand.daten).map(function (j) {
       return '<option value="' + j + '"' + (j === zustand.jahr ? " selected" : "") + ">" + j + "</option>";
     }).join("") + "</select></label>" +
+      '<button type="button" class="btn btn--rahmen" data-excel title="Planbudgets, IST-Werte und Projektkosten des Kalenderjahres als Excel-Datei">' + icon("documentXls") + " Als Excel herunterladen</button>" +
       (imRahmen ? "" : '<button type="button" class="btn btn--rahmen" data-pdf title="Öffnet den Druckdialog. Wähle dort „Als PDF speichern“.">' + icon("documentPdf") + " Als PDF speichern</button>") + "</div>";
   }
 
   function verbindeJahrwahl() {
     var s = app.querySelector("[data-jahr]");
-    if (s) s.addEventListener("change", function () { zustand.jahr = Number(s.value); zeige(); });
+    if (s) s.addEventListener("change", function () { zustand.jahr = Number(s.value); protokollAnzahl = 30; zeige(); });
+    var xls = app.querySelector("[data-excel]");
+    if (xls) xls.addEventListener("click", excelHerunterladen);
     var pdf = app.querySelector("[data-pdf]");
     if (pdf) pdf.addEventListener("click", function () { window.print(); });
+  }
+
+  /* Datei speichern: im Claude-Artefakt über die Plattform (mit Rückfrage), sonst über einen Download-Link */
+  function dateiSpeichern(name, blob, fehlerText) {
+    if (window.claude && typeof window.claude.use === "function") {
+      return window.claude.use("downloads").then(function (dl) {
+        if (!dl) { meldung("Hier kann das Tool keine Dateien speichern.", true); return; }
+        return dl.save({ filename: name, data: blob }).catch(function (f) { if (!f || f.code !== "declined") meldung(fehlerText, true); });
+      });
+    }
+    var url = URL.createObjectURL(blob), a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+    return Promise.resolve();
+  }
+
+  function heuteIso() { var d = new Date(); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
+
+  function datumDe(iso) { var t = String(iso || "").slice(0, 10).split("-"); return t.length === 3 ? t[2] + "." + t[1] + "." + t[0] : ""; }
+
+  /* Excel-Datei mit drei Blättern aus allem, was die angemeldete Person im gewählten Kalenderjahr sieht */
+  function excelBlaetter() {
+    var daten = zustand.daten, jahr = zustand.jahr;
+    function eur(v, fett) { return { wert: v, stil: fett ? "eurFett" : "eur" }; }
+    function k(t) { return { wert: t, stil: "kopf" }; }
+    var posten = D.POSITIONEN.map(function (p) { return p.name; });
+    var plan = [[k("Art"), k("Nummer"), k("Gehört zu")].concat(posten.map(k), [k("Sachkosten"), k("Planbudget (eingetragen)"), k("Gesamtbudget")])];
+    var ist = [[k("Art"), k("Nummer"), k("Stand"), k("Gebucht bis")].concat(posten.map(k), [k("Sachkosten"), k("IST"), k("Gesamtbudget"), k("IST in % vom Plan")])];
+    D.liste(daten, "ks").forEach(function (n) {
+      var w = D.budgetVon(daten, jahr, "ks", n.nummer), g = D.gesamtBudgetVon(daten, jahr, "ks", n.nummer).gesamt;
+      var oben = D.uebergeordnete(daten, n.nummer);
+      plan.push(["Kostenstelle", n.nummer, oben ? "Kostenstelle " + oben : ""].concat(w.vorhanden
+        ? D.POSITIONEN.map(function (p) { return eur(w[p.id]); }).concat([eur(w.sachkosten), eur(w.gesamt, true), eur(g.gesamt, true)])
+        : ["kein Planbudget"]));
+      var i = D.gesamtIstVon(daten, jahr, "ks", n.nummer).gesamt;
+      ist.push(["Kostenstelle", n.nummer].concat(i.vorhanden
+        ? [datumDe(i.stand), i.monat ? String(i.monat).slice(5) + "." + String(i.monat).slice(0, 4) : ""].concat(D.POSITIONEN.map(function (p) { return eur(i[p.id]); }),
+          [eur(i.sachkosten), eur(i.gesamt, true), g.gesamt > 0 ? eur(g.gesamt) : "", g.gesamt > 0 ? { wert: i.gesamt / g.gesamt, stil: "prozent" } : ""])
+        : ["keine IST-Werte"]));
+    });
+    D.liste(daten, "pn").forEach(function (n) {
+      var w = D.budgetVon(daten, jahr, "pn", n.nummer), i = D.projektIstVon(daten, jahr, n.nummer);
+      plan.push(["Projektnummer", n.nummer, n.ks ? "Kostenstelle " + n.ks : ""].concat(w.vorhanden ? ["", "", "", "", "", "", eur(w.gesamt, true), eur(w.gesamt, true)] : ["kein Planbudget"]));
+      ist.push(["Projektnummer", n.nummer].concat(i.vorhanden
+        ? [datumDe(i.stand), "", "", "", "", "", "", "", eur(i.gesamt, true), w.gesamt > 0 ? eur(w.gesamt) : "", w.gesamt > 0 ? { wert: i.gesamt / w.gesamt, stil: "prozent" } : ""]
+        : ["noch keine Kosten erfasst"]));
+    });
+    var kosten = [[k("Projektnummer"), k("Kostenstelle"), k("Datum"), k("Betrag"), k("Beschreibung"), k("Erfasst von")]];
+    (daten.kosten || []).filter(function (x) { return x.datum.slice(0, 4) === String(jahr); }).sort(function (a, b) {
+      return a.pn === b.pn ? (a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : 0) : a.pn < b.pn ? -1 : 1;
+    }).forEach(function (x) {
+      var n = D.findeNummer(daten, "pn", x.pn);
+      kosten.push([x.pn, n && n.ks ? n.ks : "", datumDe(x.datum), eur(x.betrag), x.text || "", nameVon(x.von)]);
+    });
+    var breitePosten = posten.map(function () { return 16; });
+    return [
+      { name: "Planbudgets " + jahr, kopfzeilen: 1, breiten: [15, 12, 17].concat(breitePosten, [16, 22, 18]), zeilen: plan },
+      { name: "IST-Werte " + jahr, kopfzeilen: 1, breiten: [15, 12, 12, 12].concat(breitePosten, [16, 18, 18, 16]), zeilen: ist },
+      { name: "Projektkosten " + jahr, kopfzeilen: 1, breiten: [15, 13, 12, 16, 50, 24], zeilen: kosten }
+    ];
+  }
+
+  function excelHerunterladen() {
+    var blob;
+    try {
+      blob = new Blob([window.BDExcel.arbeitsmappeSchreiben(excelBlaetter())], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    } catch (f) { meldung("Die Excel-Datei ließ sich gerade nicht erstellen. Probiere es bitte noch einmal.", true); return; }
+    dateiSpeichern("Budgetdashboard_" + zustand.jahr + "_" + heuteIso() + ".xlsx", blob, "Die Excel-Datei ließ sich gerade nicht speichern. Probiere es bitte noch einmal.");
   }
 
   /* Drucken und PDF: immer im hellen Standarddesign, danach zurück zum gewählten Design */
@@ -519,7 +594,7 @@
   }
 
   /* IST zum zeitanteiligen Plan (wie „IST / Plan ZZV“ in der bisherigen Excel-Liste): IST / (Plan × gebuchte Monate / 12) */
-  function zzvAus(q) { return { hochQuote: q, ampel: q === null ? null : q > 1 ? "rot" : q > 0.95 ? "gelb" : "gruen" }; }
+  function zzvAus(q) { return { hochQuote: q, ampel: q === null ? null : D.ampelVon(q) }; }
 
   function zzvHtml(k) {
     if (!k || k.hochQuote === null) return '<span class="leise">–</span>';
@@ -616,7 +691,7 @@
     function zeile(z, klasse) {
       var p = plan.vorhanden ? plan[z.id] : 0, i = ist[z.id], rest = p - i;
       var q = p > 0 ? i / p : null, zq = p > 0 ? i / (p * mon / 12) : null;
-      var kk = { quote: q, zeitanteil: mon / 12, ampel: zq === null ? "" : zq > 1 ? "rot" : zq > 0.95 ? "gelb" : "gruen" };
+      var kk = { quote: q, zeitanteil: mon / 12, ampel: zq === null ? "" : D.ampelVon(zq) };
       var hoch = mon >= 12 ? i : i / mon * 12, prog = p - hoch;
       return "<tr" + (klasse ? ' class="' + klasse + '"' : "") + '><th scope="row">' + esc(z.name) + "</th>" +
         '<td class="zahl"><strong>' + euro(i) + "</strong></td>" +
@@ -926,7 +1001,7 @@
           zeilen + "</tbody></table></div>" : '<p class="leer-hinweis">' + leer + "</p>") + "</section>";
     }
     return tabelle("Einzelbudgets der Kostenstellen " + jahr, "Kostenstelle", ks, "Noch keine Kostenstellen angelegt.",
-        "Unterkostenstellen hängen eingerückt an ihrer Kostenstelle, die erste eingerückte Zeile ist deren Einzelbudget. Mit Klick auf die Nummer öffnest Du die Details. „Zeitanteilig“ vergleicht das IST mit dem Plan bis zum gebuchten Monat: im Plan bis 95 %, knapp bis 100 %, darüber über Plan.") +
+        "Unterkostenstellen hängen eingerückt an ihrer Kostenstelle, die erste eingerückte Zeile ist deren Einzelbudget. Mit Klick auf die Nummer öffnest Du die Details. „Zeitanteilig“ vergleicht das IST mit dem Plan bis zum gebuchten Monat: " + esc(D.ampelText()) + ".") +
       tabelle("Projektnummern " + jahr, "Projektnummer", pn, "Noch keine Projektnummern angelegt.", "Planbudget und Kosten einer Projektnummer sind Teil ihrer Kostenstelle. IST sind die erfassten Projektkosten; im KST-Bericht der Kostenstelle sind sie schon enthalten.");
   }
 
@@ -940,20 +1015,90 @@
     var ap = D.abteilungsPlan(zustand.daten, zustand.jahr), p = ap.gesamt;
     var html = '<div class="seite__kopf"><div><p class="topline">Abteilungsleitung</p><h1>Planbudgets ' + zustand.jahr + "</h1></div>" + jahrwahlHtml() + "</div>" +
       '<p class="einleitung">Hier trägst Du die Planbudgets ein: Klicke in der Zeile auf den Stift oder das Plus. Die IST-Werte findest Du unter <a href="#/ist">IST-Werte</a>.</p>' +
+      (D.uebernahmeListe(zustand.daten, zustand.jahr - 1, zustand.jahr, true).length ? '<div class="knopfreihe knopfreihe--oben"><button type="button" class="btn btn--rahmen" data-uebernahme>' + icon("copy") +
+        " Planbudgets aus " + (zustand.jahr - 1) + " übernehmen</button></div>" : "") +
       '<div class="kennzahlen">' +
       kennzahl("Abteilungsbudget", euro(p.gesamt), ap.projekteOhneKs.gesamt ? "davon Projektnummern ohne Kostenstelle " + euro(ap.projekteOhneKs.gesamt) : "Gesamtbudgets der Kostenstellen") +
       kennzahl("Personalkosten", euro(p.personalkosten), "ID " + euro(p.pkId) + " · AD " + euro(p.pkAd)) +
       kennzahl("Sachkosten", euro(p.sachkosten), "Werbung, Reise/KfZ, Sonstiges") +
       kennzahl("Ohne Planbudget", String(ohnePlan()), "Kostenstellen und Projektnummern") + "</div>" +
-      tabelleHtml("ks") + tabelleHtml("pn");
+      tabelleHtml("ks") + tabelleHtml("pn") + protokollHtml();
     seite("uebersicht", "Planbudgets", html, true);
     verbindeJahrwahl();
+    var ueb = app.querySelector("[data-uebernahme]");
+    if (ueb) ueb.addEventListener("click", uebernahmeDialog);
+    var mehr = app.querySelector("[data-protokoll-mehr]");
+    if (mehr) mehr.addEventListener("click", function () { protokollAnzahl += 30; zeige(); });
     app.querySelectorAll("[data-budget]").forEach(function (k) {
       k.addEventListener("click", function () {
         var t = k.getAttribute("data-budget").split("-");
         budgetDialog(t[0], t[1]);
       });
     });
+  }
+
+  function uebernahmeDialog() {
+    var daten = zustand.daten, nach = zustand.jahr, von = nach - 1;
+    var vorhanden = Object.keys(daten.budgets[String(nach)] || {}).length;
+    var form = oeffneDialog("Planbudgets aus " + von + " übernehmen",
+      "<p>Das Tool trägt die Planbudgets aus " + von + " für " + nach + " ein. Danach passt Du einzelne Werte wie gewohnt an. Jede Übernahme steht im Änderungsprotokoll.</p>" +
+      (vorhanden ? '<label class="check"><input type="checkbox" name="ueberschreiben"> Vorhandene Planbudgets für ' + nach + " überschreiben</label>" : "") +
+      '<p class="hinweis-box klein" data-anzahl></p><p class="fehlertext" hidden></p>',
+      '<button type="button" class="btn btn--rahmen" data-schliessen>Abbrechen</button><button type="submit" class="btn btn--primaer">Jetzt übernehmen</button>',
+      function (f) {
+        var ueberschreiben = !!(f.ueberschreiben && f.ueberschreiben.checked), n = D.uebernahmeListe(daten, von, nach, ueberschreiben).length;
+        if (!n) { zeigeFehler(f, "Es gibt nichts zu übernehmen. Alle Planbudgets für " + nach + " sind schon eingetragen."); return; }
+        Dienst.budgetsUebernehmen(daten, zustand.benutzer, von, nach, ueberschreiben)
+          .then(nachAenderung(n === 1 ? "Ein Planbudget aus " + von + " ist übernommen." : n + " Planbudgets aus " + von + " sind übernommen."), function (x) { serverFehler(x, f); });
+      });
+    function zaehle() {
+      var u = form.ueberschreiben && form.ueberschreiben.checked, n = D.uebernahmeListe(daten, von, nach, u).length;
+      form.querySelector("[data-anzahl]").textContent = n === 0 ? "Alle Planbudgets aus " + von + " sind für " + nach + " schon eingetragen."
+        : (n === 1 ? "Ein Planbudget wird übernommen." : n + " Planbudgets werden übernommen.") + (vorhanden && !u ? " Bereits eingetragene Planbudgets für " + nach + " bleiben, wie sie sind." : "");
+    }
+    if (form.ueberschreiben) form.ueberschreiben.addEventListener("change", zaehle);
+    zaehle();
+  }
+
+  /* ---------- Änderungsprotokoll der Planbudgets (nur Abteilungsleitung) ---------- */
+
+  var protokollAnzahl = 30;
+
+  function protokollWerte(art, w) {
+    if (!w) return null;
+    if (art === "pn") return { gesamt: w.betrag !== undefined ? Number(w.betrag) || 0 : D.POSITIONEN.reduce(function (s, p) { return s + (Number(w[p.id]) || 0); }, 0) };
+    var aus = { gesamt: 0 };
+    D.POSITIONEN.forEach(function (p) { aus[p.id] = Number(w[p.id]) || 0; aus.gesamt += aus[p.id]; });
+    aus.gesamt = Math.round(aus.gesamt * 100) / 100;
+    return aus;
+  }
+
+  function protokollAenderung(e) {
+    var v = protokollWerte(e.art, e.vorher), n = protokollWerte(e.art, e.nachher);
+    if (!v) return "neu eingetragen";
+    if (!n) return "entfernt";
+    if (e.art === "pn") return "Budget " + euro(v.gesamt) + " → " + euro(n.gesamt);
+    var teile = D.POSITIONEN.filter(function (p) { return v[p.id] !== n[p.id]; }).map(function (p) { return esc(p.name) + " " + euro(v[p.id]) + " → " + euro(n[p.id]); });
+    return teile.length ? teile.join("<br>") : "keine Änderung der Beträge";
+  }
+
+  function protokollHtml() {
+    var jahr = String(zustand.jahr);
+    var alle = (zustand.daten.budgetProtokoll || []).filter(function (e) { return e.jahr === jahr; });
+    var kopf = '<section class="karte bereich-tabelle" id="protokoll"><div class="bereich-tabelle__kopf"><h2>Änderungsprotokoll ' + esc(jahr) + "</h2>" +
+      (alle.length ? '<span class="leise klein">' + (alle.length === 1 ? "1 Eintrag" : alle.length + " Einträge") + "</span>" : "") + "</div>" +
+      '<p class="leise klein">Wer hat wann welches Planbudget eingetragen oder geändert. Das Tool hebt die letzten ' + D.MAX_PROTOKOLL.toLocaleString("de-DE") + " Einträge über alle Kalenderjahre auf.</p>";
+    if (!alle.length) return kopf + '<p class="leer-hinweis">Für ' + esc(jahr) + " hat noch niemand ein Planbudget eingetragen oder geändert.</p></section>";
+    var zeilen = alle.slice(0, protokollAnzahl).map(function (e) {
+      var v = protokollWerte(e.art, e.vorher), n = protokollWerte(e.art, e.nachher);
+      return "<tr><td>" + esc(datumZeit(e.zeit)) + "</td><td>" + esc(nameVon(e.von)) + "</td>" +
+        '<th scope="row">' + esc(D.ARTEN[e.art].name) + " <strong>" + esc(e.nummer) + "</strong></th>" +
+        '<td class="klein">' + protokollAenderung(e) + '</td><td class="zahl">' + (n ? euro(n.gesamt) : "–") + (v ? '<br><span class="leise klein">vorher ' + euro(v.gesamt) + "</span>" : "") + "</td>" +
+        '<td class="klein">' + esc(e.anlass || "Eingabe") + "</td></tr>";
+    }).join("");
+    return kopf + '<div class="tabelle-huelle"><table class="budgettabelle protokolltabelle"><thead><tr><th>Zeitpunkt</th><th>Wer</th><th>Nummer</th><th>Änderung</th><th class="zahl">Planbudget</th><th>Anlass</th></tr></thead><tbody>' +
+      zeilen + "</tbody></table></div>" +
+      (alle.length > protokollAnzahl ? '<div class="knopfreihe"><button type="button" class="btn btn--rahmen" data-protokoll-mehr>Weitere anzeigen (' + (alle.length - protokollAnzahl) + " mehr)</button></div>" : "") + "</section>";
   }
 
   function zeigeIstWerte() {
@@ -1023,7 +1168,7 @@
         : '<p class="leer-hinweis">Noch keine Projektnummern angelegt.</p>') + "</section>";
     return '<section class="karte bereich-tabelle"><div class="bereich-tabelle__kopf"><h2>Kostenstellen: IST gegen Plan ' + jahr + "</h2>" +
       (D.Rechte.budgets(zustand.benutzer) ? '<a class="leise klein" href="#/verwaltung/ist">IST-Werte importieren</a>' : "") + "</div>" +
-      '<p class="leise klein">Die IST-Werte kommen aus dem KST-Bericht je Kostenstelle. Mit Klick auf die Nummer öffnest Du die Details. „Zeitanteilig“ vergleicht das IST mit dem Plan bis zum gebuchten Monat: im Plan bis 95 %, knapp bis 100 %, darüber über Plan. Die Hochrechnung schreibt das IST gleichmäßig bis Dezember fort.</p>' +
+      '<p class="leise klein">Die IST-Werte kommen aus dem KST-Bericht je Kostenstelle. Mit Klick auf die Nummer öffnest Du die Details. „Zeitanteilig“ vergleicht das IST mit dem Plan bis zum gebuchten Monat: ' + esc(D.ampelText()) + ". Die Hochrechnung schreibt das IST gleichmäßig bis Dezember fort.</p>" +
       (zeilen ? '<div class="tabelle-huelle"><table class="budgettabelle"><thead><tr><th>Kostenstelle</th><th>Stand · gebucht bis</th><th class="zahl">Plan</th><th class="zahl">IST</th><th class="zahl">IST in %</th>' +
         '<th class="zahl">Restbudget</th><th class="zahl">Hochrechnung</th><th class="zahl">zum Vorjahr</th><th>zeitanteilig</th></tr></thead><tbody>' + zeilen + "</tbody></table></div>"
         : '<p class="leer-hinweis">Noch keine Kostenstellen angelegt.</p>') + "</section>";
@@ -1403,7 +1548,7 @@
       { id: "projekte", name: "Projektnummern", icon: "briefcase" },
       { id: "ist", name: "KST-Berichte", icon: "documentXls" }
     ];
-    if (D.Rechte.einstellungen(b)) r.push({ id: "einstellungen", name: "Einstellungen", icon: "settings" });
+    if (D.Rechte.einstellungen(b) || D.Rechte.budgets(b)) r.push({ id: "einstellungen", name: "Einstellungen", icon: "settings" });
     return r;
   }
 
@@ -1879,15 +2024,24 @@
   }
 
   function verwaltungEinstellungen(ziel) {
+    if (D.Rechte.budgets(zustand.benutzer)) { einstellungenAmpel(ziel); return; }
     var daten = zustand.daten, ich = zustand.benutzer;
     ziel.innerHTML = '<div class="raster">' +
-      '<form class="karte" novalidate data-titel><h2>Titel der Anwendung</h2>' +
+      '<div><form class="karte" novalidate data-titel><h2>Titel der Anwendung</h2>' +
       '<div class="feld"><label for="e-titel">Titel</label><input id="e-titel" name="titel" type="text" maxlength="60" value="' + esc(daten.einstellungen.titel) + '">' +
       '<p class="hilfe">Steht in der Kopfzeile, auf der Anmeldeseite und im Tab des Browsers.</p></div>' +
       '<p class="fehlertext" hidden></p><button type="submit" class="btn btn--primaer">Titel speichern</button></form>' +
       (Dienst.modus === "browser" ? '<div class="karte"><h2>Beispieldaten</h2><p>Setze das Tool auf die Beispieldaten zurück. Alle Änderungen in diesem Browser gehen dabei verloren.</p>' +
-        '<button type="button" class="btn btn--gefahr" data-zuruecksetzen>Auf Beispieldaten zurücksetzen</button></div>' : "") +
-      "</div>";
+        '<button type="button" class="btn btn--gefahr" data-zuruecksetzen>Auf Beispieldaten zurücksetzen</button></div>' : "") + "</div>" +
+      '<div class="karte" data-sicherung><h2>Datensicherung</h2>' +
+      "<p>Lade den vollständigen Datenstand als Datei herunter: alle Konten, Nummern, Planbudgets, IST-Werte, Projektkosten und Einstellungen. Bewahre die Datei sicher auf, sie enthält auch die Passwort-Hashes.</p>" +
+      '<div class="knopfreihe"><button type="button" class="btn btn--primaer" data-sicherung-holen>' + icon("floppyDisk") + " Sicherung herunterladen</button></div>" +
+      '<h3 class="untertitel">Sicherung einspielen</h3>' +
+      "<p>Ersetzt alle Daten durch den Stand aus einer Sicherungsdatei. " + (Dienst.modus === "server" ? "Vorher sichert der Server den aktuellen Stand automatisch." : "Lade vorher am besten eine Sicherung des aktuellen Stands herunter.") + "</p>" +
+      '<div class="feld"><label for="e-sicherung">Sicherungsdatei (.json)</label><input id="e-sicherung" type="file" accept=".json,application/json" data-sicherung-datei></div>' +
+      '<p class="fehlertext" hidden></p>' +
+      (Dienst.modus === "server" ? '<h3 class="untertitel">Automatische Sicherungen</h3><p class="leise klein">Der Server sichert vor jeder Änderung den alten Stand. Hier siehst Du die neuesten.</p><div data-auto-sicherungen><p class="leise klein">Lädt …</p></div>' : "") +
+      "</div></div>";
     var tf = ziel.querySelector("[data-titel]");
     tf.addEventListener("submit", function (e) {
       e.preventDefault();
@@ -1908,6 +2062,85 @@
         });
       });
     });
+    verbindeSicherung(ziel.querySelector("[data-sicherung]"));
+  }
+
+  function verbindeSicherung(karte) {
+    karte.querySelector("[data-sicherung-holen]").addEventListener("click", function () {
+      Dienst.sicherungHolen().then(function (s) {
+        var blob = new Blob([JSON.stringify(s, null, 1)], { type: "application/json" });
+        return dateiSpeichern("Budgetdashboard_Sicherung_" + heuteIso() + ".json", blob, "Die Sicherung ließ sich gerade nicht speichern. Probiere es bitte noch einmal.");
+      }, serverFehler);
+    });
+    function einspielen(text, quelle) {
+      bestaetige("Sicherung einspielen", text, "Jetzt einspielen").then(function (ja) {
+        if (!ja) return;
+        Dienst.sicherungEinspielen(zustand.daten, zustand.benutzer, quelle).then(nachAenderung("Die Sicherung ist eingespielt."), function (x) { serverFehler(x, karte); });
+      });
+    }
+    var datei = karte.querySelector("[data-sicherung-datei]");
+    datei.addEventListener("change", function () {
+      var f = datei.files && datei.files[0];
+      if (!f) return;
+      zeigeFehler(karte, "");
+      f.text().then(function (t) {
+        var obj;
+        try { obj = JSON.parse(t); } catch (x) { obj = null; }
+        datei.value = "";
+        var r = obj ? D.pruefeSicherung(obj, zustand.benutzer.kennung) : { fehler: "Diese Datei ist keine Sicherung des Budgetdashboards." };
+        if (r.fehler) { zeigeFehler(karte, r.fehler); return; }
+        var erstellt = obj.erstellt ? " vom " + datumZeit(obj.erstellt) : "";
+        einspielen("Möchtest Du alle Daten durch die Sicherung „" + f.name + "“" + erstellt + " ersetzen? Änderungen seit dieser Sicherung gehen verloren.", { daten: obj.art ? obj.daten : obj });
+      });
+    });
+    var liste = karte.querySelector("[data-auto-sicherungen]");
+    if (!liste) return;
+    Dienst.sicherungenListe().then(function (l) {
+      if (!l.length) { liste.innerHTML = '<p class="leise klein">Noch keine automatischen Sicherungen.</p>'; return; }
+      liste.innerHTML = '<ul class="sicherungsliste">' + l.slice(0, 10).map(function (x) {
+        return "<li><span>" + esc(datumZeit(x.zeit)) + ' <span class="leise klein">(' + esc(Math.max(1, Math.round(x.groesse / 1024)).toLocaleString("de-DE")) + " KB)</span></span>" +
+          '<button type="button" class="btn btn--rahmen btn--klein" data-wiederherstellen="' + esc(x.name) + '">Wiederherstellen</button></li>';
+      }).join("") + "</ul>";
+      liste.querySelectorAll("[data-wiederherstellen]").forEach(function (k) {
+        k.addEventListener("click", function () {
+          var x = l.filter(function (y) { return y.name === k.getAttribute("data-wiederherstellen"); })[0];
+          einspielen("Möchtest Du alle Daten auf den Stand vom " + datumZeit(x.zeit) + " zurücksetzen? Änderungen seit diesem Zeitpunkt gehen verloren.", { name: x.name });
+        });
+      });
+    }, function (f) { liste.innerHTML = '<p class="leise klein">' + esc(f.message) + "</p>"; });
+  }
+
+  /* Ampelgrenzen: nur die Abteilungsleitung */
+  function einstellungenAmpel(ziel) {
+    var g = D.ampelGrenzen(), std = D.AMPEL_STANDARD;
+    ziel.innerHTML = '<div class="raster"><form class="karte" novalidate data-ampel><h2>Ampel</h2>' +
+      "<p>Die Ampel vergleicht die Hochrechnung zum Jahresende mit dem Planbudget. Lege fest, ab wann sie gelb und rot zeigt. Die Grenzen gelten für alle im Tool.</p>" +
+      '<div class="zweispaltig"><div class="feld"><label for="a-gruen">Im Plan bis (%)</label><input id="a-gruen" name="gruen" type="number" min="50" max="150" step="1" inputmode="numeric" value="' + g.imPlanBis + '">' +
+      '<p class="hilfe">Bis hierhin zeigt die Ampel grün. Standard: ' + std.imPlanBis + " %.</p></div>" +
+      '<div class="feld"><label for="a-rot">Knapp bis (%)</label><input id="a-rot" name="rot" type="number" min="51" max="200" step="1" inputmode="numeric" value="' + g.knappBis + '">' +
+      '<p class="hilfe">Bis hierhin gelb, darüber rot. Standard: ' + std.knappBis + " %.</p></div></div>" +
+      '<p class="hinweis-box klein" data-ampel-vorschau></p><p class="fehlertext" hidden></p>' +
+      '<div class="knopfreihe"><button type="submit" class="btn btn--primaer">Ampel speichern</button>' +
+      '<button type="button" class="btn btn--rahmen" data-ampel-standard>Auf Standard zurücksetzen</button></div></form></div>';
+    var f = ziel.querySelector("[data-ampel]");
+    function werte() { return [Number(String(f.gruen.value).replace(",", ".")), Number(String(f.rot.value).replace(",", "."))]; }
+    function vorschau() {
+      var w = werte(), text = f.gruen.value === "" || f.rot.value === "" ? "Gib bitte beide Grenzen ein." : D.pruefeAmpel(w[0], w[1]);
+      f.querySelector("[data-ampel-vorschau]").textContent = text || "Grün: Hochrechnung bis " + w[0] + " % vom Plan · Gelb: bis " + w[1] + " % · Rot: darüber.";
+    }
+    f.gruen.addEventListener("input", vorschau);
+    f.rot.addEventListener("input", vorschau);
+    vorschau();
+    function speichern(a, b, text) {
+      Dienst.ampelSpeichern(zustand.daten, zustand.benutzer, a, b).then(nachAenderung(text), function (x) { serverFehler(x, f); });
+    }
+    f.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var w = werte(), fehler = f.gruen.value === "" || f.rot.value === "" ? "Gib bitte beide Grenzen ein." : D.pruefeAmpel(w[0], w[1]);
+      if (fehler) { zeigeFehler(f, fehler); return; }
+      speichern(w[0], w[1], "Die Ampel ist gespeichert.");
+    });
+    f.querySelector("[data-ampel-standard]").addEventListener("click", function () { speichern(std.imPlanBis, std.knappBis, "Die Ampel nutzt wieder die Standardgrenzen."); });
   }
 
   /* ---------- Profil ---------- */

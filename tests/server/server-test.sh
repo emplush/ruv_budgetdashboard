@@ -162,6 +162,40 @@ pruefe "Key Account Manager nicht für fremde Projektnummer 403" "403" "$(code -
 pruefe "Kostenstelle löschen hebt Zuordnung auf" "''" "$(post "$L" nummer-loeschen '{"art":"ks","nummer":"499"}' | py 'repr([n["ks"] for n in d["daten"]["projekte"] if n["nummer"]=="41000199"][0])')"
 pruefe "Projektnummer löschen entfernt ihre Kosten" "['41000101']" "$(post "$L" nummer-loeschen '{"art":"pn","nummer":"41000199"}' | py 'str([x["pn"] for x in d["daten"]["kosten"]])')"
 
+# Änderungsprotokoll, Übernahme aus dem Vorjahr, Ampel (seit 0.11.0)
+pruefe "Änderungsprotokoll für die Abteilungsleitung" "ja" "$(curl -s -b "$L" -H "$H" "$U?aktion=sitzung" | py '"ja" if len(d["daten"]["budgetProtokoll"])>0 and d["daten"]["budgetProtokoll"][0]["von"]=="xv10001" else "nein"')"
+pruefe "Änderungsprotokoll nicht für die Gruppenleitung" "[]" "$(curl -s -b "$G" -H "$H" "$U?aktion=sitzung" | py 'str(d["daten"]["budgetProtokoll"])')"
+pruefe "Gruppenleitung darf nicht übernehmen 403" "403" "$(code -b "$G" -H "$H" -H "$J" -d '{"von":"2026","nach":"2027"}' "$U?aktion=budgets-uebernehmen")"
+pruefe "Übernahme braucht zwei Jahre" "zwei verschiedene" "$(post "$L" budgets-uebernehmen '{"von":"2026","nach":"2026"}')"
+pruefe "Planbudgets aus 2026 übernehmen" "gleich|Übernahme aus 2026" "$(post "$L" budgets-uebernehmen '{"von":"2026","nach":"2027","ueberschreiben":false}' | py '("gleich" if d["daten"]["budgets"]["2027"]==d["daten"]["budgets"]["2026"] else "verschieden")+"|"+d["daten"]["budgetProtokoll"][0]["anlass"]')"
+pruefe "zweite Übernahme ohne Überschreiben 400" "nichts zu übernehmen" "$(post "$L" budgets-uebernehmen '{"von":"2026","nach":"2027","ueberschreiben":false}')"
+post "$L" budget-speichern '{"jahr":"2027","art":"ks","nummer":"411","werte":{"pkId":5}}' >/dev/null
+pruefe "Übernahme mit Überschreiben" "1000.0|Übernahme aus 2026" "$(post "$L" budgets-uebernehmen '{"von":"2026","nach":"2027","ueberschreiben":true}' | py 'str(float(d["daten"]["budgets"]["2027"]["ks-411"]["pkId"]))+"|"+d["daten"]["budgetProtokoll"][0]["anlass"]')"
+pruefe "Gruppenleitung darf die Ampel nicht einstellen 403" "403" "$(code -b "$G" -H "$H" -H "$J" -d '{"imPlanBis":90,"knappBis":100}' "$U?aktion=ampel-speichern")"
+pruefe "Administrator darf die Ampel nicht einstellen 403" "403" "$(code -b "$A" -H "$H" -H "$J" -d '{"imPlanBis":90,"knappBis":100}' "$U?aktion=ampel-speichern")"
+pruefe "ungültige Ampel 400" "höchstens bei 200" "$(post "$L" ampel-speichern '{"imPlanBis":90,"knappBis":250}')"
+pruefe "Ampel speichern" '{"imPlanBis": 90, "knappBis": 105}' "$(post "$L" ampel-speichern '{"imPlanBis":90,"knappBis":105}' | py 'json.dumps(d["daten"]["einstellungen"]["ampel"],sort_keys=True)')"
+pruefe "alle sehen die Ampel" '{"imPlanBis": 90, "knappBis": 105}' "$(curl -s -b "$G" -H "$H" "$U?aktion=sitzung" | py 'json.dumps(d["daten"]["einstellungen"]["ampel"],sort_keys=True)')"
+pruefe "Titel speichern lässt die Ampel stehen" '{"imPlanBis": 90, "knappBis": 105}' "$(post "$A" einstellungen '{"titel":"Budget T&E äöü"}' >/dev/null; curl -s -b "$L" -H "$H" "$U?aktion=sitzung" | py 'json.dumps(d["daten"]["einstellungen"]["ampel"],sort_keys=True)')"
+
+# Gesamtsicherung (seit 0.11.0)
+pruefe "Abteilungsleitung bekommt keine Sicherung 403" "403" "$(code -b "$L" -H "$H" "$U?aktion=sicherung")"
+curl -s -b "$A" -H "$H" "$U?aktion=sicherung" > "$TMP/sicherung.json"
+pruefe "Sicherung herunterladen" "budgetdashboard-sicherung|ja|ja" "$(py '"|".join([d["art"],"ja" if all(b["hash"] for b in d["daten"]["benutzer"]) else "nein","ja" if d["daten"]["budgetProtokoll"] else "nein"])' < "$TMP/sicherung.json")"
+pruefe "Liste der automatischen Sicherungen" "ja" "$(curl -s -b "$A" -H "$H" "$U?aktion=sicherungen" | py '"ja" if len(d["liste"])>0 and d["liste"][0]["name"].startswith("daten-") else "nein"')"
+pruefe "Abteilungsleitung darf keine Sicherung einspielen 403" "403" "$(code -b "$L" -H "$H" -H "$J" --data-binary @"$TMP/sicherung.json" "$U?aktion=sicherung-einspielen")"
+python3 -c "import json,sys; d=json.load(open(sys.argv[1])); d['daten']['benutzer']=[b for b in d['daten']['benutzer'] if b['rolle']!='admin']; print(json.dumps({'daten':d}))" "$TMP/sicherung.json" > "$TMP/ohne-admin.json"
+pruefe "Sicherung ohne eigenes Adminkonto 400" "aussperren" "$(curl -s -b "$A" -H "$H" -H "$J" --data-binary @"$TMP/ohne-admin.json" "$U?aktion=sicherung-einspielen")"
+pruefe "keine Sicherung 400" "keine Sicherung" "$(post "$A" sicherung-einspielen '{"daten":{"a":1}}')"
+pruefe "ungültiger Sicherungsname 400" "400" "$(code -b "$A" -H "$H" -H "$J" -d '{"name":"../daten.json"}' "$U?aktion=sicherung-einspielen")"
+STAND="$(curl -s -b "$A" -H "$H" "$U?aktion=sitzung" | py 'd["daten"]["stand"]')"
+post "$L" budget-speichern '{"jahr":"2027","art":"ks","nummer":"411","werte":{"pkId":7}}' >/dev/null
+python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(json.dumps({'daten':d}))" "$TMP/sicherung.json" > "$TMP/einspielen.json"
+pruefe "Sicherung einspielen" "1000.0|ja" "$(curl -s -b "$A" -H "$H" -H "$J" --data-binary @"$TMP/einspielen.json" "$U?aktion=sicherung-einspielen" >/dev/null; curl -s -b "$L" -H "$H" "$U?aktion=sitzung" | py 'str(float(d["daten"]["budgets"]["2027"]["ks-411"]["pkId"]))+"|"+("ja" if d["daten"]["stand"]>'"$STAND"' else "nein")')"
+NEUESTE="$(curl -s -b "$A" -H "$H" "$U?aktion=sicherungen" | py 'd["liste"][0]["name"]')"
+pruefe "automatische Sicherung wiederherstellen" "7.0" "$(post "$A" sicherung-einspielen "{\"name\":\"$NEUESTE\"}" >/dev/null; curl -s -b "$L" -H "$H" "$U?aktion=sitzung" | py 'str(float(d["daten"]["budgets"]["2027"]["ks-411"]["pkId"]))')"
+pruefe "Sitzungen bleiben nach dem Einspielen gültig" "200" "$(code -b "$G" -H "$H" "$U?aktion=sitzung")"
+
 # Verwaltung
 pruefe "neues Einmalpasswort beendet Sitzungen" "401" "$(post "$A" passwort-zuruecksetzen '{"kennung":"xv10004","passwort":"Neu-Start#2026x"}' >/dev/null; code -b "$K" -H "$H" "$U?aktion=sitzung")"
 pruefe "Rollenwechsel nimmt Kostenstellen" "['xv10001']" "$(post "$L" benutzer-aendern '{"kennung":"xv10002","vorname":"Tom","nachname":"Becker","rolle":"kam","nummern":{"ks":["420"],"pn":[]}}' | py 'str([n["benutzer"] for n in d["daten"]["kostenstellen"] if n["nummer"]=="420"][0])')"

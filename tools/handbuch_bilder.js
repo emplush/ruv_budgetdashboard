@@ -90,6 +90,18 @@ const server = http.createServer((req, res) => {
   await seite.waitForTimeout(300);
   await bild("planbudget-eintragen", { element: "dialog[open]" });
   await seite.keyboard.press("Escape");
+  await seite.selectOption("[data-jahr]", "2027");
+  await seite.waitForSelector("[data-uebernahme]");
+  await seite.click("[data-uebernahme]");
+  await seite.waitForSelector("dialog[open]");
+  await seite.waitForTimeout(300);
+  await bild("uebernahme", { element: "dialog[open]" });
+  await seite.click("dialog button[type=submit]");
+  await seite.waitForSelector("#protokoll tbody tr");
+  await bild("aenderungsprotokoll", { element: "#protokoll" });
+  await seite.selectOption("[data-jahr]", "2026");
+  await gehe("#/verwaltung/einstellungen", "[data-ampel]");
+  await bild("ampel", { hoehe: 720 });
   await gehe("#/ist", "text=IST-Werte");
   await bild("ist-werte");
   await gehe("#/kostenstelle/411", "text=Plan und IST je Position");

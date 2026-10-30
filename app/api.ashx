@@ -30,6 +30,13 @@
  *   POST kosten-loeschen         <- {id}                                     (ebenso)
  *   POST ist-wiederherstellen    <- {id}                                               (Administrator, Abteilungsleitung)
  *   POST budget-speichern        <- {jahr,art,nummer,werte:{pkId,pkAd,werbung,reise,sonstiges} oder bei pn {betrag}} (Abteilungsleitung)
+ *   POST budgets-uebernehmen     <- {von,nach,ueberschreiben}  Planbudgets eines Jahres als Vorlage (Abteilungsleitung)
+ *   POST ampel-speichern         <- {imPlanBis,knappBis}  Grenzen der Ampel in Prozent (Abteilungsleitung)
+ *   GET  sicherung               -> {art:"budgetdashboard-sicherung",version,erstellt,daten} vollständiger Stand (Administrator)
+ *   GET  sicherungen             -> {liste:[{name,zeit,groesse}]} automatische Sicherungen in App_Data\sicherungen (Administrator)
+ *   POST sicherung-einspielen    <- {daten} oder {name}  ersetzt den Stand, sichert vorher (Administrator)
+ *
+ * Jede Änderung eines Planbudgets landet im budgetProtokoll (höchstens 1000 Einträge, nur die Abteilungsleitung sieht es).
  *
  * Jede Änderung antwortet mit der neuen Sicht = {"ich":kennung,"daten":{...}}, gleiche Regeln wie sicht() in js/daten.js:
  * Administrator und Abteilungsleitung sehen alle Benutzer, Kostenstellen und Projektnummern; Planbudgets sieht nur
@@ -108,9 +115,9 @@ public class BdErgebnis
 
 public static class BdKern
 {
-    public const string Version = "0.10.1";
+    public const string Version = "0.11.0";
     public const string CookieName = "budgetdashboard_sitzung";
-    public const int MaxBytes = 2 * 1024 * 1024;
+    public const int MaxBytes = 20 * 1024 * 1024;
     private const int AnzahlSicherungen = 50;
     private const int Iterationen = 100000;
     private const int MaxFehlversuche = 5;
@@ -196,6 +203,16 @@ public static class BdKern
         // BETA-ANMELDEN-ALS Ende
         if (aktion == "passwort" && post) return PasswortAendern(daten, ich, Json(a.Koerper), a.AppData, sitzung);
         if (B(ich, "mussPasswortAendern") && !alsAdmin /* BETA-ANMELDEN-ALS */) throw new Fehler(403, "Lege bitte zuerst Dein eigenes Passwort fest.");
+        if (aktion == "sicherung" && !post)
+        {
+            if (S(ich, "rolle") != "admin") throw new Fehler(403, "Sicherungen verwaltet nur ein Administrator.");
+            return Antwort(200, new Dictionary<string, object> { { "art", "budgetdashboard-sicherung" }, { "version", Version }, { "erstellt", Jetzt() }, { "daten", daten } });
+        }
+        if (aktion == "sicherungen" && !post)
+        {
+            if (S(ich, "rolle") != "admin") throw new Fehler(403, "Sicherungen verwaltet nur ein Administrator.");
+            return Antwort(200, new { liste = AutoSicherungen(a.AppData) });
+        }
         if (!post) throw new Fehler(404, "Diese Aktion gibt es nicht.");
 
         var k = Json(a.Koerper);
@@ -344,8 +361,37 @@ public static class BdKern
             case "budget-speichern":
                 {
                     if (rolle != "al") throw new Fehler(403, "Planbudgets trägt nur die Abteilungsleitung ein.");
-                    BudgetSetzen(daten, S(k, "jahr") ?? "", S(k, "art") ?? "", S(k, "nummer") ?? "", G(k, "werte") as Dictionary<string, object>);
+                    BudgetSetzen(daten, S(k, "jahr") ?? "", S(k, "art") ?? "", S(k, "nummer") ?? "", G(k, "werte") as Dictionary<string, object>, S(ich, "kennung"));
                     break;
+                }
+            case "budgets-uebernehmen":
+                {
+                    if (rolle != "al") throw new Fehler(403, "Planbudgets trägt nur die Abteilungsleitung ein.");
+                    BudgetsUebernehmen(daten, S(k, "von") ?? "", S(k, "nach") ?? "", B(k, "ueberschreiben"), S(ich, "kennung"));
+                    break;
+                }
+            case "ampel-speichern":
+                {
+                    if (rolle != "al") throw new Fehler(403, "Die Ampel stellt nur die Abteilungsleitung ein.");
+                    int g, r;
+                    if (!int.TryParse(S(k, "imPlanBis") ?? "", NumberStyles.Integer, CultureInfo.InvariantCulture, out g) || !int.TryParse(S(k, "knappBis") ?? "", NumberStyles.Integer, CultureInfo.InvariantCulture, out r))
+                        throw new Fehler(400, "Gib bitte ganze Prozentwerte ein.");
+                    if (g < 50 || g > 150) throw new Fehler(400, "„Im Plan bis“ liegt zwischen 50 % und 150 %.");
+                    if (r <= g || r > 200) throw new Fehler(400, "„Knapp bis“ liegt über „Im Plan bis“ und höchstens bei 200 %.");
+                    D(daten["einstellungen"])["ampel"] = new Dictionary<string, object> { { "imPlanBis", g }, { "knappBis", r } };
+                    break;
+                }
+            case "sicherung-einspielen":
+                {
+                    if (rolle != "admin") throw new Fehler(403, "Sicherungen verwaltet nur ein Administrator.");
+                    var neu = SicherungLesen(a.AppData, k, S(ich, "kennung"));
+                    int standVorher = I(daten, "stand");
+                    Speichern(daten, a.AppData, true);
+                    DateiSchreiben(Path.Combine(a.AppData, "daten.json"), Serializer().Serialize(neu));
+                    daten = Laden(a.AppData);
+                    daten["stand"] = Math.Max(standVorher, I(daten, "stand")) + 1;
+                    Speichern(daten, a.AppData, false);
+                    return Antwort(200, Sicht(daten, Benutzer(daten, S(ich, "kennung"))));
                 }
             default:
                 throw new Fehler(404, "Diese Aktion gibt es nicht.");
@@ -655,6 +701,7 @@ public static class BdKern
         {
             foreach (var j in D(daten["budgets"]).Values.Select(x => D(x)))
                 if (j.ContainsKey(art + "-" + alt)) { j[art + "-" + nummer] = j[art + "-" + alt]; j.Remove(art + "-" + alt); }
+            foreach (var x in L(daten["budgetProtokoll"]).Select(y => D(y))) if (S(x, "art") == art && S(x, "nummer") == alt) x["nummer"] = nummer;
             if (art == "ks")
                 foreach (var n in liste.Select(x => D(x)))
                 {
@@ -719,7 +766,7 @@ public static class BdKern
     private static readonly Dictionary<string, string> PositionsNamen = new Dictionary<string, string> {
         { "pkId", "Personalkosten ID" }, { "pkAd", "Personalkosten AD" }, { "werbung", "Werbung" }, { "reise", "Reise/KfZ" }, { "sonstiges", "Sonstiges" } };
 
-    private static void BudgetSetzen(Dictionary<string, object> daten, string jahr, string art, string nummer, Dictionary<string, object> werte)
+    private static void BudgetSetzen(Dictionary<string, object> daten, string jahr, string art, string nummer, Dictionary<string, object> werte, string kennung)
     {
         if (!JahrMuster.IsMatch(jahr)) throw new Fehler(400, "Wähle bitte ein Kalenderjahr.");
         if (art != "ks" && art != "pn") throw new Fehler(400, "Unbekannte Art.");
@@ -738,9 +785,117 @@ public static class BdKern
             if (z == null) throw new Fehler(400, "Prüfe bitte den Betrag bei „" + PositionsNamen[p] + "“. Erlaubt sind Beträge ab 0,00 EUR, zum Beispiel 12.500,00 EUR.");
             neu[p] = z.Value;
         }
+        Protokollieren(daten, jahr, art, nummer, neu, kennung, "Eintrag");
         var budgets = D(daten["budgets"]);
         if (!budgets.ContainsKey(jahr)) budgets[jahr] = new Dictionary<string, object>();
         D(budgets[jahr])[art + "-" + nummer] = neu;
+    }
+
+    // ---------- Änderungsprotokoll und Übernahme (gleich wie protokolliere und uebernehmeBudgets in js/daten.js) ----------
+
+    private const int MaxProtokoll = 1000;
+
+    /// <summary>Gleiche Beträge, unabhängig davon, ob die Zahl als int oder decimal vorliegt.</summary>
+    private static bool GleicheWerte(Dictionary<string, object> a, Dictionary<string, object> b)
+    {
+        if (a == null || b == null) return a == null && b == null;
+        if (a.Count != b.Count) return false;
+        foreach (var p in a)
+        {
+            object w;
+            if (!b.TryGetValue(p.Key, out w)) return false;
+            try { if (Convert.ToDecimal(p.Value, CultureInfo.InvariantCulture) != Convert.ToDecimal(w, CultureInfo.InvariantCulture)) return false; }
+            catch { return false; }
+        }
+        return true;
+    }
+
+    private static object Kopie(object o) { return o == null ? null : Serializer().DeserializeObject(Serializer().Serialize(o)); }
+
+    private static void Protokollieren(Dictionary<string, object> daten, string jahr, string art, string nummer, Dictionary<string, object> nachher, string kennung, string anlass)
+    {
+        var budgets = D(daten["budgets"]);
+        var j = budgets.ContainsKey(jahr) ? D(budgets[jahr]) : null;
+        var vorher = j != null ? G(j, art + "-" + nummer) as Dictionary<string, object> : null;
+        if (GleicheWerte(vorher, nachher)) return;
+        var liste = L(daten["budgetProtokoll"]).ToList();
+        liste.Insert(0, new Dictionary<string, object> {
+            { "id", "p" + Guid.NewGuid().ToString("N").Substring(0, 12) }, { "zeit", Jetzt() }, { "von", kennung ?? "" },
+            { "jahr", jahr }, { "art", art }, { "nummer", nummer }, { "anlass", anlass }, { "vorher", Kopie(vorher) }, { "nachher", Kopie(nachher) } });
+        daten["budgetProtokoll"] = liste.Take(MaxProtokoll).ToList();
+    }
+
+    private static void BudgetsUebernehmen(Dictionary<string, object> daten, string von, string nach, bool ueberschreiben, string kennung)
+    {
+        if (!JahrMuster.IsMatch(von) || !JahrMuster.IsMatch(nach) || von == nach) throw new Fehler(400, "Wähle bitte zwei verschiedene Kalenderjahre.");
+        var budgets = D(daten["budgets"]);
+        var quelle = budgets.ContainsKey(von) ? D(budgets[von]) : new Dictionary<string, object>();
+        var ziel = budgets.ContainsKey(nach) ? D(budgets[nach]) : new Dictionary<string, object>();
+        var liste = quelle.Keys.Where(s =>
+        {
+            int i = s.IndexOf('-');
+            if (i < 0 || FindeNummer(daten, s.Substring(0, i), s.Substring(i + 1)) == null) return false;
+            if (ziel.ContainsKey(s) && !ueberschreiben) return false;
+            return !GleicheWerte(G(ziel, s) as Dictionary<string, object>, G(quelle, s) as Dictionary<string, object>);
+        }).OrderBy(s => s, StringComparer.Ordinal).ToList();
+        if (liste.Count == 0) throw new Fehler(400, "Aus " + von + " gibt es nichts zu übernehmen.");
+        budgets[nach] = ziel;
+        foreach (var s in liste)
+        {
+            int i = s.IndexOf('-');
+            var werte = Kopie(quelle[s]) as Dictionary<string, object>;
+            Protokollieren(daten, nach, s.Substring(0, i), s.Substring(i + 1), werte, kennung, "Übernahme aus " + von);
+            ziel[s] = werte;
+        }
+    }
+
+    // ---------- Gesamtsicherung (gleich wie pruefeSicherung in js/daten.js) ----------
+
+    private static readonly Regex SicherungsName = new Regex("^daten-[0-9]{8}-[0-9]{6}-[0-9]{3}\\.json$");
+
+    private static List<object> AutoSicherungen(string appData)
+    {
+        string ordner = Path.Combine(appData, "sicherungen");
+        var liste = new List<object>();
+        if (!Directory.Exists(ordner)) return liste;
+        foreach (var f in Directory.GetFiles(ordner, "daten-*.json").OrderByDescending(x => x, StringComparer.Ordinal))
+        {
+            string name = Path.GetFileName(f);
+            if (!SicherungsName.IsMatch(name)) continue;
+            DateTime z;
+            string zeit = DateTime.TryParseExact(name.Substring(6, 19), "yyyyMMdd-HHmmss-fff", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out z)
+                ? z.ToString("yyyy-MM-ddTHH:mm:ss.fffZ") : "";
+            liste.Add(new Dictionary<string, object> { { "name", name }, { "zeit", zeit }, { "groesse", new FileInfo(f).Length } });
+        }
+        return liste;
+    }
+
+    /// <summary>Liest eine hochgeladene Sicherung ({daten} mit art "budgetdashboard-sicherung" oder eine daten.json) oder eine automatische ({name}).</summary>
+    private static Dictionary<string, object> SicherungLesen(string appData, Dictionary<string, object> k, string kennung)
+    {
+        Dictionary<string, object> d;
+        string name = S(k, "name");
+        if (!string.IsNullOrEmpty(name))
+        {
+            if (!SicherungsName.IsMatch(name)) throw new Fehler(400, "Diese Sicherung gibt es nicht.");
+            string datei = Path.Combine(Path.Combine(appData, "sicherungen"), name);
+            if (!File.Exists(datei)) throw new Fehler(404, "Diese Sicherung gibt es nicht mehr.");
+            d = Serializer().DeserializeObject(File.ReadAllText(datei, Encoding.UTF8)) as Dictionary<string, object>;
+        }
+        else
+        {
+            d = G(k, "daten") as Dictionary<string, object>;
+            if (d != null && S(d, "art") == "budgetdashboard-sicherung") d = G(d, "daten") as Dictionary<string, object>;
+        }
+        if (d == null || !(G(d, "benutzer") is object[] || G(d, "benutzer") is ArrayList) || !(G(d, "budgets") is Dictionary<string, object>)
+            || G(d, "kostenstellen") == null || G(d, "projekte") == null)
+            throw new Fehler(400, "Das ist keine Sicherung des Budgetdashboards.");
+        var benutzer = L(d["benutzer"]).Select(x => x as Dictionary<string, object>).ToList();
+        var ich = benutzer.FirstOrDefault(b => b != null && (S(b, "kennung") ?? "").ToLowerInvariant() == kennung);
+        if (ich == null || S(ich, "rolle") != "admin") throw new Fehler(400, "In der Sicherung bist Du nicht als Administrator enthalten. So würdest Du Dich aussperren.");
+        if (benutzer.Any(b => b == null || !KennungMuster.IsMatch(S(b, "kennung") ?? "") || string.IsNullOrEmpty(S(b, "hash")) || string.IsNullOrEmpty(S(b, "salz"))))
+            throw new Fehler(400, "In der Sicherung fehlen Konten oder Passwörter.");
+        return d;
     }
 
     // ---------- IST-Daten (gleiche Regeln wie setzeIst und stelleIstWiederHer in js/daten.js) ----------
@@ -942,6 +1097,7 @@ public static class BdKern
                     { "vorherStand", v == null ? "" : S(v, "stand") }, { "vorherMonat", v == null ? "" : S(v, "monat") } });
             }
         d["istSicherungen"] = sicherungen;
+        d["budgetProtokoll"] = rolle == "al" ? daten["budgetProtokoll"] : new List<object>();
         return new { ich = kennung, daten = d, alsAdmin = aktuelleSitzung != null && aktuelleSitzung.Kennung == kennung ? aktuelleSitzung.Admin ?? "" : "" /* BETA-ANMELDEN-ALS */ };
     }
 
@@ -956,7 +1112,8 @@ public static class BdKern
                 { "schema", 1 }, { "stand", 0 },
                 { "einstellungen", new Dictionary<string, object> { { "titel", StandardTitel } } },
                 { "benutzer", new List<object>() }, { "kostenstellen", new List<object>() }, { "projekte", new List<object>() },
-                { "budgets", new Dictionary<string, object>() }, { "ist", new Dictionary<string, object>() }, { "istSicherungen", new List<object>() }, { "kosten", new List<object>() } };
+                { "budgets", new Dictionary<string, object>() }, { "ist", new Dictionary<string, object>() }, { "istSicherungen", new List<object>() }, { "kosten", new List<object>() },
+                { "budgetProtokoll", new List<object>() } };
             var admin = NeuerBenutzer(StandardAdmin, "Admin", "Budget", "admin");
             PasswortSetzen(admin, StandardPasswort, false);
             L(neu["benutzer"]).Add(admin);
@@ -970,6 +1127,7 @@ public static class BdKern
         if (!(G(daten, "ist") is Dictionary<string, object>)) daten["ist"] = new Dictionary<string, object>();
         daten["istSicherungen"] = L(G(daten, "istSicherungen")).ToList();
         daten["kosten"] = L(G(daten, "kosten")).ToList();
+        daten["budgetProtokoll"] = L(G(daten, "budgetProtokoll")).ToList();
         foreach (var p in L(daten["projekte"]).Select(x => D(x))) if (!(G(p, "ks") is string)) p["ks"] = "";
         if (!(G(daten, "einstellungen") is Dictionary<string, object>)) daten["einstellungen"] = new Dictionary<string, object> { { "titel", StandardTitel } };
         if (!daten.ContainsKey("stand")) daten["stand"] = 0;

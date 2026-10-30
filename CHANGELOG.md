@@ -1,5 +1,13 @@
 # Änderungen
 
+## 0.11.0 (30.10.2026)
+- Planbudgets aus dem Vorjahr übernehmen: Unter Planbudgets steht für die Abteilungsleitung der Knopf „Planbudgets aus … übernehmen“. Vorhandene Planbudgets bleiben, außer Du setzt den Haken bei „Vorhandene Planbudgets überschreiben“.
+- Änderungsprotokoll: Unter den Planbudgets steht, wer wann welches Planbudget eingetragen oder geändert hat, mit den Beträgen vorher und nachher. Das Tool hebt die letzten 1.000 Einträge auf, sehen kann sie nur die Abteilungsleitung.
+- Excel-Export: „Als Excel herunterladen“ neben der Jahreswahl speichert Planbudgets, IST-Werte und Projektkosten des Kalenderjahres als Excel-Datei mit drei Blättern. Jede Rolle bekommt nur, was sie im Tool sieht. Das geht auch im Artefakt.
+- Ampel einstellen: Die Abteilungsleitung legt unter Verwaltung → Einstellungen fest, bis wie viel Prozent die Ampel grün und gelb zeigt (Standard 95 % und 100 %). Die Grenzen gelten für alle.
+- Datensicherung für Administratoren: Unter Verwaltung → Einstellungen lädst Du den vollständigen Datenstand herunter und spielst ihn bei Bedarf wieder ein. Im Serverbetrieb stehen dort auch die automatischen Sicherungen zum Wiederherstellen. Eine Sicherung ohne Dein eigenes Administratorkonto spielt das Tool nicht ein.
+- Handbuch: neue Kapitel „Ampel einstellen“ und „Excel-Export“, Abschnitte zu Übernahme, Änderungsprotokoll und Datensicherung.
+
 ## 0.10.1 (30.10.2026)
 - Detailseite einer Kostenstelle ohne IST-Werte zeigt jetzt trotzdem ihr Planbudget je Kostenart, zum Beispiel beim Planen für das nächste Jahr.
 - Gruppenleitung und Key Account Manager ohne Zuweisung sehen keine leere Jahreswahl und keinen PDF-Knopf mehr.

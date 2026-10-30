@@ -12,7 +12,7 @@ function pruefe(bedingung, text) {
 
 (async () => {
   const browser = await chromium.launch();
-  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, acceptDownloads: true });
   const fehler = [];
   page.on("pageerror", (e) => fehler.push(e.message));
   page.on("console", (m) => { if (m.type() === "error" && !/40[0-9]/.test(m.text())) fehler.push(m.text()); });
@@ -80,6 +80,34 @@ function pruefe(bedingung, text) {
   await anmelden("xv10001", "Garten-Laube#26");
   await page.waitForSelector("text=Abteilungsbudget");
   pruefe(await page.getAttribute("html", "data-farbe") === "rheingau", "Farbdesign kommt vom Server");
+
+  /* seit 0.11.0: Änderungsprotokoll, Excel-Export, Ampel, Datensicherung */
+  await page.goto(url + "#/uebersicht");
+  await page.waitForSelector("#protokoll");
+  pruefe(await page.isVisible("#protokoll >> text=Kostenstelle 411"), "Änderungsprotokoll zeigt die Eingabe");
+  const [datei] = await Promise.all([page.waitForEvent("download"), page.click("[data-excel]")]);
+  pruefe(/^Budgetdashboard_\d{4}_\d{4}-\d{2}-\d{2}\.xlsx$/.test(datei.suggestedFilename()), "Excel-Datei herunterladen");
+  await page.goto(url + "#/verwaltung/einstellungen");
+  await page.waitForSelector("[data-ampel]");
+  await page.fill("#a-gruen", "90");
+  await page.click("[data-ampel] button[type=submit]");
+  await page.waitForSelector("text=Die Ampel ist gespeichert.");
+  await page.reload();
+  await page.waitForSelector("[data-ampel]");
+  pruefe(await page.inputValue("#a-gruen") === "90", "Ampel auf dem Server gespeichert");
+  await abmelden();
+  await anmelden("xv00000", "RuV-Plan#2026!");
+  await page.waitForSelector(".startkachel");
+  await page.goto(url + "#/verwaltung/einstellungen");
+  await page.waitForSelector("[data-wiederherstellen]");
+  pruefe(await page.locator("[data-wiederherstellen]").count() > 0, "Administrator sieht automatische Sicherungen");
+  const [sich] = await Promise.all([page.waitForEvent("download"), page.click("[data-sicherung-holen]")]);
+  pruefe(/^Budgetdashboard_Sicherung_\d{4}-\d{2}-\d{2}\.json$/.test(sich.suggestedFilename()), "Sicherung herunterladen");
+  const pfad = await sich.path();
+  await page.setInputFiles("[data-sicherung-datei]", pfad);
+  await page.click("dialog button[type=submit]");
+  await page.waitForSelector("text=Die Sicherung ist eingespielt.");
+  pruefe(true, "Sicherung einspielen");
   pruefe(fehler.length === 0, "keine Fehler in der Konsole" + (fehler.length ? ": " + fehler.join(" | ") : ""));
   await browser.close();
 })().catch((f) => { console.error(f.message); process.exit(1); });
