@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "0.11.1";
+  var VERSION = "0.12.0";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -687,12 +687,12 @@
 
   /* IST je Kostenart: ausgegeben mit Balken, Restbudget in Euro und Prozent, Hochrechnung und Prognose zum Jahresende */
   function istKostenartenHtml(plan, ist, vj) {
-    var mon = ist.bisMonat || 12;
+    var mon = ist.bisMonat || 12, H = D.hochrechnungen(ist);
     function zeile(z, klasse) {
       var p = plan.vorhanden ? plan[z.id] : 0, i = ist[z.id], rest = p - i;
       var q = p > 0 ? i / p : null, zq = p > 0 ? i / (p * mon / 12) : null;
       var kk = { quote: q, zeitanteil: mon / 12, ampel: zq === null ? "" : D.ampelVon(zq) };
-      var hoch = mon >= 12 ? i : i / mon * 12, prog = p - hoch;
+      var hoch = H[z.id], prog = p - hoch;
       return "<tr" + (klasse ? ' class="' + klasse + '"' : "") + '><th scope="row">' + esc(z.name) + "</th>" +
         '<td class="zahl"><strong>' + euro(i) + "</strong></td>" +
         '<td class="spalte-balken">' + (q !== null ? balkenHtml(kk) : i > 0 ? '<span class="chip chip--fehler">ohne Plan</span>' : '<span class="leise">–</span>') + "</td>" +
@@ -704,7 +704,7 @@
         (vj ? '<td class="zahl leise">' + euro(vj[z.id]) + "</td>" : "") + "</tr>";
     }
     return '<div class="tabelle-huelle"><table class="budgettabelle kostenarten"><thead><tr><th>Kostenart</th><th class="zahl">IST</th><th>vom Plan</th>' +
-      '<th class="zahl">Restbudget</th><th class="zahl">Rest in %</th><th class="zahl" title="IST gleichmäßig bis Dezember fortgeschrieben">Hochrechnung</th><th class="zahl" title="Hochrechnung im Verhältnis zum Planbudget">Prognose in %</th><th class="zahl" title="Plan minus Hochrechnung: Plus bleibt übrig, Minus wird überschritten">Prognose Rest</th>' +
+      '<th class="zahl">Restbudget</th><th class="zahl">Rest in %</th><th class="zahl" title="' + esc(hochrechnungText(H)) + '">Hochrechnung</th><th class="zahl" title="Hochrechnung im Verhältnis zum Planbudget">Prognose in %</th><th class="zahl" title="Plan minus Hochrechnung: Plus bleibt übrig, Minus wird überschritten">Prognose Rest</th>' +
       (vj ? '<th class="zahl">IST ' + (zustand.jahr - 1) + " gesamt</th>" : "") + "</tr></thead><tbody>" +
       KOSTENARTEN.map(function (z) { return zeile(z, z.summe ? "teilsumme" : z.unter ? "einrueck" : ""); }).join("") +
       "</tbody><tfoot>" + zeile({ id: "gesamt", name: "Gesamt" }, "") + "</tfoot></table></div>";
@@ -720,10 +720,37 @@
       "</tbody><tfoot>" + zeile({ id: "gesamt", name: "Gesamt" }, "") + "</tfoot></table></div>";
   }
 
-  /* Prognose als Verlauf über das Jahr: zeitanteiliger Plan, IST bis zum gebuchten Monat, gleichmäßig fortgeschrieben bis Dezember,
+  function hochrechnungText(H) {
+    return H.saisonal ? "IST bis zum gebuchten Monat, danach je Position nach dem Verlauf des Vorjahres fortgeschrieben" : "IST gleichmäßig bis Dezember fortgeschrieben";
+  }
+
+  /* IST-Verlauf über die Importe: Monatsstände kumuliert und was seit dem vorigen Stand dazukam */
+  function verlaufHtml(nummer, eingebettet) {
+    var jahr = zustand.jahr, v = D.verlaufVon(zustand.daten, nummer, jahr);
+    if (eingebettet && v.length < 2) return "";
+    var kopf = eingebettet ? '<section class="budget__abschnitt verlauf"><h3>IST-Verlauf ' + jahr + "</h3>"
+      : '<section class="karte bereich-tabelle verlauf"><div class="bereich-tabelle__kopf"><h2>IST-Verlauf ' + jahr + "</h2></div>";
+    if (v.length < 2) return kopf + '<p class="leise klein">' + (v.length ? "Bisher gibt es einen Stand (" + esc(D.MONATE[v[0].monat - 1]) + "). " : "") +
+      "Mit jedem KST-Bericht, den die Abteilungsleitung importiert, kommt ein Monat dazu. Am besten jeden Monat importieren, dann zeigt das Tool hier, wie sich die Kosten Monat für Monat entwickeln.</p></section>";
+    var max = Math.max.apply(null, v.map(function (x) { return Math.abs(x.imMonat.gesamt); })) || 1;
+    var zeilen = v.map(function (x) {
+      var zeitraum = x.seit && x.seit < x.monat - 1 ? D.MONATE[x.seit].slice(0, 3) + "–" + D.MONATE[x.monat - 1].slice(0, 3) : x.seit ? D.MONATE[x.monat - 1] : "Januar–" + D.MONATE[x.monat - 1];
+      if (!x.seit && x.monat === 1) zeitraum = "Januar";
+      var d = x.imMonat;
+      return '<tr><th scope="row">' + esc(D.MONATE[x.monat - 1]) + '</th><td class="zahl"><strong>' + euro(x.ist.gesamt) + "</strong></td>" +
+        '<td class="klein">' + esc(zeitraum) + '</td><td class="zahl">' + euro(d.gesamt) + "</td>" +
+        '<td class="spalte-balken"><span class="verlauf__balken' + (d.gesamt < 0 ? " verlauf__balken--minus" : "") + '" style="width:' + (Math.abs(d.gesamt) / max * 100).toFixed(1) + '%"></span></td>' +
+        '<td class="zahl leise">' + euro(d.personalkosten) + '</td><td class="zahl leise">' + euro(d.sachkosten) + '</td><td class="klein leise">' + esc(D.standText(x.stand).replace("Stand ", "")) + "</td></tr>";
+    }).join("");
+    return kopf + '<p class="leise klein">Jeder importierte KST-Bericht hinterlässt einen Monatsstand. „Dazugekommen“ ist der Unterschied zum vorigen Stand. Fehlt ein Monat, steht dort der ganze Zeitraum seit dem vorigen Stand.</p>' +
+      '<div class="tabelle-huelle"><table class="budgettabelle verlaufstabelle"><thead><tr><th>Gebucht bis</th><th class="zahl">IST seit Januar</th><th>Zeitraum</th><th class="zahl">Dazugekommen</th><th><span class="sr">Balken</span></th>' +
+      '<th class="zahl">davon Personal</th><th class="zahl">davon Sachkosten</th><th>Datenstand</th></tr></thead><tbody>' + zeilen + "</tbody></table></div></section>";
+  }
+
+  /* Prognose als Verlauf über das Jahr: zeitanteiliger Plan, IST bis zum gebuchten Monat, fortgeschrieben bis Dezember (nach Vorjahresverlauf oder gleichmäßig),
      Vorjahr (gleicher Zeitraum und ganzes Jahr) zum Vergleich. Eine Skala, Werte direkt am Linienende. */
   function prognoseHtml(plan, ist, vj) {
-    var mon = ist.bisMonat || 12, hoch = mon >= 12 ? ist.gesamt : ist.gesamt / mon * 12;
+    var mon = ist.bisMonat || 12, H = D.hochrechnungen(ist), hoch = H.gesamt;
     var vjm = ist.vergleich ? ist.vergleich.gesamt : null, vjg = vj ? vj.gesamt : null;
     var max = Math.max(plan.vorhanden ? plan.gesamt : 0, hoch, vjg || 0, vjm || 0) * 1.08 || 1;
     var B = 680, H = 240, L = 8, R = 190, T = 14, U = 30, w = B - L - R, h = H - T - U;
@@ -755,15 +782,15 @@
     labels.forEach(function (l) { svg += '<text class="prognose__label prognose__label--' + l.klasse + '" x="' + (L + w + 8) + '" y="' + (l.y + 4).toFixed(1) + '">' + esc(l.text) + "</text>"; });
     var diff = plan.vorhanden ? plan.gesamt - hoch : null;
     return '<figure class="prognose"><figcaption><strong>Prognose bis Dezember</strong> <span class="leise klein">' +
-      (mon < 12 ? "IST bis " + esc(D.MONATE[mon - 1]) + ", danach gleichmäßig fortgeschrieben" : "ganzes Jahr gebucht") + "</span></figcaption>" +
+      (mon < 12 ? "IST bis " + esc(D.MONATE[mon - 1]) + (H.saisonal ? ", danach nach dem Verlauf des Vorjahres" : ", danach gleichmäßig fortgeschrieben") : "ganzes Jahr gebucht") + "</span></figcaption>" +
       '<ul class="diagramm__legende"><li><span class="prognose__muster prognose__muster--ist"></span>IST <span class="prognose__wert">' + euro(ist.gesamt) + "</span></li>" +
       (mon < 12 ? '<li><span class="prognose__muster prognose__muster--prognose"></span>Prognose <span class="prognose__wert">' + euro(hoch) + "</span></li>" : "") +
       (plan.vorhanden ? '<li><span class="prognose__muster prognose__muster--plan"></span>Plan zeitanteilig <span class="prognose__wert">' + euro(plan.gesamt) + "</span></li>" : "") +
       (vjg !== null && vjm !== null ? '<li><span class="prognose__muster prognose__muster--vj"></span>Vorjahr <span class="prognose__wert">' + euro(vjg) + "</span></li>" : "") + "</ul>" +
       '<svg class="prognose__svg" viewBox="0 0 ' + B + " " + H + '" role="img" aria-label="Prognose: ' + esc(D.betragText(hoch)) + " zum Jahresende" + (diff !== null ? ", Plan " + esc(D.betragText(plan.gesamt)) : "") + '">' + svg + "</svg>" +
       (diff !== null ? '<p class="prognose__fazit ' + (diff < 0 ? "minus" : "plus") + '">' + (plan.gesamt > 0 ? "Prognose: " + esc(D.prozentText(hoch / plan.gesamt)) + " vom Planbudget ausgeschöpft. " : "") +
-        (diff < 0 ? "Bei gleichem Tempo wird das Planbudget um " + esc(D.betragText(-diff)) + " überschritten."
-        : "Bei gleichem Tempo bleiben zum Jahresende " + esc(D.betragText(diff)) + " übrig.") + "</p>" : "") + "</figure>";
+        (diff < 0 ? (H.saisonal ? "Verläuft das Jahr wie das Vorjahr, wird" : "Bei gleichem Tempo wird") + " das Planbudget um " + esc(D.betragText(-diff)) + " überschritten."
+        : (H.saisonal ? "Verläuft das Jahr wie das Vorjahr, bleiben" : "Bei gleichem Tempo bleiben") + " zum Jahresende " + esc(D.betragText(diff)) + " übrig.") + "</p>" : "") + "</figure>";
   }
 
   function budgetKarteKs(nummer) {
@@ -797,6 +824,7 @@
         '<section class="budget__abschnitt"><h3>Auf einen Blick</h3>' + auffaelligkeiten(w, ist, k) + "</section></div>" : "") +
       (k ? '<section class="budget__abschnitt budget__abschnitt--ist"><h3>' + esc(istUeberschrift(ist)) + " je Kostenart</h3>" + istKostenartenHtml(w, ist, vj) +
         '<p class="leise klein">Balken = IST vom Plan, Strich = gebuchter Anteil des Jahres, Farbe = Stand zum zeitanteiligen Plan. „Prognose in %“ = so viel vom Planbudget wird bis Dezember ausgeschöpft, „Prognose Rest“ = Plan minus Hochrechnung.</p></section>' : "") +
+      (k ? verlaufHtml(nummer, true) : "") +
       '<div class="budget__raster budget__raster--plan">' +
       '<section class="budget__abschnitt budget__abschnitt--plan"><h3>Planbudget ' + jahr + " je Kostenart</h3>" +
       (w.vorhanden ? anteilHtml(w) + planKostenartenHtml(w) : '<p class="leer-hinweis">Für ' + jahr + " ist noch kein Planbudget eingetragen.</p>") + "</section>" +
@@ -1170,7 +1198,7 @@
         : '<p class="leer-hinweis">Noch keine Projektnummern angelegt.</p>') + "</section>";
     return '<section class="karte bereich-tabelle"><div class="bereich-tabelle__kopf"><h2>Kostenstellen: IST gegen Plan ' + jahr + "</h2>" +
       (D.Rechte.budgets(zustand.benutzer) ? '<a class="leise klein" href="#/verwaltung/ist">IST-Werte importieren</a>' : "") + "</div>" +
-      '<p class="leise klein">Die IST-Werte kommen aus dem KST-Bericht je Kostenstelle. Mit Klick auf die Nummer öffnest Du die Details. „Zeitanteilig“ vergleicht das IST mit dem Plan bis zum gebuchten Monat: ' + esc(D.ampelText()) + ". Die Hochrechnung schreibt das IST gleichmäßig bis Dezember fort.</p>" +
+      '<p class="leise klein">Die IST-Werte kommen aus dem KST-Bericht je Kostenstelle. Mit Klick auf die Nummer öffnest Du die Details. „Zeitanteilig“ vergleicht das IST mit dem Plan bis zum gebuchten Monat: ' + esc(D.ampelText()) + ". Die Hochrechnung schreibt das IST nach dem Verlauf des Vorjahres bis Dezember fort, ohne Vorjahresverlauf gleichmäßig. Bei einer Kostenstelle mit Unterkostenstellen zeigt die obere Zeile das Gesamt (eigener KST-Bericht plus Unterkostenstellen), die eingerückte nur ihre eigenen Werte.</p>" +
       (zeilen ? '<div class="tabelle-huelle"><table class="budgettabelle"><thead><tr><th>Kostenstelle</th><th>Stand · gebucht bis</th><th class="zahl">Plan</th><th class="zahl">IST</th><th class="zahl">IST in %</th>' +
         '<th class="zahl">Restbudget</th><th class="zahl">Hochrechnung</th><th class="zahl">zum Vorjahr</th><th>zeitanteilig</th></tr></thead><tbody>' + zeilen + "</tbody></table></div>"
         : '<p class="leer-hinweis">Noch keine Kostenstellen angelegt.</p>') + "</section>";
@@ -1350,9 +1378,9 @@
     if (g.gesamt.widerspruch) h.push("Die Projektnummern haben zusammen mehr Planbudget als " + nummer + " selbst. Bitte prüfe die Planbudgets.");
     if (gi.gesamt.ohneEigenImport && gi.gesamt.vorhanden) h.push("Der KST-Bericht von " + nummer + " fehlt noch. „Gesamt“ zeigt deshalb nur die Summe der Unterkostenstellen.");
     var ohne = gi.unter.filter(function (u) { return !u.ist.vorhanden; }).map(function (u) { return u.nummer; });
-    if (ohne.length && !gi.gesamt.ohneEigenImport) h.push("Für " + ohne.join(", ") + " gibt es noch keine IST-Werte. Ihre Kosten stecken deshalb noch im eigenen Rest von " + nummer + ".");
+    if (ohne.length) h.push("Für " + ohne.join(", ") + " gibt es noch keine IST-Werte. Ihre Kosten fehlen deshalb noch im Gesamt von " + nummer + ".");
     if (gi.gesamt.unterschiedlich) h.push("Die KST-Berichte haben unterschiedliche Stände. Für einen genauen Abgleich importiere sie bitte zum gleichen Monat.");
-    if (gi.gesamt.widerspruch) h.push("Die Unterkostenstellen haben zusammen mehr IST als der KST-Bericht von " + nummer + ". Bitte prüfe die Stände der Berichte.");
+    if (gi.gesamt.widerspruch) h.push("Die Projektkosten der Projektnummern von " + nummer + " sind höher als das IST in ihrem KST-Bericht. Bitte prüfe die erfassten Projektkosten und den Stand des Berichts.");
     return h.length ? '<ul class="warnungen">' + h.map(function (t) { return "<li>" + icon("warning") + "<span>" + esc(t) + "</span></li>"; }).join("") + "</ul>" : "";
   }
 
@@ -1476,7 +1504,7 @@
       verbindeJahrwahl();
       return;
     }
-    var k = D.kennzahlen(plan, ist), mon = ist.bisMonat || 12, restMonate = 12 - mon;
+    var k = D.kennzahlen(plan, ist), mon = ist.bisMonat || 12, restMonate = 12 - mon, H = D.hochrechnungen(ist);
     var zeitPlan = function (w) { return D.runde ? D.runde(w * mon / 12) : Math.round(w * mon / 12 * 100) / 100; };
     var proMonat = restMonate > 0 && plan.vorhanden ? k.rest / restMonate : null;
     html += '<div class="kennzahlen kennzahlen--sechs">' +
@@ -1495,7 +1523,7 @@
     var zeilen = [], zeilen2 = [];
     BERICHT_ZEILEN.filter(function (z) { return !z.projekt; }).forEach(function (z) {
       var p = plan.vorhanden ? plan[z.id] : null, i = ist[z.id], zp = p === null ? null : zeitPlan(p);
-      var hoch = mon >= 12 ? i : Math.round(i / mon * 12 * 100) / 100;
+      var hoch = H[z.id];
       var q = p > 0 ? i / p : null, zq = zp > 0 ? i / zp : null;
       var klasse = z.summe ? "teilsumme" : z.gesamt ? "gesamtzeile" : "";
       var kopf = "<tr" + (klasse ? ' class="' + klasse + '"' : "") + '><th scope="row">' + esc(z.gesamt ? "Gesamt" : z.name) + "</th>";
@@ -1514,10 +1542,11 @@
       '<th class="zahl">Plan bis ' + bis + '</th><th class="zahl">Abweichung</th><th>zeitanteilig</th></tr></thead><tbody>' + zeilen.join("") + "</tbody></table></div>" +
       diagrammHtml(plan.vorhanden ? plan : D.summe([]), ist, vz, "") + "</section>" +
       '<section class="karte bereich-tabelle"><div class="bereich-tabelle__kopf"><h2>Hochrechnung und Vorjahr je Position</h2></div>' +
-      '<p class="leise klein">Die Hochrechnung schreibt das IST gleichmäßig bis Dezember fort. „Zum Vorjahr“ vergleicht mit dem gleichen Zeitraum ' + (jahr - 1) + (vj ? ", „Hochrechnung zum Vorjahr“ mit dem ganzen Jahr " + (jahr - 1) : "") + ".</p>" +
+      '<p class="leise klein">' + (H.saisonal ? "Die Hochrechnung schreibt das IST je Position nach dem Verlauf des Vorjahres bis Dezember fort." : "Die Hochrechnung schreibt das IST gleichmäßig bis Dezember fort.") + ' „Zum Vorjahr“ vergleicht mit dem gleichen Zeitraum ' + (jahr - 1) + (vj ? ", „Hochrechnung zum Vorjahr“ mit dem ganzen Jahr " + (jahr - 1) : "") + ".</p>" +
       '<div class="tabelle-huelle"><table class="budgettabelle detailtabelle"><thead><tr><th>Position</th><th class="zahl">Hochrechnung</th><th class="zahl">zum Plan</th>' +
       '<th class="zahl">IST ' + (jahr - 1) + " bis " + bis + '</th><th class="zahl">IST zum Vorjahr</th>' + (vj ? '<th class="zahl">IST ' + (jahr - 1) + ' gesamt</th><th class="zahl">Hochrechnung zum Vorjahr</th>' : "") +
       "</tr></thead><tbody>" + zeilen2.join("") + "</tbody></table></div></section>";
+    if (!nurEigen) html += verlaufHtml(nummer);
 
     /* Zusammensetzung: eigener Teil, Unterkostenstellen und Projektnummern */
     if (!nurEigen && (g.uebergreifend || g.projektNummern.length)) {

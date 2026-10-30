@@ -131,7 +131,12 @@ SID="$(curl -s -b "$L" -H "$H" "$U?aktion=sitzung" | py 'd["daten"]["istSicherun
 pruefe "Wiederherstellen vor dem ersten Import entfernt IST" "[]" "$(post "$L" ist-wiederherstellen "{\"id\":\"$SID\"}" | py 'str(list(d["daten"]["ist"].keys()))')"
 pruefe "Administrator importiert KST-Bericht" "2026-10-22|False|xv00000" "$(post "$A" ist-importieren "$IST" | py 'd["daten"]["ist"]["ks-411"]["stand"]+"|"+str("aktuell" in d["daten"]["ist"]["ks-411"])+"|"+d["daten"]["ist"]["ks-411"]["von"]')"
 pruefe "Abteilungsleitung sieht den Import des Administrators" "100.5" "$(curl -s -b "$L" -H "$H" "$U?aktion=sitzung" | py 'str(d["daten"]["ist"]["ks-411"]["aktuell"]["werte"]["pkId"])')"
-pruefe "Umbenennen nimmt IST mit" "['ks-419']" "$(post "$L" nummer-speichern '{"art":"ks","alt":"411","nummer":"419","benutzer":["xv10002"]}' | py 'str(sorted(d["daten"]["ist"].keys()))')"
+pruefe "IST-Verlauf aus den Importen" "['2025-09', '2026-09']|2026-11-05|100.5" "$(curl -s -b "$L" -H "$H" "$U?aktion=sitzung" | py 'str(sorted(d["daten"]["istVerlauf"]["ks-411"].keys()))+"|"+d["daten"]["istVerlauf"]["ks-411"]["2026-09"]["stand"]+"|"+str(d["daten"]["istVerlauf"]["ks-411"]["2026-09"]["werte"]["pkId"])')"
+pruefe "Gruppenleitung sieht den Verlauf, Administrator nicht" "['ks-411']|{}" "$(curl -s -b "$G" -H "$H" "$U?aktion=sitzung" | py 'str(sorted(d["daten"]["istVerlauf"].keys()))')|$(curl -s -b "$A" -H "$H" "$U?aktion=sitzung" | py 'json.dumps(d["daten"]["istVerlauf"])')"
+pruefe "Verlauf in JS und C# gleich" "gleich" "$(curl -s -b "$L" -H "$H" "$U?aktion=sitzung" > "$TMP/sitzung-al.json"; cd "$REPO" && node -e '
+const D=require("./app/js/daten.js");const s=require(process.argv[1]).daten;const v=JSON.stringify(s.istVerlauf);const d=JSON.parse(JSON.stringify(s));delete d.istVerlauf;D.vervollstaendige(d);
+const f=(x)=>JSON.stringify(Object.keys(x).sort().map((k)=>[k,x[k].werte]));const a=f(d.istVerlauf["ks-411"]),b=f(s.istVerlauf["ks-411"]);console.log(a===b?"gleich":"verschieden "+a+" "+b)' "$TMP/sitzung-al.json")"
+pruefe "Umbenennen nimmt IST und Verlauf mit" "['ks-419']['ks-419']" "$(post "$L" nummer-speichern '{"art":"ks","alt":"411","nummer":"419","benutzer":["xv10002"]}' | py 'str(sorted(d["daten"]["ist"].keys()))+str(sorted(d["daten"]["istVerlauf"].keys()))')"
 post "$L" nummer-speichern '{"art":"ks","alt":"419","nummer":"411","benutzer":["xv10002"]}' >/dev/null
 
 # Projektkosten: manuell erfasst, gehen von der zugeordneten Kostenstelle ab

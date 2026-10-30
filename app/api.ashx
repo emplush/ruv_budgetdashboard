@@ -115,7 +115,7 @@ public class BdErgebnis
 
 public static class BdKern
 {
-    public const string Version = "0.11.1";
+    public const string Version = "0.12.0";
     public const string CookieName = "budgetdashboard_sitzung";
     public const int MaxBytes = 20 * 1024 * 1024;
     private const int AnzahlSicherungen = 50;
@@ -316,6 +316,7 @@ public static class BdKern
                         foreach (var n in Liste(daten, "ks").Select(x => D(x)))
                             n["unter"] = Unter(n).Where(u => u != nummer).Cast<object>().ToList();
                         D(daten["ist"]).Remove("ks-" + nummer);
+                        D(daten["istVerlauf"]).Remove("ks-" + nummer);
                         daten["istSicherungen"] = L(daten["istSicherungen"]).Where(x => S(D(x), "nummer") != nummer).ToList();
                     }
                     var budgets = D(daten["budgets"]);
@@ -715,6 +716,8 @@ public static class BdKern
             {
                 var ist = D(daten["ist"]);
                 if (ist.ContainsKey("ks-" + alt)) { ist["ks-" + nummer] = ist["ks-" + alt]; ist.Remove("ks-" + alt); }
+                var verlauf = D(daten["istVerlauf"]);
+                if (verlauf.ContainsKey("ks-" + alt)) { verlauf["ks-" + nummer] = verlauf["ks-" + alt]; verlauf.Remove("ks-" + alt); }
                 foreach (var x in L(daten["istSicherungen"]).Select(y => D(y))) if (S(x, "nummer") == alt) x["nummer"] = nummer;
                 foreach (var p in L(daten["projekte"]).Select(y => D(y))) if (S(p, "ks") == alt) p["ks"] = nummer;
             }
@@ -948,6 +951,30 @@ public static class BdKern
         D(daten["ist"])["ks-" + nummer] = new Dictionary<string, object> {
             { "stand", stand }, { "monat", monat }, { "aktuell", akt }, { "vorjahrZeitraum", vz }, { "vorjahr", vj },
             { "datei", Kuerzen(S(e, "datei"), 120) }, { "importiert", Jetzt() }, { "von", kennung ?? "" } };
+        VerlaufMerken(daten, nummer, D(D(daten["ist"])["ks-" + nummer]));
+    }
+
+    // IST-Verlauf (gleich wie merkeVerlauf in js/daten.js): Monatsstände aus jedem Import, der neuere Datenstand gewinnt
+    private static void VerlaufMerken(Dictionary<string, object> daten, string nummer, Dictionary<string, object> e)
+    {
+        string monat = S(e, "monat") ?? "", stand = S(e, "stand") ?? "";
+        if (!(G(e, "aktuell") is Dictionary<string, object>) || !Regex.IsMatch(monat, "^[0-9]{4}-[0-9]{2}$")) return;
+        if (!(G(daten, "istVerlauf") is Dictionary<string, object>)) daten["istVerlauf"] = new Dictionary<string, object>();
+        var alle = D(daten["istVerlauf"]);
+        if (!(G(alle, "ks-" + nummer) is Dictionary<string, object>)) alle["ks-" + nummer] = new Dictionary<string, object>();
+        var v = D(alle["ks-" + nummer]);
+        string vor = (int.Parse(monat.Substring(0, 4), CultureInfo.InvariantCulture) - 1).ToString(CultureInfo.InvariantCulture) + "-";
+        Action<string, object> merke = (m, teil) =>
+        {
+            var t = teil as Dictionary<string, object>;
+            if (t == null || !(G(t, "werte") is Dictionary<string, object>)) return;
+            var alt = G(v, m) as Dictionary<string, object>;
+            if (alt != null && string.CompareOrdinal(S(alt, "stand") ?? "", stand) > 0) return;
+            v[m] = new Dictionary<string, object> { { "stand", stand }, { "werte", new Dictionary<string, object>(D(t["werte"])) } };
+        };
+        merke(monat, G(e, "aktuell"));
+        merke(vor + monat.Substring(5), G(e, "vorjahrZeitraum"));
+        merke(vor + "12", G(e, "vorjahr"));
     }
 
     private static void IstWiederherstellen(Dictionary<string, object> daten, string id, string kennung)
@@ -1106,6 +1133,10 @@ public static class BdKern
                     { "vorherStand", v == null ? "" : S(v, "stand") }, { "vorherMonat", v == null ? "" : S(v, "monat") } });
             }
         d["istSicherungen"] = sicherungen;
+        var verlaeufe = new Dictionary<string, object>();
+        if (rolle != "admin")
+            foreach (var e in D(daten["istVerlauf"])) if (rolle == "al" || erlaubt.Contains(e.Key)) verlaeufe[e.Key] = e.Value;
+        d["istVerlauf"] = verlaeufe;
         d["budgetProtokoll"] = rolle == "al" ? daten["budgetProtokoll"] : new List<object>();
         return new { ich = kennung, daten = d, alsAdmin = aktuelleSitzung != null && aktuelleSitzung.Kennung == kennung ? aktuelleSitzung.Admin ?? "" : "" /* BETA-ANMELDEN-ALS */ };
     }
@@ -1121,7 +1152,7 @@ public static class BdKern
                 { "schema", 1 }, { "stand", 0 },
                 { "einstellungen", new Dictionary<string, object> { { "titel", StandardTitel } } },
                 { "benutzer", new List<object>() }, { "kostenstellen", new List<object>() }, { "projekte", new List<object>() },
-                { "budgets", new Dictionary<string, object>() }, { "ist", new Dictionary<string, object>() }, { "istSicherungen", new List<object>() }, { "kosten", new List<object>() },
+                { "budgets", new Dictionary<string, object>() }, { "ist", new Dictionary<string, object>() }, { "istSicherungen", new List<object>() }, { "istVerlauf", new Dictionary<string, object>() }, { "kosten", new List<object>() },
                 { "budgetProtokoll", new List<object>() } };
             var admin = NeuerBenutzer(StandardAdmin, "Admin", "Budget", "admin");
             PasswortSetzen(admin, StandardPasswort, false);
@@ -1135,6 +1166,13 @@ public static class BdKern
         if (!(G(daten, "budgets") is Dictionary<string, object>)) daten["budgets"] = new Dictionary<string, object>();
         if (!(G(daten, "ist") is Dictionary<string, object>)) daten["ist"] = new Dictionary<string, object>();
         daten["istSicherungen"] = L(G(daten, "istSicherungen")).ToList();
+        if (!(G(daten, "istVerlauf") is Dictionary<string, object>))
+        {
+            // seit 0.12.0: Verlauf aus den vorhandenen Importen anlegen
+            daten["istVerlauf"] = new Dictionary<string, object>();
+            foreach (var e in D(daten["ist"]).ToList())
+                if (e.Key.StartsWith("ks-", StringComparison.Ordinal) && e.Value is Dictionary<string, object>) VerlaufMerken(daten, e.Key.Substring(3), D(e.Value));
+        }
         daten["kosten"] = L(G(daten, "kosten")).ToList();
         daten["budgetProtokoll"] = L(G(daten, "budgetProtokoll")).ToList();
         foreach (var p in L(daten["projekte"]).Select(x => D(x))) if (!(G(p, "ks") is string)) p["ks"] = "";

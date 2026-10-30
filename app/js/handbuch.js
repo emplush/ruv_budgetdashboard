@@ -77,11 +77,13 @@
         "<dt>Einzelbudget</dt><dd>Das Planbudget, das für eine Kostenstelle selbst eingetragen ist. Es enthält ihre Projektnummern.</dd>" +
         "<dt>Gesamtbudget</dt><dd>Bei einer übergreifenden Kostenstelle: Einzelbudget plus die Planbudgets aller Unterkostenstellen. Die Unterkostenstellen zählen nur hier und nicht noch einmal im Abteilungsbudget.</dd>" +
         "<dt>Abteilungsbudget</dt><dd>Summe der obersten Kostenstellen plus Projektnummern ohne Kostenstelle.</dd>" +
-        "<dt>IST</dt><dd>Die gebuchten Ausgaben aus dem KST-Bericht, bis zum gebuchten Monat. Der KST-Bericht einer übergreifenden Kostenstelle enthält schon ihre Unterkostenstellen und Projektnummern.</dd>" +
+        "<dt>IST</dt><dd>Die gebuchten Ausgaben aus dem KST-Bericht, bis zum gebuchten Monat. Der KST-Bericht einer Kostenstelle enthält ihre eigenen Kosten und die ihrer Projektnummern. Das Gesamt-IST einer übergreifenden Kostenstelle ist ihr eigener KST-Bericht plus die KST-Berichte ihrer Unterkostenstellen.</dd>" +
+        "<dt>Einzel-IST</dt><dd>Das IST, das nur auf der übergreifenden Kostenstelle selbst liegt: ihr eigener KST-Bericht ohne die Projektkosten ihrer Projektnummern. Es passt zum Einzelbudget.</dd>" +
         "<dt>Ausgegeben</dt><dd>IST geteilt durch Planbudget. Der Strich im Balken zeigt, wie viel vom Jahr schon gebucht ist.</dd>" +
         "<dt>Restbudget</dt><dd>Planbudget minus IST. Dazu steht, wie viel je Restmonat noch verfügbar ist.</dd>" +
         "<dt>Zeitanteilig</dt><dd>Vergleicht das IST mit dem Plan bis zum gebuchten Monat. Beispiel: Gebucht bis September sind 75 % des Jahres um. Sind 60 % des Plans ausgegeben, liegt die Kostenstelle bei 80 % des zeitanteiligen Plans.</dd>" +
-        "<dt>Hochrechnung Jahresende</dt><dd>Das IST gleichmäßig bis Dezember fortgeschrieben: IST geteilt durch die gebuchten Monate mal 12.</dd>" +
+        "<dt>Hochrechnung Jahresende</dt><dd>Das IST bis Dezember fortgeschrieben. Gibt es den Verlauf des Vorjahres, rechnet das Tool je Position so weiter, wie das Vorjahr verlief: IST mal (Vorjahr gesamt geteilt durch Vorjahr bis zum gleichen Monat). Fällt zum Beispiel Werbung meist im Herbst an, steigt die Hochrechnung entsprechend. Ohne Vorjahresverlauf schreibt es gleichmäßig fort: IST geteilt durch die gebuchten Monate mal 12.</dd>" +
+        "<dt>IST-Verlauf</dt><dd>Jeder importierte KST-Bericht hinterlässt einen Monatsstand. Auf der Detailseite einer Kostenstelle siehst Du daraus, wie viel Monat für Monat dazukam. Importiere die KST-Berichte am besten jeden Monat.</dd>" +
         "<dt>Prognose in %</dt><dd>Hochrechnung geteilt durch Planbudget. So viel vom Planbudget wird bis Dezember voraussichtlich ausgeschöpft.</dd>" +
         "<dt>Vorjahr gleicher Zeitraum</dt><dd>Das IST des Vorjahres bis zum selben Monat, ebenfalls aus dem KST-Bericht.</dd>" +
         "</dl>"
@@ -139,7 +141,8 @@
     {
       id: "kostenstelle", titel: "Detailseite einer Kostenstelle", fuer: "Abteilungsleitung",
       html:
-        "<p>Mit Klick auf eine Kostenstellennummer öffnest Du ihre Detailseite. Sie zeigt Kennzahlen, Plan und IST je Position, Hochrechnung und Vorjahr je Position und ein Diagramm nach Kostenarten.</p>" +
+        "<p>Mit Klick auf eine Kostenstellennummer öffnest Du ihre Detailseite. Sie zeigt Kennzahlen, Plan und IST je Position, Hochrechnung und Vorjahr je Position, ein Diagramm nach Kostenarten und den IST-Verlauf über die importierten Monate.</p>" +
+        bild("ist-verlauf", "IST-Verlauf über die importierten Monate") +
         bild("kostenstelle-detail", "Detailseite der Kostenstelle 411") +
         "<h3>Übergreifende Kostenstelle: Gesamt oder nur selbst</h3>" +
         "<p>Bei einer übergreifenden Kostenstelle wählst Du oben:</p>" +

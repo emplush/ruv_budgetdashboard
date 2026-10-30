@@ -106,6 +106,7 @@ const server = http.createServer((req, res) => {
   await bild("ist-werte");
   await gehe("#/kostenstelle/411", "text=Plan und IST je Position");
   await bild("kostenstelle-detail", { hoehe: 1250 });
+  await bild("ist-verlauf", { element: ".verlauf" });
   await gehe("#/kostenstelle/410", ".umschalter");
   await bild("kostenstelle-umschalter", { hoehe: 700 });
   await gehe("#/bericht/410", "[data-kopieren]");

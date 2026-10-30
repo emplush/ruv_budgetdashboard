@@ -185,6 +185,11 @@
     if (!daten.budgets || typeof daten.budgets !== "object" || Array.isArray(daten.budgets)) daten.budgets = {};
     if (!daten.ist || typeof daten.ist !== "object" || Array.isArray(daten.ist)) daten.ist = {};
     if (!Array.isArray(daten.istSicherungen)) daten.istSicherungen = [];
+    /* IST-Verlauf (seit 0.12.0): fehlt er, aus den vorhandenen Importen anlegen */
+    if (!daten.istVerlauf || typeof daten.istVerlauf !== "object" || Array.isArray(daten.istVerlauf)) {
+      daten.istVerlauf = {};
+      Object.keys(daten.ist).forEach(function (s) { if (s.indexOf("ks-") === 0) merkeVerlauf(daten, s.slice(3), daten.ist[s]); });
+    }
     if (!Array.isArray(daten.kosten)) daten.kosten = [];
     if (!Array.isArray(daten.budgetProtokoll)) daten.budgetProtokoll = [];
     AMPEL = ampelAus(daten.einstellungen.ampel);
@@ -396,6 +401,7 @@
           if (i >= 0) { n.unter[i] = nummer; n.unter.sort(); }
         });
         if (daten.ist["ks-" + alt]) { daten.ist["ks-" + nummer] = daten.ist["ks-" + alt]; delete daten.ist["ks-" + alt]; }
+        if (daten.istVerlauf && daten.istVerlauf["ks-" + alt]) { daten.istVerlauf["ks-" + nummer] = daten.istVerlauf["ks-" + alt]; delete daten.istVerlauf["ks-" + alt]; }
         daten.istSicherungen.forEach(function (x) { if (x.nummer === alt) x.nummer = nummer; });
         daten.projekte.forEach(function (n) { if (n.ks === alt) n.ks = nummer; });
       } else daten.kosten.forEach(function (x) { if (x.pn === alt) x.pn = nummer; });
@@ -422,6 +428,7 @@
       daten.kostenstellen = daten.kostenstellen.filter(function (n) { return n.nummer !== nummer; });
       daten.kostenstellen.forEach(function (n) { n.unter = (n.unter || []).filter(function (u) { return u !== nummer; }); });
       delete daten.ist["ks-" + nummer];
+      if (daten.istVerlauf) delete daten.istVerlauf["ks-" + nummer];
       daten.istSicherungen = daten.istSicherungen.filter(function (x) { return x.nummer !== nummer; });
     }
     Object.keys(daten.budgets).forEach(function (jahr) {
@@ -772,7 +779,66 @@
       stand: e.stand, monat: e.monat, aktuell: akt, vorjahrZeitraum: vz, vorjahr: vj,
       datei: String(e.datei || "").slice(0, 120), importiert: zeit, von: kennung || ""
     };
+    merkeVerlauf(daten, nummer, daten.ist["ks-" + nummer]);
     return "";
+  }
+
+  /* ---------- IST-Verlauf (gleich wie VerlaufMerken in api.ashx) ----------
+     Jeder Import hinterlässt Monatsstände (IST kumuliert seit Januar): aktuelles Jahr bis zum gebuchten Monat,
+     Vorjahr bis zum gleichen Monat und Vorjahr gesamt (Dezember). Gibt es einen Monat schon, gewinnt der neuere Datenstand. */
+  function merkeVerlauf(daten, nummer, e) {
+    if (!e || !e.aktuell || !/^\d{4}-\d{2}$/.test(e.monat || "")) return;
+    if (!daten.istVerlauf) daten.istVerlauf = {};
+    var v = daten.istVerlauf["ks-" + nummer] || (daten.istVerlauf["ks-" + nummer] = {});
+    var vor = (Number(e.monat.slice(0, 4)) - 1) + "-";
+    function merke(monat, teil) {
+      if (!teil || !teil.werte) return;
+      if (v[monat] && String(v[monat].stand) > String(e.stand)) return;
+      v[monat] = { stand: e.stand, werte: kopie(teil.werte) };
+    }
+    merke(e.monat, e.aktuell);
+    merke(vor + e.monat.slice(5), e.vorjahrZeitraum);
+    merke(vor + "12", e.vorjahr);
+  }
+
+  /* Monatsstände einer Kostenstelle in einem Jahr, aufsteigend: [{monat: 1..12, stand, ist (mit Summen), imMonat (seit dem vorigen Stand), seit}] */
+  function verlaufVon(daten, nummer, jahr) {
+    var v = (daten.istVerlauf || {})["ks-" + nummer] || {}, vorher = null;
+    return Object.keys(v).filter(function (m) { return m.slice(0, 4) === String(jahr); }).sort().map(function (m) {
+      var ist = mitSummen(v[m].werte), aus = { monat: Number(m.slice(5)), stand: v[m].stand, ist: ist, seit: vorher ? vorher.monat : 0 };
+      aus.imMonat = differenz(ist, vorher ? vorher.ist : mitSummen(null));
+      vorher = aus;
+      return aus;
+    });
+  }
+
+  /* Saisonfaktor je Position aus dem Vorjahr: Vorjahr gesamt geteilt durch Vorjahr bis zum Monat.
+     null, wenn der Vorjahresverlauf fehlt. Ein Faktor gilt nur, wenn er plausibel ist (1 bis 3-mal so viel wie gleichmäßig). */
+  function saisonVon(daten, nummer, jahr, monat) {
+    var v = (daten.istVerlauf || {})["ks-" + nummer] || {};
+    var bis = v[(jahr - 1) + "-" + ("0" + monat).slice(-2)], ganz = v[(jahr - 1) + "-12"];
+    if (!bis || !ganz || monat >= 12) return null;
+    var f = {};
+    POSITIONEN.forEach(function (p) {
+      var a = Number(bis.werte[p.id]) || 0, b = Number(ganz.werte[p.id]) || 0, x = a > 0 ? b / a : 0;
+      f[p.id] = a > 0 && x >= 1 && x <= 12 / monat * 3 ? x : null;
+    });
+    return f;
+  }
+
+  /* Hochrechnung zum Jahresende je Position: mit Saisonfaktor nach dem Vorjahresverlauf, sonst gleichmäßig fortgeschrieben */
+  function hochrechnungen(ist) {
+    var mon = ist.bisMonat || 12, w = {}, saisonal = false;
+    POSITIONEN.forEach(function (p) {
+      var i = Number(ist[p.id]) || 0, f = ist.saison ? ist.saison[p.id] : null;
+      if (mon >= 12) w[p.id] = i;
+      else if (f) { w[p.id] = runde(i * f); saisonal = true; }
+      else w[p.id] = runde(i / mon * 12);
+    });
+    w.projekt = mon >= 12 ? Number(ist.projekt) || 0 : runde((Number(ist.projekt) || 0) / mon * 12);
+    var aus = mitSummen(w);
+    aus.saisonal = saisonal;
+    return aus;
   }
 
   function sichereIst(daten, nummer, kennung, zeit, anlass) {
@@ -815,6 +881,7 @@
       var w = mitSummen(e.aktuell.werte);
       w.vorhanden = true; w.bisMonat = Number(e.monat.slice(5)); w.stand = e.stand; w.monat = e.monat;
       w.vergleich = e.vorjahrZeitraum ? mitSummen(e.vorjahrZeitraum.werte) : null;
+      w.saison = saisonVon(daten, nummer, jahr, w.bisMonat);
       return w;
     }
     if (e && e.vorjahr && e.vorjahr.jahr === jahr) {
@@ -899,9 +966,10 @@
     return d;
   }
 
-  /* IST einer übergreifenden Kostenstelle. Ihr KST-Bericht enthält schon die zugeordneten Kostenstellen und alle Projektkosten.
-     gesamt = eigener KST-Bericht; eigen = was nach Abzug der zugeordneten Kostenstellen auf ihr selbst liegt (mit ihren Projektkosten).
-     Fehlt der eigene KST-Bericht, ist gesamt nur die Summe der zugeordneten (ohneEigenImport). */
+  /* IST einer übergreifenden Kostenstelle (seit 0.12.0, Michael 30.10.2026): Ihr eigener KST-Bericht enthält nur ihre eigenen Kosten
+     (mit ihren Projektnummern), die Unterkostenstellen haben je einen eigenen Bericht.
+     gesamt = eigener KST-Bericht plus die KST-Berichte der Unterkostenstellen; eigen = eigener KST-Bericht ohne ihre Projektkosten
+     (wie beim Planbudget: Einzelbudget ohne Projektnummern). Fehlt ein Bericht, zählt nur, was da ist. */
   function gesamtIstVon(daten, jahr, art, nummer) {
     if (art !== "ks") { var p = projektIstVon(daten, jahr, nummer); return { uebergreifend: false, eigen: p, unter: [], gesamt: p, fehlend: 0 }; }
     var bericht = istVon(daten, jahr, nummer);
@@ -909,39 +977,47 @@
     var unter = (e && e.unter || []).map(function (u) { return { nummer: u, ist: istVon(daten, jahr, u) }; });
     if (!unter.length) return { uebergreifend: false, eigen: bericht, unter: [], gesamt: bericht, fehlend: bericht.vorhanden ? 0 : 1 };
     var da = unter.map(function (u) { return u.ist; }).filter(function (t) { return t.vorhanden; });
+    var teile = (bericht.vorhanden ? [bericht] : []).concat(da);
     var projekte = summe([bericht.projekte].concat(unter.map(function (u) { return u.ist.projekte; })));
-    var g, eigen;
+    var eigen;
     if (bericht.vorhanden) {
-      g = bericht;
-      g.unterschiedlich = da.some(function (t) { return t.stand !== g.stand || t.monat !== g.monat; });
-      eigen = differenz(bericht, summe(da.concat([bericht.projekte])));
-      eigen.vorhanden = true; eigen.bisMonat = bericht.bisMonat; eigen.stand = bericht.stand; eigen.monat = bericht.monat;
-      eigen.unterschiedlich = g.unterschiedlich;
-      eigen.vergleich = bericht.vergleich && da.every(function (t) { return t.vergleich; })
-        ? differenz(bericht.vergleich, summe(da.map(function (t) { return t.vergleich; }).concat(bericht.projektNummern.map(function (n) { return projektIstVon(daten, Number(jahr) - 1, n, bericht.bisMonat); })))) : null;
+      eigen = differenz(bericht, bericht.projekte);
+      eigen.vorhanden = true; eigen.bisMonat = bericht.bisMonat; eigen.stand = bericht.stand; eigen.monat = bericht.monat; eigen.saison = bericht.saison;
+      eigen.vergleich = bericht.vergleich ? differenz(bericht.vergleich, summe(bericht.projektNummern.map(function (n) { return projektIstVon(daten, Number(jahr) - 1, n, bericht.bisMonat); }))) : null;
       eigen.projekte = summe([]); eigen.projektNummern = [];
-      g.widerspruch = eigen.gesamt < 0;
-    } else {
-      eigen = bericht;
-      g = summe(da);
-      g.vorhanden = da.length > 0;
-      g.ohneEigenImport = true;
-      g.bisMonat = da.length ? Math.min.apply(null, da.map(function (t) { return t.bisMonat; })) : 0;
-      g.stand = da.map(function (t) { return t.stand; }).sort()[0] || "";
-      g.monat = da.map(function (t) { return t.monat; }).sort()[0] || "";
-      g.unterschiedlich = da.some(function (t) { return t.stand !== g.stand || t.monat !== g.monat; });
-      g.vergleich = da.length && da.every(function (t) { return t.vergleich; }) ? summe(da.map(function (t) { return t.vergleich; })) : null;
-      g.widerspruch = false;
-    }
+    } else eigen = bericht;
+    var g = summe(teile);
+    g.vorhanden = teile.length > 0;
+    g.ohneEigenImport = !bericht.vorhanden;
+    g.bisMonat = teile.length ? Math.min.apply(null, teile.map(function (t) { return t.bisMonat; })) : 0;
+    g.stand = teile.map(function (t) { return t.stand; }).sort()[0] || "";
+    g.monat = teile.map(function (t) { return t.monat; }).sort()[0] || "";
+    g.unterschiedlich = teile.some(function (t) { return t.stand !== g.stand || t.monat !== g.monat; });
+    g.vergleich = teile.length && teile.every(function (t) { return t.vergleich; }) ? summe(teile.map(function (t) { return t.vergleich; })) : null;
+    g.saison = gemeinsameSaison(teile);
+    /* Die Projektkosten der eigenen Projektnummern sind höher als der eigene KST-Bericht */
+    g.widerspruch = bericht.vorhanden && eigen.gesamt < 0;
     g.projekte = projekte;
     var pIst = bericht.projekte; pIst.vorhanden = bericht.projektNummern.length > 0; pIst.stand = bericht.stand; pIst.monat = bericht.monat; pIst.bisMonat = bericht.bisMonat; pIst.vergleich = null;
     return { uebergreifend: true, eigen: eigen, unter: unter, projekte: pIst, gesamt: g, fehlend: (bericht.vorhanden ? 0 : 1) + unter.length - da.length };
   }
 
+  /* Saisonfaktor einer Summe: Hochrechnungen der Teile zusammen geteilt durch ihr IST, nur bei gleichem gebuchten Monat */
+  function gemeinsameSaison(teile) {
+    if (!teile.length || teile.some(function (t) { return t.bisMonat !== teile[0].bisMonat; }) || !teile.some(function (t) { return t.saison; })) return null;
+    var f = {};
+    POSITIONEN.forEach(function (p) {
+      var ist = 0, hoch = 0;
+      teile.forEach(function (t) { ist += Number(t[p.id]) || 0; hoch += hochrechnungen(t)[p.id]; });
+      f[p.id] = ist > 0 && hoch >= ist ? hoch / ist : null;
+    });
+    return f;
+  }
+
   /* Kennzahlen IST gegen Plan */
   function kennzahlen(plan, ist) {
     var p = plan.gesamt, i = ist.gesamt, monate = ist.bisMonat || 12;
-    var hoch = ist.bisMonat >= 12 ? i : runde(i / monate * 12);
+    var hoch = ist.bisMonat >= 12 ? i : hochrechnungen(ist).gesamt;
     var k = {
       ist: i, plan: p,
       quote: p > 0 ? i / p : null,
@@ -1038,6 +1114,10 @@
       var e = daten.ist[s];
       if (ich.rolle === "admin") d.ist[s] = { stand: e.stand, monat: e.monat, datei: e.datei || "", importiert: e.importiert || "", von: e.von || "" };
       else if (ich.rolle === "al" || (s.indexOf("ks-") === 0 && d.kostenstellen.some(function (n) { return "ks-" + n.nummer === s; }))) d.ist[s] = kopie(e);
+    });
+    d.istVerlauf = {};
+    if (ich.rolle !== "admin") Object.keys(daten.istVerlauf || {}).forEach(function (s) {
+      if (ich.rolle === "al" || d.kostenstellen.some(function (n) { return "ks-" + n.nummer === s; })) d.istVerlauf[s] = kopie(daten.istVerlauf[s]);
     });
     d.budgetProtokoll = ich.rolle === "al" ? kopie(daten.budgetProtokoll || []) : [];
     d.istSicherungen = verwaltet ? (daten.istSicherungen || []).map(function (x) {
@@ -1164,6 +1244,9 @@
     uebernahmeListe: uebernahmeListe,
     uebernehmeBudgets: uebernehmeBudgets,
     pruefeAmpel: pruefeAmpel,
+    verlaufVon: verlaufVon,
+    saisonVon: saisonVon,
+    hochrechnungen: hochrechnungen,
     AMPEL_STANDARD: AMPEL_STANDARD,
     setzeAmpel: setzeAmpel,
     ampelAus: ampelAus,

@@ -175,7 +175,7 @@ test("IST: KST-Bericht lesen, importieren, sichern, wiederherstellen", async () 
   assert.deepStrictEqual([D.istVon(d, 2025, "413").bisMonat, D.istVon(d, 2025, "413").gesamt, D.istVon(d, 2024, "413").vorhanden], [12, 746100, false]);
   D.setzeBudget(d, "2026", "ks", "413", { pkId: 800000 });
   const k = D.kennzahlen(D.gesamtBudgetVon(d, 2026, "ks", "410").gesamt, D.gesamtIstVon(d, 2026, "ks", "410").gesamt);
-  assert.deepStrictEqual([Math.round(k.quote * 1000), k.rest, k.hochrechnung, k.ampel, k.vorjahr], [708, 233629.15, 755161.13, "gruen", 557750]);
+  assert.deepStrictEqual([Math.round(k.quote * 1000), k.rest, k.hochrechnung, k.ampel, k.vorjahr], [708, 233629.15, 761121.39, "gelb", 557750]);
   assert.strictEqual(D.prozentText(k.quote), "70,8\u00a0%");
   assert.strictEqual(D.standText("2026-10-22", "2026-09"), "Stand 22.10.2026 · gebucht bis September 2026");
   const gl = D.sicht(d, "xv10002");
@@ -257,7 +257,7 @@ test("Projektkosten: erfassen, im IST der Kostenstelle enthalten, Sicht", () => 
   assert.deepStrictEqual(d.kosten.map((x) => x.pn), ["41000102"]);
 });
 
-test("IST der übergreifenden Kostenstelle: KST-Bericht enthält zugeordnete und Projektkosten (Beispiel von Michael)", () => {
+test("IST der übergreifenden Kostenstelle: eigener KST-Bericht plus Unterkostenstellen (Michael, 30.10.2026)", () => {
   const d = daten();
   ["001", "101", "102"].forEach((n) => D.speichereNummer(d, "ks", "", n, []));
   D.speichereNummer(d, "ks", "001", "001", [], ["101", "102"]);
@@ -266,14 +266,14 @@ test("IST der übergreifenden Kostenstelle: KST-Bericht enthält zugeordnete und
   const bericht = (gesamt, monat) => ({ stand: "2026-10-22", monat: monat || "2026-09", aktuell: { jahr: 2026, werte: { pkId: gesamt, pkAd: 0, werbung: 0, reise: 0, sonstiges: 0 } },
     vorjahrZeitraum: { jahr: 2025, werte: { pkId: gesamt / 2, pkAd: 0, werbung: 0, reise: 0, sonstiges: 0 } }, vorjahr: null });
   D.setzeIst(d, "101", bericht(30000), "xv10001");
-  /* Ohne eigenen Bericht: nur die Summe der zugeordneten */
+  /* Ohne eigenen Bericht: nur die Summe der Unterkostenstellen */
   let g = D.gesamtIstVon(d, 2026, "ks", "001");
   assert.deepStrictEqual([g.gesamt.vorhanden, g.gesamt.ohneEigenImport, g.gesamt.gesamt, g.fehlend], [true, true, 30000, 2]);
   D.setzeIst(d, "001", bericht(50000), "xv10001");
   g = D.gesamtIstVon(d, 2026, "ks", "001");
-  /* 50.000 gesamt, 30.000 auf 101, 5.000 Projektkosten: auf 001 selbst bleiben 15.000 */
-  assert.deepStrictEqual([g.gesamt.gesamt, g.unter[0].ist.gesamt, g.projekte.gesamt, g.eigen.gesamt], [50000, 30000, 5000, 15000]);
-  assert.deepStrictEqual([g.gesamt.projekte.gesamt, g.eigen.vergleich.gesamt, g.fehlend, g.gesamt.widerspruch, g.gesamt.unterschiedlich], [5000, 10000, 1, false, false]);
+  /* eigener Bericht 50.000 (enthält 5.000 Projektkosten), 101 mit 30.000: gesamt 80.000, Einzel-IST von 001 ohne Projektnummer 45.000 */
+  assert.deepStrictEqual([g.gesamt.gesamt, g.unter[0].ist.gesamt, g.projekte.gesamt, g.eigen.gesamt], [80000, 30000, 5000, 45000]);
+  assert.deepStrictEqual([g.gesamt.projekte.gesamt, g.eigen.vergleich.gesamt, g.gesamt.vergleich.gesamt, g.fehlend, g.gesamt.widerspruch, g.gesamt.unterschiedlich], [5000, 25000, 40000, 1, false, false]);
   /* Plan: 500.000 eingetragen (enthält 200.000 Projektnummer), 1.500.000 Unterkostenstelle, 2.000.000 gesamt, 300.000 Einzelbudget */
   D.setzeBudget(d, "2026", "ks", "001", { pkId: 500000 });
   D.setzeBudget(d, "2026", "ks", "101", { pkId: 1500000 });
@@ -285,7 +285,11 @@ test("IST der übergreifenden Kostenstelle: KST-Bericht enthält zugeordnete und
   assert.strictEqual(D.abteilungsPlan(d, 2026).gesamt.gesamt, 2000000);
   D.setzeIst(d, "102", bericht(25000, "2026-08"), "xv10001");
   g = D.gesamtIstVon(d, 2026, "ks", "001");
-  assert.deepStrictEqual([g.eigen.gesamt, g.gesamt.widerspruch, g.gesamt.unterschiedlich], [-10000, true, true]);
+  assert.deepStrictEqual([g.gesamt.gesamt, g.eigen.gesamt, g.gesamt.widerspruch, g.gesamt.unterschiedlich, g.gesamt.bisMonat], [105000, 45000, false, true, 8]);
+  /* Projektkosten höher als der eigene Bericht */
+  D.speichereKosten(d, "", { pn: "20100000", datum: "2026-03-01", betrag: 50000 }, "xv10001");
+  g = D.gesamtIstVon(d, 2026, "ks", "001");
+  assert.deepStrictEqual([g.eigen.gesamt, g.gesamt.widerspruch], [-5000, true]);
 });
 
 test("Rechte der Rollen", () => {
@@ -493,4 +497,49 @@ test("Excel-Datei schreiben und wieder lesen", async () => {
   assert.strictEqual(blaetter[0].name, "Planbudgets 2026");
   const text = JSON.stringify(blaetter[0].zeilen);
   assert.ok(text.includes("Nummer") && text.includes("1234.5") && text.includes("Ä & <ö>"), text);
+});
+
+test("IST-Verlauf über mehrere Importe und Prognose nach dem Vorjahr", () => {
+  const d = D.vervollstaendige(daten());
+  D.speichereNummer(d, "ks", "", "411", ["xv10002"]);
+  const w = (pkId, werbung) => ({ pkId, pkAd: 0, werbung, reise: 0, sonstiges: 0 });
+  /* Vorjahr: Werbung fällt vor allem im vierten Quartal an (bis Juni 100, gesamt 400) */
+  const juni = { stand: "2026-07-10", monat: "2026-06", aktuell: { jahr: 2026, werte: w(600, 120) }, vorjahrZeitraum: { jahr: 2025, werte: w(600, 100) }, vorjahr: { jahr: 2025, werte: w(1200, 400) }, datei: "a.xlsx" };
+  assert.strictEqual(D.setzeIst(d, "411", juni, "xv10001", "2026-07-11T08:00:00Z"), "");
+  assert.deepStrictEqual(Object.keys(d.istVerlauf["ks-411"]).sort(), ["2025-06", "2025-12", "2026-06"]);
+  let ist = D.istVon(d, 2026, "411");
+  assert.deepStrictEqual(ist.saison, { pkId: 2, pkAd: null, werbung: 4, reise: null, sonstiges: null });
+  const h = D.hochrechnungen(ist);
+  assert.strictEqual(h.saisonal, true);
+  assert.strictEqual(h.werbung, 480);
+  assert.strictEqual(h.pkId, 1200);
+  assert.strictEqual(D.kennzahlen({ gesamt: 2000 }, ist).hochrechnung, 1680);
+  /* zweiter Import im September: Verlauf mit zwei Ständen, dazugekommen = Differenz */
+  const sept = Object.assign({}, juni, { stand: "2026-10-12", monat: "2026-09", aktuell: { jahr: 2026, werte: w(900, 200) }, vorjahrZeitraum: { jahr: 2025, werte: w(900, 150) } });
+  D.setzeIst(d, "411", sept, "xv10001", "2026-10-13T08:00:00Z");
+  const v = D.verlaufVon(d, "411", 2026);
+  assert.deepStrictEqual(v.map((x) => [x.monat, x.ist.gesamt, x.imMonat.gesamt, x.seit]), [[6, 720, 720, 0], [9, 1100, 380, 6]]);
+  /* neuerer Datenstand gewinnt, älterer überschreibt nicht */
+  D.setzeIst(d, "411", Object.assign({}, juni, { stand: "2026-07-01", aktuell: { jahr: 2026, werte: w(1, 1) } }), "xv10001");
+  assert.strictEqual(d.istVerlauf["ks-411"]["2026-06"].werte.pkId, 600);
+  /* ohne Vorjahresverlauf gleichmäßig */
+  delete d.istVerlauf["ks-411"]["2025-12"];
+  ist = D.istVon(d, 2026, "411");
+  assert.strictEqual(D.hochrechnungen(ist).saisonal, false);
+  /* der letzte Import (Juni, Werbung 1) wird gleichmäßig auf 12 Monate hochgerechnet */
+  assert.strictEqual(D.hochrechnungen(ist).werbung, 2);
+  /* Sicht: Gruppenleitung sieht ihren Verlauf, Administrator keinen */
+  assert.deepStrictEqual(Object.keys(D.sicht(d, "xv10002").istVerlauf), ["ks-411"]);
+  assert.deepStrictEqual(D.sicht(d, "xv00000").istVerlauf, {});
+  /* Umbenennen und Löschen */
+  D.speichereNummer(d, "ks", "411", "419", ["xv10002"]);
+  assert.ok(d.istVerlauf["ks-419"] && !d.istVerlauf["ks-411"]);
+  D.loescheNummer(d, "ks", "419");
+  assert.ok(!d.istVerlauf["ks-419"]);
+  /* alte Daten ohne Verlauf: wird aus den Importen angelegt */
+  const alt = D.vervollstaendige(daten());
+  alt.ist["ks-411"] = juni;
+  delete alt.istVerlauf;
+  D.vervollstaendige(alt);
+  assert.deepStrictEqual(Object.keys(alt.istVerlauf["ks-411"]).sort(), ["2025-06", "2025-12", "2026-06"]);
 });

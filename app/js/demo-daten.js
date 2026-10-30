@@ -88,21 +88,28 @@
         datei: "KST-Bericht " + x[0] + " (Beispiel).xlsx", importiert: new Date().toISOString(), von: "xv10001"
       };
     });
-    /* Der KST-Bericht der übergreifenden 410 enthält schon 411, 412 und die Projektkosten auf 410 */
+    /* Werbung fiel im Vorjahr vor allem zum Jahresende an: Die Hochrechnung folgt diesem Verlauf */
+    Object.keys(daten.ist).forEach(function (s) { var w = daten.ist[s].vorjahrZeitraum.werte; w.werbung = Math.round(w.werbung * 0.8 * 100) / 100; });
+    /* Der KST-Bericht der 410 enthält ihre eigenen Kosten und die Projektkosten ihrer Projektnummern (411 und 412 haben eigene Berichte) */
     var oben = daten.ist["ks-410"];
-    if (oben) {
-      ["411", "412"].forEach(function (u) {
-        var e = daten.ist["ks-" + u];
-        if (!e) return;
-        ["aktuell", "vorjahrZeitraum", "vorjahr"].forEach(function (t) {
-          Object.keys(e[t].werte).forEach(function (k) { oben[t].werte[k] = Math.round((oben[t].werte[k] + e[t].werte[k]) * 100) / 100; });
-        });
-      });
-      daten.kosten.forEach(function (x) {
-        if (x.datum.slice(0, 4) !== String(istJahr) || Number(x.datum.slice(5, 7)) > monat) return;
-        oben.aktuell.werte[x.art] = Math.round((oben.aktuell.werte[x.art] + x.betrag) * 100) / 100;
-      });
-    }
+    if (oben) daten.kosten.forEach(function (x) {
+      if (x.datum.slice(0, 4) !== String(istJahr) || Number(x.datum.slice(5, 7)) > monat) return;
+      oben.aktuell.werte[x.art] = Math.round((oben.aktuell.werte[x.art] + x.betrag) * 100) / 100;
+    });
+    /* IST-Verlauf: monatliche Importe seit Januar, mit leichtem Auf und Ab, dazu Vorjahr bis zum Monat und gesamt */
+    daten.istVerlauf = {};
+    function anteil(mm) { return mm + 0.6 * Math.sin(mm * Math.PI / 6); }
+    Object.keys(daten.ist).forEach(function (s) {
+      var e = daten.ist[s], v = daten.istVerlauf[s] = {};
+      for (var mm = 1; mm <= monat; mm++) {
+        var f = anteil(mm) / anteil(monat), w = {};
+        Object.keys(e.aktuell.werte).forEach(function (k) { w[k] = Math.round(e.aktuell.werte[k] * f * 100) / 100; });
+        var naechster = mm === 12 ? (istJahr + 1) + "-01-10" : istJahr + "-" + ("0" + (mm + 1)).slice(-2) + "-10";
+        v[istJahr + "-" + ("0" + mm).slice(-2)] = { stand: mm === monat ? e.stand : naechster, werte: w };
+      }
+      v[(istJahr - 1) + "-" + ("0" + monat).slice(-2)] = { stand: e.stand, werte: JSON.parse(JSON.stringify(e.vorjahrZeitraum.werte)) };
+      v[(istJahr - 1) + "-12"] = { stand: e.stand, werte: JSON.parse(JSON.stringify(e.vorjahr.werte)) };
+    });
     daten.kosten.forEach(function (x) { delete x.art; });
     /* Im Planbudget der 410 stecken ihre Projektnummern (411 und 412 zählen erst im Gesamtbudget dazu) */
     Object.keys(daten.budgets).forEach(function (j) {

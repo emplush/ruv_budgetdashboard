@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.12.0 (30.10.2026)
+- Korrektur IST übergreifender Kostenstellen: Der KST-Bericht einer übergreifenden Kostenstelle enthält nur ihre eigenen Kosten. Das Gesamt-IST ist jetzt ihr eigener Bericht plus die Berichte der Unterkostenstellen. Die eingerückte Zeile zeigt nur die eigenen Werte (ohne die Projektkosten ihrer Projektnummern, passend zum Einzelbudget). Abteilungs-IST, Kostenarten, Vorjahr und Hochrechnung rechnen damit.
+- IST-Verlauf: Jeder importierte KST-Bericht hinterlässt einen Monatsstand. Die Detailseite einer Kostenstelle zeigt, wie viel Monat für Monat dazukam. Bestehende Importe zählen schon mit.
+- Genauere Hochrechnung: Gibt es den Verlauf des Vorjahres, schreibt das Tool das IST je Position so fort, wie das Vorjahr verlief. Ohne Vorjahresverlauf bleibt es bei der gleichmäßigen Fortschreibung.
+
 ## 0.11.1 (30.10.2026)
 - Auch der Administrator importiert jetzt KST-Berichte (Verwaltung → KST-Berichte). Er sieht, welcher Stand je Kostenstelle importiert ist, aber keine Beträge. Seine Startseite hat dafür eine eigene Kachel.
 

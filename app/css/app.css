@@ -783,3 +783,10 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
 [data-sicherung] .untertitel { margin-top: 1.25rem; }
 @media print { [data-uebernahme], [data-excel], [data-protokoll-mehr] { display: none !important; } }
 [data-ampel] { max-width: 46rem; }
+
+/* IST-Verlauf (seit 0.12.0) */
+.verlaufstabelle { min-width: 52rem; }
+.verlaufstabelle .spalte-balken { width: 18%; min-width: 7rem; }
+.verlauf__balken { display: block; height: .55rem; min-width: 2px; border-radius: 0 4px 4px 0; background: var(--akzent); }
+.verlauf__balken--minus { background: var(--fehler, #c62828); }
+@media print { .verlauf { break-inside: avoid; } }
