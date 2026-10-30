@@ -124,12 +124,13 @@ pruefe "zweiter Import sichert den ersten" "2|2026-10-22" "$(post "$L" ist-impor
 pruefe "Sicherungen ohne Werte" "False" "$(curl -s -b "$L" -H "$H" "$U?aktion=sitzung" | py 'str("vorher" in d["daten"]["istSicherungen"][0])')"
 pruefe "Gruppenleitung sieht IST ihrer Kostenstelle, keine Sicherungen" "['ks-411']|[]" "$(curl -s -b "$G" -H "$H" "$U?aktion=sitzung" | py 'str(sorted(d["daten"]["ist"].keys()))+"|"+str(d["daten"]["istSicherungen"])')"
 pruefe "Key Account Manager sieht kein IST" "{}" "$(curl -s -b "$K" -H "$H" "$U?aktion=sitzung" | py 'json.dumps(d["daten"]["ist"])')"
-pruefe "Administrator sieht Sicherungen, aber kein IST" "{}|2" "$(curl -s -b "$A" -H "$H" "$U?aktion=sitzung" | py 'json.dumps(d["daten"]["ist"])+"|"+str(len(d["daten"]["istSicherungen"]))')"
+pruefe "Administrator sieht Sicherungen und den Stand, aber keine IST-Werte" "['ks-411']|2026-11-05|False|2" "$(curl -s -b "$A" -H "$H" "$U?aktion=sitzung" | py 'str(sorted(d["daten"]["ist"].keys()))+"|"+d["daten"]["ist"]["ks-411"]["stand"]+"|"+str("aktuell" in d["daten"]["ist"]["ks-411"])+"|"+str(len(d["daten"]["istSicherungen"]))')"
 SID="$(curl -s -b "$A" -H "$H" "$U?aktion=sitzung" | py 'd["daten"]["istSicherungen"][0]["id"]')"
 pruefe "Administrator stellt Sicherung wieder her" "2026-10-22|Wiederherstellung|3" "$(post "$A" ist-wiederherstellen "{\"id\":\"$SID\"}" >/dev/null; curl -s -b "$L" -H "$H" "$U?aktion=sitzung" | py 'd["daten"]["ist"]["ks-411"]["stand"]+"|"+d["daten"]["istSicherungen"][0]["anlass"]+"|"+str(len(d["daten"]["istSicherungen"]))')"
 SID="$(curl -s -b "$L" -H "$H" "$U?aktion=sitzung" | py 'd["daten"]["istSicherungen"][-1]["id"]')"
 pruefe "Wiederherstellen vor dem ersten Import entfernt IST" "[]" "$(post "$L" ist-wiederherstellen "{\"id\":\"$SID\"}" | py 'str(list(d["daten"]["ist"].keys()))')"
-post "$L" ist-importieren "$IST" >/dev/null
+pruefe "Administrator importiert KST-Bericht" "2026-10-22|False|xv00000" "$(post "$A" ist-importieren "$IST" | py 'd["daten"]["ist"]["ks-411"]["stand"]+"|"+str("aktuell" in d["daten"]["ist"]["ks-411"])+"|"+d["daten"]["ist"]["ks-411"]["von"]')"
+pruefe "Abteilungsleitung sieht den Import des Administrators" "100.5" "$(curl -s -b "$L" -H "$H" "$U?aktion=sitzung" | py 'str(d["daten"]["ist"]["ks-411"]["aktuell"]["werte"]["pkId"])')"
 pruefe "Umbenennen nimmt IST mit" "['ks-419']" "$(post "$L" nummer-speichern '{"art":"ks","alt":"411","nummer":"419","benutzer":["xv10002"]}' | py 'str(sorted(d["daten"]["ist"].keys()))')"
 post "$L" nummer-speichern '{"art":"ks","alt":"419","nummer":"411","benutzer":["xv10002"]}' >/dev/null
 

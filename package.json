@@ -1,6 +1,6 @@
 {
   "name": "ruv-budgetdashboard",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "private": true,
   "description": "Budgetdashboard: Planbudgets für Training und Entwicklung Vertrieb (R+V)",
   "scripts": {

@@ -115,7 +115,7 @@ public class BdErgebnis
 
 public static class BdKern
 {
-    public const string Version = "0.11.0";
+    public const string Version = "0.11.1";
     public const string CookieName = "budgetdashboard_sitzung";
     public const int MaxBytes = 20 * 1024 * 1024;
     private const int AnzahlSicherungen = 50;
@@ -329,7 +329,7 @@ public static class BdKern
                 }
             case "ist-importieren":
                 {
-                    if (rolle != "al") throw new Fehler(403, "IST-Daten importiert nur die Abteilungsleitung.");
+                    if (!verwaltet) throw new Fehler(403, "KST-Berichte importieren die Abteilungsleitung und der Administrator.");
                     IstSetzen(daten, (S(k, "nummer") ?? "").Trim(), G(k, "eintrag") as Dictionary<string, object>, S(ich, "kennung"));
                     break;
                 }
@@ -1082,10 +1082,19 @@ public static class BdKern
             }
         }
         d["budgets"] = budgets;
-        // IST wie Planbudgets; Sicherungen nur als Liste ohne Werte für Abteilungsleitung und Administrator
+        // IST wie Planbudgets; der Administrator sieht nur, welcher Stand importiert ist (ohne Werte).
+        // Sicherungen nur als Liste ohne Werte für Abteilungsleitung und Administrator
         var ist = new Dictionary<string, object>();
-        if (rolle != "admin")
-            foreach (var e in D(daten["ist"])) if (rolle == "al" || erlaubt.Contains(e.Key)) ist[e.Key] = e.Value;
+        foreach (var e in D(daten["ist"]))
+        {
+            if (rolle == "admin")
+            {
+                var w = D(e.Value);
+                ist[e.Key] = new Dictionary<string, object> { { "stand", S(w, "stand") }, { "monat", S(w, "monat") }, { "datei", S(w, "datei") ?? "" },
+                    { "importiert", S(w, "importiert") ?? "" }, { "von", S(w, "von") ?? "" } };
+            }
+            else if (rolle == "al" || erlaubt.Contains(e.Key)) ist[e.Key] = e.Value;
+        }
         d["ist"] = ist;
         var sicherungen = new List<object>();
         if (verwaltet)

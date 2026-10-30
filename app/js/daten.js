@@ -232,6 +232,8 @@
     benutzer: function (b) { return !!b && (b.rolle === "admin" || b.rolle === "al"); },
     nummern: function (b) { return !!b && (b.rolle === "admin" || b.rolle === "al"); },
     budgets: function (b) { return !!b && b.rolle === "al"; },
+    /* KST-Berichte importieren: Abteilungsleitung und Administrator */
+    ist: function (b) { return !!b && (b.rolle === "al" || b.rolle === "admin"); },
     einstellungen: function (b) { return !!b && b.rolle === "admin"; },
     /* Eigene Kostenstellen oder Projektnummern ansehen: alle außer Admin */
     eigene: function (b) { return !!b && b.rolle !== "admin"; },
@@ -1029,10 +1031,13 @@
         });
       });
     }
-    /* IST wie Planbudgets; Sicherungen nur als Liste ohne Werte für Abteilungsleitung und Administrator */
+    /* IST wie Planbudgets; der Administrator sieht nur, welcher Stand importiert ist (ohne Werte).
+       Sicherungen nur als Liste ohne Werte für Abteilungsleitung und Administrator */
     d.ist = {};
-    if (ich.rolle !== "admin") Object.keys(daten.ist || {}).forEach(function (s) {
-      if (ich.rolle === "al" || (s.indexOf("ks-") === 0 && d.kostenstellen.some(function (n) { return "ks-" + n.nummer === s; }))) d.ist[s] = kopie(daten.ist[s]);
+    Object.keys(daten.ist || {}).forEach(function (s) {
+      var e = daten.ist[s];
+      if (ich.rolle === "admin") d.ist[s] = { stand: e.stand, monat: e.monat, datei: e.datei || "", importiert: e.importiert || "", von: e.von || "" };
+      else if (ich.rolle === "al" || (s.indexOf("ks-") === 0 && d.kostenstellen.some(function (n) { return "ks-" + n.nummer === s; }))) d.ist[s] = kopie(e);
     });
     d.budgetProtokoll = ich.rolle === "al" ? kopie(daten.budgetProtokoll || []) : [];
     d.istSicherungen = verwaltet ? (daten.istSicherungen || []).map(function (x) {

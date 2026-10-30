@@ -181,7 +181,7 @@ test("IST: KST-Bericht lesen, importieren, sichern, wiederherstellen", async () 
   const gl = D.sicht(d, "xv10002");
   assert.deepStrictEqual([Object.keys(gl.ist), gl.istSicherungen], [["ks-413"], []]);
   const admin = D.sicht(d, "xv00000");
-  assert.deepStrictEqual([admin.ist, admin.istSicherungen.length, "vorher" in admin.istSicherungen[0]], [{}, 1, false]);
+  assert.deepStrictEqual([Object.keys(admin.ist), "aktuell" in admin.ist["ks-413"], admin.istSicherungen.length, "vorher" in admin.istSicherungen[0]], [["ks-413"], false, 1, false]);
   D.setzeIst(d, "413", Object.assign({}, e, { stand: "2026-11-05" }), "xv10001");
   assert.strictEqual(d.istSicherungen[0].vorher.stand, "2026-10-22");
   assert.strictEqual(D.stelleIstWiederHer(d, d.istSicherungen[0].id, "xv00000"), "");
@@ -327,6 +327,11 @@ test("Sicht je Rolle wie im Server", () => {
   assert.strictEqual(admin.benutzer[2].einmalpasswort, "Geheim#2026xy");
   const al = D.sicht(d, "xv10001");
   assert.strictEqual(Object.keys(al.budgets["2026"]).length, 3);
+  /* IST: Administrator nur Stand ohne Werte */
+  d.ist["ks-411"] = { stand: "2026-10-22", monat: "2026-09", aktuell: { jahr: 2026, werte: { pkId: 5 } }, vorjahrZeitraum: null, vorjahr: null, datei: "x.xlsx", importiert: "2026-10-23T08:00:00Z", von: "xv00000" };
+  assert.deepStrictEqual(D.sicht(d, "xv00000").ist, { "ks-411": { stand: "2026-10-22", monat: "2026-09", datei: "x.xlsx", importiert: "2026-10-23T08:00:00Z", von: "xv00000" } });
+  assert.strictEqual(D.sicht(d, "xv10001").ist["ks-411"].aktuell.werte.pkId, 5);
+  assert.ok(D.Rechte.ist(D.findeBenutzer(d, "xv00000")) && D.Rechte.ist(D.findeBenutzer(d, "xv10001")) && !D.Rechte.ist(D.findeBenutzer(d, "xv10002")));
 });
 
 test("Kalenderjahre und Begrüßung", () => {

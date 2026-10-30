@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "0.11.0";
+  var VERSION = "0.11.1";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -882,12 +882,14 @@
     var b = zustand.benutzer, daten = zustand.daten;
     var inhalt = "", leer = false;
     if (b.rolle === "admin") {
-      inhalt = '<p class="einleitung">Hier pflegst Du die Grundlagen des Tools: Benutzer, Kostenstellen, Projektnummern und Einstellungen.</p>' +
+      var staende = Object.keys(daten.ist || {}).length;
+      inhalt = '<p class="einleitung">Hier pflegst Du die Grundlagen des Tools: Benutzer, Kostenstellen, Projektnummern, KST-Berichte und Einstellungen.</p>' +
         '<div class="kacheln">' +
         startKachel("#/verwaltung/benutzer", "peopleTwo", "Benutzer", daten.benutzer.length + " Konten") +
         startKachel("#/verwaltung/kostenstellen", "folderOpen", "Kostenstellen", daten.kostenstellen.length + " angelegt") +
         startKachel("#/verwaltung/projekte", "briefcase", "Projektnummern", daten.projekte.length + " angelegt") +
-        startKachel("#/verwaltung/einstellungen", "settings", "Einstellungen", "Titel des Tools") + "</div>";
+        startKachel("#/verwaltung/ist", "documentXls", "KST-Berichte", staende === 1 ? "1 Kostenstelle mit IST-Werten" : staende + " Kostenstellen mit IST-Werten") +
+        startKachel("#/verwaltung/einstellungen", "settings", "Einstellungen", "Titel und Datensicherung") + "</div>";
     } else if (b.rolle === "al") {
       inhalt = abteilungHtml() + einzelbudgetsHtml();
     } else {
@@ -1921,7 +1923,7 @@
   function nameVon(kennung) { var b = D.findeBenutzer(zustand.daten, kennung); return b ? D.anzeigeName(b) : kennung || "–"; }
 
   function verwaltungIst(ziel) {
-    var daten = zustand.daten, ich = zustand.benutzer, darfImport = D.Rechte.budgets(ich);
+    var daten = zustand.daten, ich = zustand.benutzer, darfImport = D.Rechte.ist(ich);
     var ks = daten.kostenstellen;
     var staende = ks.filter(function (n) { return daten.ist && daten.ist["ks-" + n.nummer]; });
     var html = "";

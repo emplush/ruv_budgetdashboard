@@ -268,6 +268,16 @@ function pruefe(bedingung, text) {
   await page.click("[data-titel] button[type=submit]");
   await page.waitForSelector("text=Der Titel ist gespeichert");
   pruefe((await page.title()).endsWith("Budget T&E") && await page.isVisible(".kopf__titel >> text=Budget T&E"), "Titel im Tab und in der Kopfzeile");
+  await page.goto(url + "#/verwaltung/ist");
+  await page.waitForSelector("[data-import]");
+  pruefe(await page.isVisible("tr:has(th:has-text('413')) >> text=September 2026"), "Administrator sieht die IST-Stände");
+  await page.selectOption("#i-ks", "413");
+  await page.setInputFiles("#i-datei", path.join(__dirname, "daten", "kst-bericht-beispiel.xlsx"));
+  await page.waitForSelector(".vorschau");
+  await page.click("[data-importieren]");
+  await page.click("dialog button[type=submit]");
+  await page.waitForSelector("text=sind importiert");
+  pruefe(await page.evaluate(() => !("aktuell" in window.BDDaten.sicht(JSON.parse(localStorage.getItem("budgetdashboard-daten")), "xv00000").ist["ks-413"])), "Administrator importiert KST-Bericht, sieht aber keine Beträge");
 
   // BETA-ANMELDEN-ALS Anfang (mit der Funktion entfernen)
   await page.goto(url + "#/verwaltung/benutzer");

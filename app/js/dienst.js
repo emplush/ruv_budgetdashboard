@@ -248,7 +248,7 @@
       return D.Speicher.speichern(speicher).then(function () { return ergebnis(echt.kennung); }, function (f) { speicher = vorher; D.vervollstaendige(speicher); throw f; });
     },
     istImportieren: function (daten, b, nummer, eintrag) {
-      return aendern(function (ich) { return recht(D.Rechte.budgets(ich)) || D.setzeIst(speicher, nummer, eintrag, ich.kennung); });
+      return aendern(function (ich) { return recht(D.Rechte.ist(ich)) || D.setzeIst(speicher, nummer, eintrag, ich.kennung); });
     },
     kostenSpeichern: function (daten, b, id, felder) {
       return aendern(function (ich) {

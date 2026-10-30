@@ -101,7 +101,7 @@
         "<p>Du siehst Deine Projektnummern mit Planbudget, erfassten Kosten und Restbudget. Über „Kosten erfassen und ansehen“ kommst Du zur Seite der Projektnummer.</p>" +
         bild("start-kam", "Startseite eines Key Account Managers") +
         "<h3>Administrator</h3>" +
-        "<p>Kacheln führen direkt zu Benutzern, Kostenstellen, Projektnummern und Einstellungen.</p>" +
+        "<p>Kacheln führen direkt zu Benutzern, Kostenstellen, Projektnummern, KST-Berichten und Einstellungen.</p>" +
         bild("start-administrator", "Startseite des Administrators")
     },
     {
@@ -167,7 +167,7 @@
         "<p>Mit dem Stift änderst Du einen Eintrag, mit dem Papierkorb löschst Du ihn. Die Liste zeigt, wer den Eintrag wann erfasst hat.</p>"
     },
     {
-      id: "kst-berichte", titel: "KST-Berichte importieren", fuer: "Abteilungsleitung",
+      id: "kst-berichte", titel: "KST-Berichte importieren", fuer: "Abteilungsleitung, Administrator",
       html:
         "<p>Die IST-Werte kommen aus dem KST-Bericht des Konzern-Controllings als Excel-Datei (.xlsx). Du importierst immer einen Bericht für eine Kostenstelle.</p>" +
         bild("kst-berichte", "Verwaltung, Reiter KST-Berichte") +
@@ -177,6 +177,7 @@
         "<p>Das Tool liest die Kostenstelle aus dem Bericht (zum Beispiel KST141100 → 411). Passt sie nicht zur gewählten Kostenstelle, bricht es den Import ab. " +
         "Es prüft außerdem, ob die Summen von Sachkosten und Primärkosten I zur Datei passen.</p>" +
         "<p>Das Tool liest die Spalten „Ist“: Vorjahr gesamt, Vorjahr bis zum Monat und das aktuelle Jahr bis zum Monat. Daher kommt zum Beispiel „IST 2025 bis September“.</p>" +
+        "<p>Auch der Administrator importiert KST-Berichte. Er sieht danach in „Aktuelle IST-Stände“, welcher Stand je Kostenstelle importiert ist, aber keine Beträge. Die IST-Werte selbst sieht die Abteilungsleitung unter „IST-Werte“, die Gruppenleitung bei ihren Kostenstellen.</p>" +
         "<h3>Sicherungen</h3>" +
         "<p>Vor jedem Import sichert das Tool den bisherigen Stand der Kostenstelle. Unter „Sicherungen“ holst Du ihn mit „Wiederherstellen“ zurück. Das dürfen Abteilungsleitung und Administrator.</p>" +
         hinweis("Echte KST-Berichte enthalten Namen. Gib sie nur im Tool selbst ein und nicht in Demos oder Testdateien.")

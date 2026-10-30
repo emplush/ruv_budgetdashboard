@@ -2150,6 +2150,8 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
     benutzer: function (b) { return !!b && (b.rolle === "admin" || b.rolle === "al"); },
     nummern: function (b) { return !!b && (b.rolle === "admin" || b.rolle === "al"); },
     budgets: function (b) { return !!b && b.rolle === "al"; },
+    /* KST-Berichte importieren: Abteilungsleitung und Administrator */
+    ist: function (b) { return !!b && (b.rolle === "al" || b.rolle === "admin"); },
     einstellungen: function (b) { return !!b && b.rolle === "admin"; },
     /* Eigene Kostenstellen oder Projektnummern ansehen: alle außer Admin */
     eigene: function (b) { return !!b && b.rolle !== "admin"; },
@@ -2947,10 +2949,13 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
         });
       });
     }
-    /* IST wie Planbudgets; Sicherungen nur als Liste ohne Werte für Abteilungsleitung und Administrator */
+    /* IST wie Planbudgets; der Administrator sieht nur, welcher Stand importiert ist (ohne Werte).
+       Sicherungen nur als Liste ohne Werte für Abteilungsleitung und Administrator */
     d.ist = {};
-    if (ich.rolle !== "admin") Object.keys(daten.ist || {}).forEach(function (s) {
-      if (ich.rolle === "al" || (s.indexOf("ks-") === 0 && d.kostenstellen.some(function (n) { return "ks-" + n.nummer === s; }))) d.ist[s] = kopie(daten.ist[s]);
+    Object.keys(daten.ist || {}).forEach(function (s) {
+      var e = daten.ist[s];
+      if (ich.rolle === "admin") d.ist[s] = { stand: e.stand, monat: e.monat, datei: e.datei || "", importiert: e.importiert || "", von: e.von || "" };
+      else if (ich.rolle === "al" || (s.indexOf("ks-") === 0 && d.kostenstellen.some(function (n) { return "ks-" + n.nummer === s; }))) d.ist[s] = kopie(e);
     });
     d.budgetProtokoll = ich.rolle === "al" ? kopie(daten.budgetProtokoll || []) : [];
     d.istSicherungen = verwaltet ? (daten.istSicherungen || []).map(function (x) {
@@ -3468,7 +3473,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
       return D.Speicher.speichern(speicher).then(function () { return ergebnis(echt.kennung); }, function (f) { speicher = vorher; D.vervollstaendige(speicher); throw f; });
     },
     istImportieren: function (daten, b, nummer, eintrag) {
-      return aendern(function (ich) { return recht(D.Rechte.budgets(ich)) || D.setzeIst(speicher, nummer, eintrag, ich.kennung); });
+      return aendern(function (ich) { return recht(D.Rechte.ist(ich)) || D.setzeIst(speicher, nummer, eintrag, ich.kennung); });
     },
     kostenSpeichern: function (daten, b, id, felder) {
       return aendern(function (ich) {
@@ -3718,7 +3723,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
         "<p>Du siehst Deine Projektnummern mit Planbudget, erfassten Kosten und Restbudget. Über „Kosten erfassen und ansehen“ kommst Du zur Seite der Projektnummer.</p>" +
         bild("start-kam", "Startseite eines Key Account Managers") +
         "<h3>Administrator</h3>" +
-        "<p>Kacheln führen direkt zu Benutzern, Kostenstellen, Projektnummern und Einstellungen.</p>" +
+        "<p>Kacheln führen direkt zu Benutzern, Kostenstellen, Projektnummern, KST-Berichten und Einstellungen.</p>" +
         bild("start-administrator", "Startseite des Administrators")
     },
     {
@@ -3784,7 +3789,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
         "<p>Mit dem Stift änderst Du einen Eintrag, mit dem Papierkorb löschst Du ihn. Die Liste zeigt, wer den Eintrag wann erfasst hat.</p>"
     },
     {
-      id: "kst-berichte", titel: "KST-Berichte importieren", fuer: "Abteilungsleitung",
+      id: "kst-berichte", titel: "KST-Berichte importieren", fuer: "Abteilungsleitung, Administrator",
       html:
         "<p>Die IST-Werte kommen aus dem KST-Bericht des Konzern-Controllings als Excel-Datei (.xlsx). Du importierst immer einen Bericht für eine Kostenstelle.</p>" +
         bild("kst-berichte", "Verwaltung, Reiter KST-Berichte") +
@@ -3794,6 +3799,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
         "<p>Das Tool liest die Kostenstelle aus dem Bericht (zum Beispiel KST141100 → 411). Passt sie nicht zur gewählten Kostenstelle, bricht es den Import ab. " +
         "Es prüft außerdem, ob die Summen von Sachkosten und Primärkosten I zur Datei passen.</p>" +
         "<p>Das Tool liest die Spalten „Ist“: Vorjahr gesamt, Vorjahr bis zum Monat und das aktuelle Jahr bis zum Monat. Daher kommt zum Beispiel „IST 2025 bis September“.</p>" +
+        "<p>Auch der Administrator importiert KST-Berichte. Er sieht danach in „Aktuelle IST-Stände“, welcher Stand je Kostenstelle importiert ist, aber keine Beträge. Die IST-Werte selbst sieht die Abteilungsleitung unter „IST-Werte“, die Gruppenleitung bei ihren Kostenstellen.</p>" +
         "<h3>Sicherungen</h3>" +
         "<p>Vor jedem Import sichert das Tool den bisherigen Stand der Kostenstelle. Unter „Sicherungen“ holst Du ihn mit „Wiederherstellen“ zurück. Das dürfen Abteilungsleitung und Administrator.</p>" +
         hinweis("Echte KST-Berichte enthalten Namen. Gib sie nur im Tool selbst ein und nicht in Demos oder Testdateien.")
@@ -3912,7 +3918,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
 (function () {
   "use strict";
 
-  var VERSION = "0.11.0";
+  var VERSION = "0.11.1";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -4792,12 +4798,14 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
     var b = zustand.benutzer, daten = zustand.daten;
     var inhalt = "", leer = false;
     if (b.rolle === "admin") {
-      inhalt = '<p class="einleitung">Hier pflegst Du die Grundlagen des Tools: Benutzer, Kostenstellen, Projektnummern und Einstellungen.</p>' +
+      var staende = Object.keys(daten.ist || {}).length;
+      inhalt = '<p class="einleitung">Hier pflegst Du die Grundlagen des Tools: Benutzer, Kostenstellen, Projektnummern, KST-Berichte und Einstellungen.</p>' +
         '<div class="kacheln">' +
         startKachel("#/verwaltung/benutzer", "peopleTwo", "Benutzer", daten.benutzer.length + " Konten") +
         startKachel("#/verwaltung/kostenstellen", "folderOpen", "Kostenstellen", daten.kostenstellen.length + " angelegt") +
         startKachel("#/verwaltung/projekte", "briefcase", "Projektnummern", daten.projekte.length + " angelegt") +
-        startKachel("#/verwaltung/einstellungen", "settings", "Einstellungen", "Titel des Tools") + "</div>";
+        startKachel("#/verwaltung/ist", "documentXls", "KST-Berichte", staende === 1 ? "1 Kostenstelle mit IST-Werten" : staende + " Kostenstellen mit IST-Werten") +
+        startKachel("#/verwaltung/einstellungen", "settings", "Einstellungen", "Titel und Datensicherung") + "</div>";
     } else if (b.rolle === "al") {
       inhalt = abteilungHtml() + einzelbudgetsHtml();
     } else {
@@ -5831,7 +5839,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
   function nameVon(kennung) { var b = D.findeBenutzer(zustand.daten, kennung); return b ? D.anzeigeName(b) : kennung || "–"; }
 
   function verwaltungIst(ziel) {
-    var daten = zustand.daten, ich = zustand.benutzer, darfImport = D.Rechte.budgets(ich);
+    var daten = zustand.daten, ich = zustand.benutzer, darfImport = D.Rechte.ist(ich);
     var ks = daten.kostenstellen;
     var staende = ks.filter(function (n) { return daten.ist && daten.ist["ks-" + n.nummer]; });
     var html = "";

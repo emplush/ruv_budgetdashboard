@@ -1,5 +1,8 @@
 # Änderungen
 
+## 0.11.1 (30.10.2026)
+- Auch der Administrator importiert jetzt KST-Berichte (Verwaltung → KST-Berichte). Er sieht, welcher Stand je Kostenstelle importiert ist, aber keine Beträge. Seine Startseite hat dafür eine eigene Kachel.
+
 ## 0.11.0 (30.10.2026)
 - Planbudgets aus dem Vorjahr übernehmen: Unter Planbudgets steht für die Abteilungsleitung der Knopf „Planbudgets aus … übernehmen“. Vorhandene Planbudgets bleiben, außer Du setzt den Haken bei „Vorhandene Planbudgets überschreiben“.
 - Änderungsprotokoll: Unter den Planbudgets steht, wer wann welches Planbudget eingetragen oder geändert hat, mit den Beträgen vorher und nachher. Das Tool hebt die letzten 1.000 Einträge auf, sehen kann sie nur die Abteilungsleitung.
