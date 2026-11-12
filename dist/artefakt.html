@@ -2726,12 +2726,12 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
       return werte;
     }
     /* EWA (erwarteter Wert zum Jahresende): Spalte mit „EWA“ im Kopf (Zeile 18, zum Beispiel „EWA (200000)“), Wert in der Zeile Sachkosten */
-    /* Gesucht wird nur in der Kopfzeile mit den Jahren (wie „2026 (vt)“), dort steht „EWA“ oder „EWA (200000)“.
+    /* Gesucht wird nur in der Kopfzeile mit den Jahren (wie „2026 (vt)“), dort beginnt der Kopf mit „EWA“, der Zusatz ist egal (zum Beispiel „EWA (200000)“).
        Vergleichsspalten weiter oben wie „EWA Mon (kum) 2026 zu“ zählen nicht. */
     var ewa = null;
     if (jahrZeile >= 0) {
       (zeilen[jahrZeile] || []).forEach(function (w, c) {
-        if (ewa !== null || !/^EWA(\s*\(\d*\))?$/i.test(String(w == null ? "" : w).trim())) return;
+        if (ewa !== null || !/^EWA\b/i.test(String(w == null ? "" : w).trim())) return;
         var roh = (zeilen[z.sach] || [])[c];
         if (roh == null || String(roh).trim() === "") return;
         var x = zahl(roh);
@@ -4027,7 +4027,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
         "<p>Das Tool liest die Kostenstelle aus dem Bericht (zum Beispiel KST141100 → 411). Passt sie nicht zur gewählten Kostenstelle, bricht es den Import ab. " +
         "Es prüft außerdem, ob die Summen von Sachkosten und Primärkosten I zur Datei passen.</p>" +
         "<p>Das Tool liest die Spalten „Ist“: Vorjahr gesamt, Vorjahr bis zum Monat und das aktuelle Jahr bis zum Monat. Daher kommt zum Beispiel „IST 2025 bis September“.</p>" +
-        "<p>Steht im Kopf einer Spalte „EWA“ (meist Spalte H, Zeile 18, zum Beispiel „EWA (200000)“), übernimmt das Tool den Wert dieser Spalte in der Zeile Sachkosten als <strong>aktuellen EWA-Wert (Sachkosten)</strong>. Die Vorschau zeigt ihn an. Den EWA-Wert gibt es nur im KST-Bericht der Gesamtkostenstelle. Hat der Bericht keinen EWA-Wert, bleibt das Feld leer. Ein neuer Import ersetzt den EWA-Wert, Berichte von vor Version 0.13.0 haben noch keinen: Importiere den aktuellen KST-Bericht dann einfach noch einmal.</p>" +
+        "<p>Steht im Kopf einer Spalte „EWA“ (meist Spalte H, Zeile 18; der Kopf beginnt mit „EWA“, zum Beispiel „EWA (200000)“, die Zahl darf sich ändern), übernimmt das Tool den Wert dieser Spalte in der Zeile Sachkosten als <strong>aktuellen EWA-Wert (Sachkosten)</strong>. Die Vorschau zeigt ihn an. Den EWA-Wert gibt es nur im KST-Bericht der Gesamtkostenstelle. Hat der Bericht keinen EWA-Wert, bleibt das Feld leer. Ein neuer Import ersetzt den EWA-Wert, Berichte von vor Version 0.13.0 haben noch keinen: Importiere den aktuellen KST-Bericht dann einfach noch einmal.</p>" +
         "<p>Auch der Administrator importiert KST-Berichte. Er sieht danach in „Aktuelle IST-Stände“, welcher Stand je Kostenstelle importiert ist, aber keine Beträge. Die IST-Werte selbst sieht die Abteilungsleitung unter „IST-Werte“, die Gruppenleitung bei ihren Kostenstellen.</p>" +
         "<h3>Sicherungen</h3>" +
         "<p>Vor jedem Import sichert das Tool den bisherigen Stand der Kostenstelle. Unter „Sicherungen“ holst Du ihn mit „Wiederherstellen“ zurück. Das dürfen Abteilungsleitung und Administrator.</p>" +
@@ -4147,7 +4147,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
 (function () {
   "use strict";
 
-  var VERSION = "0.13.3";
+  var VERSION = "0.13.4";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";

@@ -732,12 +732,12 @@
       return werte;
     }
     /* EWA (erwarteter Wert zum Jahresende): Spalte mit „EWA“ im Kopf (Zeile 18, zum Beispiel „EWA (200000)“), Wert in der Zeile Sachkosten */
-    /* Gesucht wird nur in der Kopfzeile mit den Jahren (wie „2026 (vt)“), dort steht „EWA“ oder „EWA (200000)“.
+    /* Gesucht wird nur in der Kopfzeile mit den Jahren (wie „2026 (vt)“), dort beginnt der Kopf mit „EWA“, der Zusatz ist egal (zum Beispiel „EWA (200000)“).
        Vergleichsspalten weiter oben wie „EWA Mon (kum) 2026 zu“ zählen nicht. */
     var ewa = null;
     if (jahrZeile >= 0) {
       (zeilen[jahrZeile] || []).forEach(function (w, c) {
-        if (ewa !== null || !/^EWA(\s*\(\d*\))?$/i.test(String(w == null ? "" : w).trim())) return;
+        if (ewa !== null || !/^EWA\b/i.test(String(w == null ? "" : w).trim())) return;
         var roh = (zeilen[z.sach] || [])[c];
         if (roh == null || String(roh).trim() === "") return;
         var x = zahl(roh);

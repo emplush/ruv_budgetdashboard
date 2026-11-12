@@ -1,5 +1,8 @@
 # Änderungen
 
+## 0.13.4 (12.11.2026)
+- EWA-Import noch robuster: In der Kopfzeile mit den Jahren reicht ein Kopf, der mit „EWA“ beginnt. Zahl und Zusatz in Klammern dürfen sich ändern.
+
 ## 0.13.3 (12.11.2026)
 - Korrektur EWA-Import: Im KST-Bericht heißt die Spalte „EWA (200000)“. Das Tool erkennt den EWA jetzt auch mit diesem Zusatz. Es sucht nur in der Kopfzeile mit den Jahren, Vergleichsspalten wie „EWA Mon (kum) 2026 zu“ zählen nicht.
 
