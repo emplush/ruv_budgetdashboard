@@ -42,8 +42,10 @@ for c in "BCD":
     ws["%s22" % c] = round(sach, 2)
     ws["%s34" % c] = round(sach + (ws["%s20" % c].value or 0) + (ws["%s21" % c].value or 0), 2)
 # EWA (erwarteter Wert zum Jahresende) in Spalte H, das Tool übernimmt nur den Wert der Zeile Sachkosten
-ws["H18"] = "EWA"
+ws["H18"] = "EWA (200000)"
 ws["H20"], ws["H21"], ws["H22"] = 415000.00, 214000.00, 128450.75
+# Vergleichsspalte weiter oben, wie im echten Bericht: zählt nicht als EWA
+ws["N16"], ws["N22"] = "EWA Mon (kum) 2026 zu", -32080.65
 ws["A34"] = "Primärkosten I (000015 [2])_vt"
 ws["A35"] = "MA Gesamt (002900 [950])_vt"
 for c, w in zip("BCD", (8, 8, 9)):

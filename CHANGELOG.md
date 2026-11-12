@@ -1,5 +1,8 @@
 # Änderungen
 
+## 0.13.3 (12.11.2026)
+- Korrektur EWA-Import: Im KST-Bericht heißt die Spalte „EWA (200000)“. Das Tool erkennt den EWA jetzt auch mit diesem Zusatz. Es sucht nur in der Kopfzeile mit den Jahren, Vergleichsspalten wie „EWA Mon (kum) 2026 zu“ zählen nicht.
+
 ## 0.13.2 (12.11.2026)
 - Diagramm „Plan und IST nach Kostenarten“ luftiger: mehr Abstand zum Rand, zwischen den Balken und zwischen den Kostenarten. Der hervorgehobene Block der Sachkosten hat jetzt einen Innenabstand.
 - Detailseiten der Unterkostenstellen zeigen keine EWA-Kachel mehr. Den EWA-Wert gibt es nur bei der Gesamtkostenstelle.

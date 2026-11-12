@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "0.13.2";
+  var VERSION = "0.13.3";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";

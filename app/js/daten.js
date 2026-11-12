@@ -694,12 +694,13 @@
     if (!kst) return { fehler: "In der Datei steht keine Kostenstelle (zum Beispiel KST163000 in Zelle B9)." };
     if (!stand) return { fehler: "In der Datei fehlt der Datenstand (zum Beispiel „Datenstand: 22.10.2026“)." };
     if (!monat) return { fehler: "In der Datei fehlt der Abrechnungsmonat (zum Beispiel „Abrechnungsmonat: 09.2026“)." };
-    var spalten = [];
+    var spalten = [], jahrZeile = -1;
     for (var r = 0; r < zeilen.length - 3 && !spalten.length; r++) {
       (zeilen[r] || []).forEach(function (w, c) {
         if (String(w).trim() !== "Ist") return;
         var jahr = /(\d{4})/.exec(String((zeilen[r + 2] || [])[c] || "")), art = String((zeilen[r + 3] || [])[c] || "");
         if (!jahr) return;
+        jahrZeile = r + 2;
         if (/Dezember/i.test(art)) spalten.push({ c: c, jahr: Number(jahr[1]), voll: true });
         else if (/aktMon/i.test(art)) spalten.push({ c: c, jahr: Number(jahr[1]), voll: false });
       });
@@ -730,11 +731,13 @@
       if (Math.abs(werte.pkId + werte.pkAd + w(z.sach) - w(z.primaer)) > 0.05) warnungen.push(name + ": Personal- und Sachkosten ergeben nicht die Primärkosten I der Datei.");
       return werte;
     }
-    /* EWA (erwarteter Wert zum Jahresende): Spalte mit „EWA“ im Kopf, Wert in der Zeile Sachkosten */
+    /* EWA (erwarteter Wert zum Jahresende): Spalte mit „EWA“ im Kopf (Zeile 18, zum Beispiel „EWA (200000)“), Wert in der Zeile Sachkosten */
+    /* Gesucht wird nur in der Kopfzeile mit den Jahren (wie „2026 (vt)“), dort steht „EWA“ oder „EWA (200000)“.
+       Vergleichsspalten weiter oben wie „EWA Mon (kum) 2026 zu“ zählen nicht. */
     var ewa = null;
-    for (var er = 0; er < z.sach && ewa === null; er++) {
-      (zeilen[er] || []).forEach(function (w, c) {
-        if (ewa !== null || String(w == null ? "" : w).trim().toUpperCase() !== "EWA") return;
+    if (jahrZeile >= 0) {
+      (zeilen[jahrZeile] || []).forEach(function (w, c) {
+        if (ewa !== null || !/^EWA(\s*\(\d*\))?$/i.test(String(w == null ? "" : w).trim())) return;
         var roh = (zeilen[z.sach] || [])[c];
         if (roh == null || String(roh).trim() === "") return;
         var x = zahl(roh);

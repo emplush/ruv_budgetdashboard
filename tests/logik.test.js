@@ -162,6 +162,11 @@ test("IST: KST-Bericht lesen, importieren, sichern, wiederherstellen", async () 
   assert.deepStrictEqual(e.warnungen, []);
   assert.strictEqual(e.ewa, 128450.75);
   const ohneEwa = blaetter[0].zeilen.map((z) => z && z.slice());
+  const kopf = blaetter[0].zeilen.map((z) => z && z.slice());
+  kopf[17][7] = "EWA";
+  assert.strictEqual(D.istAuslesen(kopf).ewa, 128450.75);
+  kopf[17][7] = "EWAX";
+  assert.strictEqual(D.istAuslesen(kopf).ewa, null);
   ohneEwa[21][7] = null;
   assert.strictEqual(D.istAuslesen(ohneEwa).ewa, null);
   ohneEwa[21][7] = "viel";
