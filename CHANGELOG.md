@@ -1,5 +1,8 @@
 # Änderungen
 
+## 0.13.5 (12.11.2026)
+- Unter dem EWA-Wert stehen jetzt drei Prozentzahlen: der Anteil am Gesamtplan der Sachkosten, wie viel Prozent des EWA durch das IST der Sachkosten schon ausgeschöpft sind und wie viel die Hochrechnung der Sachkosten zum Jahresende ausschöpfen wird. Das gilt auf der Startseite, unter IST-Werte, auf der Detailseite der Gesamtkostenstelle und in den Einzelbudgets.
+
 ## 0.13.4 (12.11.2026)
 - EWA-Import noch robuster: In der Kopfzeile mit den Jahren reicht ein Kopf, der mit „EWA“ beginnt. Zahl und Zusatz in Klammern dürfen sich ändern.
 

@@ -859,3 +859,5 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
 .kpi--ewa { background: var(--fokus-flaeche-stark); border-radius: 8px; box-shadow: inset 0 3px 0 var(--fokus-rand); }
 .einzelbudgets--fokus th, .einzelbudgets--fokus td { padding-left: .35rem; padding-right: .35rem; font-size: .88rem; }
 @media (max-width: 1360px) { .einzelbudgets--fokus .mini .fortschritt { display: none; } }
+.ewa-prozente { display: grid; gap: .2rem; margin: .15rem 0 .25rem; }
+.ewa-prozente strong { color: var(--text); font-size: 1.05em; }
