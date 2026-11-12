@@ -179,6 +179,11 @@ test("IST: KST-Bericht lesen, importieren, sichern, wiederherstellen", async () 
   assert.match(D.setzeIst(d, "413", Object.assign({}, e, { ewa: "viel" }), "xv10001"), /EWA/);
   assert.strictEqual(D.setzeIst(d, "413", e, "xv10001"), "");
   assert.strictEqual(d.ist["ks-413"].ewa, 128450.75);
+  /* EWA nur für die Gesamtkostenstelle (410), nicht für die Unterkostenstelle 413, nichts wird zusammengerechnet */
+  assert.deepStrictEqual([D.ewaVon(d, 2026, "413").vorhanden, D.ewaVon(d, 2026, "413").unter], [false, true]);
+  assert.strictEqual(D.setzeIst(d, "410", Object.assign({}, e, { kst: "410", ewa: 200000 }), "xv10001"), "");
+  assert.deepStrictEqual([D.ewaVon(d, 2026, "410").vorhanden, D.ewaVon(d, 2026, "410").wert, D.ewaVon(d, 2025, "410").vorhanden], [true, 200000, false]);
+  delete d.ist["ks-410"]; d.istSicherungen.shift(); delete d.istVerlauf["ks-410"];
   assert.deepStrictEqual([d.istSicherungen.length, d.istSicherungen[0].vorher], [1, null]);
   const ist = D.istVon(d, 2026, "413");
   assert.deepStrictEqual([ist.vorhanden, ist.bisMonat, ist.gesamt, ist.sachkosten], [true, 9, 566370.85, 96370.1]);

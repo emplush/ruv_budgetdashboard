@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "0.13.0";
+  var VERSION = "0.13.1";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -1016,8 +1016,7 @@
       a.planMitIst.push(w); a.iste.push(ist); a.hoch += k.hochrechnung;
       a.hochSach += (ist.bisMonat || 12) >= 12 ? ist.sachkosten : D.hochrechnungen(ist).sachkosten;
       var e = D.ewaVon(daten, jahr, n.nummer);
-      a.ewa.mit = a.ewa.mit.concat(e.mit); a.ewa.ohne = a.ewa.ohne.concat(e.ohne);
-      if (e.vorhanden) { a.ewa.vorhanden = true; a.ewa.wert += e.wert; a.ewa.plan += w.vorhanden ? w.sachkosten : 0; }
+      if (e.vorhanden) { a.ewa.vorhanden = true; a.ewa.wert += e.wert; a.ewa.plan += w.vorhanden ? w.sachkosten : 0; a.ewa.mit.push(n.nummer); } else a.ewa.ohne.push(n.nummer);
       a.vergleiche.push(ist.vergleich);
       if (a.stand && (ist.stand !== a.stand || ist.monat !== a.monat)) a.unterschiedlich = true;
       if (!a.stand || ist.stand < a.stand) a.stand = ist.stand;
@@ -1062,6 +1061,13 @@
       (a.iste.length ? diagrammHtml(a.planIst, a.ist, a.vorjahr !== null ? D.summe(a.vergleiche) : null, "Kostenstellen mit IST-Werten") : "") + "</section>";
   }
 
+  /* EWA der Abteilung: Summe der EWA-Werte der Gesamtkostenstellen */
+  function ewaAbteilungUnter(e) {
+    if (!e.vorhanden) return "Noch kein EWA-Wert. Er kommt mit dem KST-Bericht der Gesamtkostenstelle (Spalte „EWA“, Zeile Sachkosten).";
+    return (e.plan > 0 ? "<strong>" + prozent(e.wert / e.plan) + "</strong> vom Plan Sachkosten (" + euro(e.plan) + ")" : "kein Plan für Sachkosten") +
+      "<br>" + esc((e.mit.length > 1 ? "Kostenstellen " : "Kostenstelle ") + e.mit.join(", ") + (e.ohne.length ? " · noch ohne EWA: " + e.ohne.join(", ") : ""));
+  }
+
   /* Sachkosten im Fokus: Plan, IST, Verbrauch, Hochrechnung und EWA der Kostenstellen mit IST-Werten */
   function sachkostenBandHtml(a) {
     var p = a.planIst.sachkosten, i = a.ist.sachkosten, mon = Number(a.monat.slice(5)) || 12;
@@ -1075,7 +1081,7 @@
       wert(istUeberschrift({ monat: a.monat, bisMonat: mon }).replace("IST", "IST Sachkosten"), euro(i), kk ? "<strong>" + prozent(kk.quote) + "</strong> Verbrauch · Rest " + euro(p - i) : "") +
       wert("Hochrechnung zum Jahresende", euro(a.hochSach), kk ? zzvHtml(kk) + " Verbrauch der Hochrechnung" : "") +
       '<div class="sachband__wert sachband__wert--ewa"><span class="sachband__titel">Aktueller EWA-Wert (Sachkosten)</span><strong>' + (ewa.vorhanden ? euro(ewa.wert) : "–") + "</strong>" +
-        '<span class="sachband__unter">' + ewaUnter({ vorhanden: ewa.vorhanden, wert: ewa.wert, mit: ewa.mit, ohne: ewa.ohne }, ewa.plan) + "</span></div>" +
+        '<span class="sachband__unter">' + ewaAbteilungUnter(ewa) + "</span></div>" +
       "</div>" + (kk ? fortschrittHtml(kk) + '<p class="fortschritt__legende leise klein">Balken: Sachkosten-IST vom Plan. Strich: ' + Math.round(kk.zeitanteil * 100) + " % des Jahres sind gebucht.</p>" : "") + "</section>";
   }
 
@@ -1100,9 +1106,9 @@
         var gi = D.gesamtIstVon(daten, jahr, "ks", nr), gb = D.gesamtBudgetVon(daten, jahr, "ks", nr);
         return zeileKs("teilsumme", '<th scope="row"><strong>' + ksLink(nr) + "</strong></th>", wer, gb.gesamt, gi.gesamt, "", D.ewaVon(daten, jahr, nr),
             '<a class="icon-btn icon-btn--klein" href="#/bericht/' + esc(nr) + '" aria-label="Bericht Kostenstelle ' + esc(nr) + '" title="Bericht ansehen">' + icon("diagramBarchart") + "</a>") +
-          zeileKs("unter", '<th scope="row" title="ohne Unterkostenstellen und Projektnummern"><a href="#/kostenstelle/' + esc(nr) + '/eigen" title="Details nur ' + esc(nr) + ' selbst">' + esc(nr) + "</a></th>", "", gb.eigen, gi.eigen, nr, D.ewaVon(daten, jahr, nr, true));
+          zeileKs("unter", '<th scope="row" title="ohne Unterkostenstellen und Projektnummern"><a href="#/kostenstelle/' + esc(nr) + '/eigen" title="Details nur ' + esc(nr) + ' selbst">' + esc(nr) + "</a></th>", "", gb.eigen, gi.eigen, nr, null);
       }
-      return zeileKs(r.art === "unter" ? "unter" + (r.letzte ? " letzte" : "") : "", '<th scope="row">' + ksLink(nr) + "</th>", wer, D.budgetVon(daten, jahr, "ks", nr), D.istVon(daten, jahr, nr), nr, D.ewaVon(daten, jahr, nr, true));
+      return zeileKs(r.art === "unter" ? "unter" + (r.letzte ? " letzte" : "") : "", '<th scope="row">' + ksLink(nr) + "</th>", wer, D.budgetVon(daten, jahr, "ks", nr), D.istVon(daten, jahr, nr), nr, r.art === "unter" ? null : D.ewaVon(daten, jahr, nr));
     }).join("");
     function zeilePn(kopf, wer, w, ist) {
       var k = ist.vorhanden && w.vorhanden ? D.kennzahlen(w, ist) : null;
@@ -1258,7 +1264,7 @@
       kennzahl("Restbudget", euro(a.planIst.gesamt - a.ist.gesamt), "Plan " + euro(a.planIst.gesamt)) +
       kennzahl("Zum zeitanteiligen Plan", zzvHtml(zzvAus(a.planIst.gesamt > 0 ? a.hoch / a.planIst.gesamt : null)), "Hochrechnung Jahresende " + euro(a.hoch)) +
       kennzahl("IST Sachkosten", euro(a.ist.sachkosten), (a.planIst.sachkosten > 0 ? "<strong>" + prozent(a.ist.sachkosten / a.planIst.sachkosten) + "</strong> Verbrauch · " : "") + "Hochrechnung " + euro(a.hochSach), "kennzahl--fokus") +
-      kennzahl("Aktueller EWA-Wert (Sachkosten)", a.ewa.vorhanden ? euro(a.ewa.wert) : "–", ewaUnter(a.ewa, a.ewa.plan), "kennzahl--ewa") + "</div>";
+      kennzahl("Aktueller EWA-Wert (Sachkosten)", a.ewa.vorhanden ? euro(a.ewa.wert) : "–", ewaAbteilungUnter(a.ewa), "kennzahl--ewa") + "</div>";
   }
 
   function istTabelleHtml(art) {
@@ -1577,16 +1583,16 @@
 
   function ksLink(nr, text) { return '<a href="#/kostenstelle/' + esc(nr) + '" title="Details Kostenstelle ' + esc(nr) + '">' + esc(text || nr) + "</a>"; }
 
-  /* Aktueller EWA-Wert (Sachkosten) aus dem KST-Bericht, mit Anteil am Plan der Sachkosten */
+  /* Aktueller EWA-Wert (Sachkosten): nur für die Gesamtkostenstelle, mit Anteil am Gesamtplan der Sachkosten */
   function ewaUnter(e, planSach) {
+    if (e.unter) return "Den EWA-Wert gibt es nur für die Gesamtkostenstelle " + ksLink(D.uebergeordnete(zustand.daten, e.nummer)) + ".";
     if (!e.vorhanden) return "Noch kein EWA-Wert. Er kommt mit dem KST-Bericht (Spalte „EWA“, Zeile Sachkosten).";
-    return (planSach > 0 ? "<strong>" + prozent(e.wert / planSach) + "</strong> vom Plan Sachkosten (" + euro(planSach) + ")" : "kein Plan für Sachkosten") +
-      "<br>" + esc(e.mit.length > 1 ? "aus den KST-Berichten " + e.mit.join(", ") : "aus dem KST-Bericht " + e.mit[0]) +
-      (e.ohne.length ? esc(" · ohne EWA: " + e.ohne.join(", ")) : "");
+    return (planSach > 0 ? "<strong>" + prozent(e.wert / planSach) + "</strong> vom Gesamtplan Sachkosten (" + euro(planSach) + ")" : "kein Plan für Sachkosten") +
+      "<br>" + esc("aus dem KST-Bericht " + e.nummer);
   }
-  function ewaKennzahl(nummer, plan, nurEigen) {
-    var e = D.ewaVon(zustand.daten, zustand.jahr, nummer, nurEigen);
-    return kennzahl("Aktueller EWA-Wert (Sachkosten)", e.vorhanden ? euro(e.wert) : "–", ewaUnter(e, plan.vorhanden ? plan.sachkosten : 0), "kennzahl--ewa");
+  function ewaKennzahl(nummer, gesamtPlan) {
+    var e = D.ewaVon(zustand.daten, zustand.jahr, nummer);
+    return kennzahl("Aktueller EWA-Wert (Sachkosten)", e.vorhanden ? euro(e.wert) : "–", ewaUnter(e, gesamtPlan.vorhanden ? gesamtPlan.sachkosten : 0), "kennzahl--ewa");
   }
 
   /* Sachkosten zuerst und hervorgehoben, Personalkosten (weitgehend festgeschrieben) danach und blasser */
@@ -1634,7 +1640,7 @@
         ? kennzahl("Zum zeitanteiligen Plan", zzvHtml(k), "Plan bis " + D.monatName(ist.monat) + ": " + euro(zeitPlan(plan.gesamt))) +
           kennzahl("Hochrechnung Jahresende", euro(k.hochrechnung), (plan.gesamt > 0 ? "<strong>" + prozent(k.hochrechnung / plan.gesamt) + "</strong> vom Plan · " : "") + (k.hochrechnung - plan.gesamt > 0 ? "über Plan um " : "unter Plan um ") + euro(Math.abs(k.hochrechnung - plan.gesamt)))
         : kennzahl("Planbudget", "–", "noch nicht eingetragen")) +
-      ewaKennzahl(nummer, plan, nurEigen) +
+      ewaKennzahl(nummer, g.gesamt) +
       (k.vorjahr !== null ? kennzahl("Vorjahr gleicher Zeitraum", euro(k.vorjahr), "Veränderung " + prozent(k.vorjahrQuote, true)) : "") + "</div>";
     if (g.uebergreifend && !nurEigen) html += berichtHinweise(nummer, gi, g);
 
@@ -2143,7 +2149,8 @@
         zeilen.map(function (z) {
           return "<tr" + (z[1] === "gesamt" || z[1] === "sachkosten" ? ' class="teilsumme"' : "") + '><th scope="row">' + esc(z[0]) + "</th>" + mit.map(function (w) { return '<td class="zahl">' + euro(w[z[1]]) + "</td>"; }).join("") + "</tr>";
         }).join("") + "</tbody></table></div>" +
-        '<p class="vorschau__ewa">' + (e.ewa !== null && e.ewa !== undefined ? "<strong>Aktueller EWA-Wert (Sachkosten): " + euro(e.ewa) + "</strong>"
+        '<p class="vorschau__ewa">' + (e.ewa !== null && e.ewa !== undefined ? "<strong>Aktueller EWA-Wert (Sachkosten): " + euro(e.ewa) + "</strong>" +
+            (D.uebergeordnete(zustand.daten, e.kst) ? ' <span class="leise">Die Kostenstelle ' + esc(e.kst) + " ist eine Unterkostenstelle. Den EWA-Wert zeigt das Tool nur bei der Gesamtkostenstelle " + esc(D.uebergeordnete(zustand.daten, e.kst)) + ".</span>" : "")
           : '<span class="leise">In der Datei steht kein EWA-Wert (Spalte „EWA“, Zeile Sachkosten).</span>') + "</p>" +
         (e.warnungen.length ? '<ul class="warnungen">' + e.warnungen.map(function (w) { return "<li>" + icon("warning") + "<span>" + esc(w) + "</span></li>"; }).join("") + "</ul>"
           : '<p class="ok-hinweis">' + icon("checkmarkCircle") + "<span>Die Summen stimmen mit der Datei überein (Sachkosten und Primärkosten I).</span></p>") + "</div>";

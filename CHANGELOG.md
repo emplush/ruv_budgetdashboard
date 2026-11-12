@@ -1,5 +1,8 @@
 # Änderungen
 
+## 0.13.1 (12.11.2026)
+- EWA-Wert nur für die Gesamtkostenstelle: Er gilt für ihr Gesamt mit allen Unterkostenstellen, das Tool rechnet nichts zusammen. Der Anteil bezieht sich auf den Gesamtplan der Sachkosten, auch in der Ansicht „Nur … selbst“. Unterkostenstellen zeigen keinen EWA-Wert, die Kachel verweist auf die Gesamtkostenstelle.
+
 ## 0.13.0 (12.11.2026)
 - Letzte Einspielungen: Auf der Startseite der Abteilungsleitung steht oben je Kostenstelle, wann ihr KST-Bericht zuletzt importiert wurde, bis wann gebucht ist und der Datenstand. Ältere Stände sind rot markiert. Die Tabelle „Einzelbudgets der Kostenstellen“ hat dazu die Spalte „Letzter Import“.
 - Sachkosten im Fokus: Die Personalkosten ID und AD sind weitgehend festgeschrieben. Deshalb stehen die Sachkosten in Tabellen jetzt oben und sind farbig hinterlegt, die Personalkosten stehen darunter und sind blasser. Das Abteilungsbudget beginnt mit dem Band „Sachkosten im Fokus“ (Plan, IST, Verbrauch, Hochrechnung, EWA-Wert). Die Einzelbudgets zeigen je Kostenstelle die Sachkosten mit Plan, IST, Verbrauch, Verbrauch der Hochrechnung und EWA-Wert. Im Diagramm kommen die Sachkosten zuerst.

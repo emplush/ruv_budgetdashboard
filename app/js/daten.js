@@ -978,20 +978,16 @@
     return basis;
   }
 
-  /* EWA (erwarteter Wert zum Jahresende, Sachkosten) aus den KST-Berichten des Jahres.
-     nurEigen: nur der eigene Bericht. Sonst wie beim IST: eigener Bericht plus die Berichte der Unterkostenstellen, soweit sie einen EWA haben.
-     Ergebnis: {vorhanden, wert, mit: [Nummern mit EWA], ohne: [Nummern mit IST, aber ohne EWA], stand} */
-  function ewaVon(daten, jahr, nummer, nurEigen) {
-    var e = findeNummer(daten, "ks", nummer);
-    var nummern = [nummer].concat(nurEigen ? [] : (e && e.unter || []));
-    var aus = { vorhanden: false, wert: 0, mit: [], ohne: [], stand: "" };
-    nummern.forEach(function (n) {
-      var t = (daten.ist || {})["ks-" + n];
-      if (!t || !t.aktuell || Number(t.aktuell.jahr) !== Number(jahr)) return;
-      if (typeof t.ewa !== "number") { aus.ohne.push(n); return; }
-      aus.wert = runde(aus.wert + t.ewa); aus.mit.push(n); aus.vorhanden = true;
-      if (!aus.stand || t.stand < aus.stand) aus.stand = t.stand;
-    });
+  /* EWA (erwarteter Wert zum Jahresende, Sachkosten) aus dem KST-Bericht des Jahres (Michael, 12.11.2026):
+     Es gibt ihn nur für die Gesamtkostenstelle (oberste Kostenstelle). Er gilt für ihr Gesamt, also inklusive Unterkostenstellen.
+     Unterkostenstellen haben keinen EWA-Wert (unter: true), auch wenn ihr Bericht eine EWA-Spalte hat.
+     Ergebnis: {vorhanden, wert, unter, nummer, stand} */
+  function ewaVon(daten, jahr, nummer) {
+    var aus = { vorhanden: false, wert: 0, unter: !!uebergeordnete(daten, nummer), nummer: nummer, stand: "" };
+    if (aus.unter) return aus;
+    var t = (daten.ist || {})["ks-" + nummer];
+    if (!t || !t.aktuell || Number(t.aktuell.jahr) !== Number(jahr) || typeof t.ewa !== "number") return aus;
+    aus.vorhanden = true; aus.wert = t.ewa; aus.stand = t.stand;
     return aus;
   }
 
