@@ -806,9 +806,14 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
 .fokustabelle thead th { vertical-align: bottom; line-height: 1.25; }
 .kennzahl--ewa { background: var(--fokus-flaeche-stark); border-color: var(--fokus-rand); border-top-width: 6px; }
 .kennzahl--ewa .kennzahl__titel { color: var(--text); }
-.diagramm__gruppe--fokus { background: var(--fokus-flaeche); border-left: 4px solid var(--fokus-rand); border-radius: 4px; padding: .5rem .6rem; }
+/* Gruppen mit Luft: Titel und Balken mit Abstand zum Rand, alle Gruppen gleich eingerückt */
+.diagramm__gruppen { gap: 1.25rem 1.75rem; }
+.diagramm__gruppe { padding: 1rem 1.2rem 1.1rem 1.4rem; gap: .45rem; border-radius: 8px; }
+.diagramm__gruppe .diagramm__titel { margin-bottom: .35rem; }
+.diagramm__gruppe .diagramm__zeile { min-height: 1.5rem; }
+.diagramm__gruppe .diagramm__balken { height: .85rem; }
+.diagramm__gruppe--fokus { background: var(--fokus-flaeche); border: 1px solid var(--fokus-flaeche-stark); border-left: 5px solid var(--fokus-rand); }
 .diagramm__gruppe--gedaempft { opacity: .75; }
-.diagramm__gruppe { padding: .5rem 0; }
 .sachband { margin: 1rem 0 1.25rem; padding: 1rem 1.2rem; background: var(--fokus-flaeche); border: 1px solid var(--fokus-rand); border-left-width: 6px; border-radius: 10px; display: grid; gap: .8rem; }
 .sachband__kopf { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem 1rem; }
 .sachband__kopf h3 { margin: 0; font-size: 1.1rem; }

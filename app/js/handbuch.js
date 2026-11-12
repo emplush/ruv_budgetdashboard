@@ -151,7 +151,7 @@
       html:
         "<p>Mit Klick auf eine Kostenstellennummer öffnest Du ihre Detailseite. Sie zeigt Kennzahlen, Plan und IST je Position, Hochrechnung und Vorjahr je Position, ein Diagramm nach Kostenarten und den IST-Verlauf über die importierten Monate.</p>" +
         "<p>Die farbig hervorgehobene Kachel <strong>„Aktueller EWA-Wert (Sachkosten)“</strong> zeigt den erwarteten Wert der Sachkosten zum Jahresende aus dem KST-Bericht und seinen Anteil am Plan der Sachkosten. " +
-        "Den EWA-Wert gibt es nur für die Gesamtkostenstelle. Der Anteil bezieht sich immer auf ihren Gesamtplan der Sachkosten, auch in der Ansicht „Nur … selbst“. Bei einer Unterkostenstelle verweist die Kachel auf die Gesamtkostenstelle.</p>" +
+        "Den EWA-Wert gibt es nur für die Gesamtkostenstelle. Der Anteil bezieht sich immer auf ihren Gesamtplan der Sachkosten, auch in der Ansicht „Nur … selbst“. Auf den Detailseiten der Unterkostenstellen gibt es die Kachel nicht.</p>" +
         bild("kostenstelle-detail", "Detailseite der Kostenstelle 411") +
         "<p>Die Tabelle „Plan und IST je Position“ beginnt mit den Sachkosten (hervorgehoben), darunter die Personalkosten (blasser). Die Spalten:</p>" +
         "<ul><li><strong>Plan</strong> und <strong>Plan bis (Monat)</strong>: Planbudget und zeitanteiliger Plan bis zum gebuchten Monat.</li>" +

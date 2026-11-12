@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "0.13.1";
+  var VERSION = "0.13.2";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -1592,6 +1592,7 @@
   }
   function ewaKennzahl(nummer, gesamtPlan) {
     var e = D.ewaVon(zustand.daten, zustand.jahr, nummer);
+    if (e.unter) return "";
     return kennzahl("Aktueller EWA-Wert (Sachkosten)", e.vorhanden ? euro(e.wert) : "–", ewaUnter(e, gesamtPlan.vorhanden ? gesamtPlan.sachkosten : 0), "kennzahl--ewa");
   }
 

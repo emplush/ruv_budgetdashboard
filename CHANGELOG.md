@@ -1,5 +1,9 @@
 # Änderungen
 
+## 0.13.2 (12.11.2026)
+- Diagramm „Plan und IST nach Kostenarten“ luftiger: mehr Abstand zum Rand, zwischen den Balken und zwischen den Kostenarten. Der hervorgehobene Block der Sachkosten hat jetzt einen Innenabstand.
+- Detailseiten der Unterkostenstellen zeigen keine EWA-Kachel mehr. Den EWA-Wert gibt es nur bei der Gesamtkostenstelle.
+
 ## 0.13.1 (12.11.2026)
 - EWA-Wert nur für die Gesamtkostenstelle: Er gilt für ihr Gesamt mit allen Unterkostenstellen, das Tool rechnet nichts zusammen. Der Anteil bezieht sich auf den Gesamtplan der Sachkosten, auch in der Ansicht „Nur … selbst“. Unterkostenstellen zeigen keinen EWA-Wert, die Kachel verweist auf die Gesamtkostenstelle.
 
