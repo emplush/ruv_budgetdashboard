@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "0.13.5";
+  var VERSION = "0.13.6";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -1065,9 +1065,9 @@
      und wie viel die Hochrechnung der Sachkosten zum Jahresende ausschöpfen wird */
   function sachHoch(ist) { return !ist || !ist.vorhanden ? 0 : (ist.bisMonat || 12) >= 12 ? ist.sachkosten : D.hochrechnungen(ist).sachkosten; }
   function ewaProzente(wert, planSach, istSach, hochSach) {
-    return '<span class="ewa-prozente"><span><strong>' + (planSach > 0 ? prozent(wert / planSach) : "–") + "</strong> vom Gesamtplan Sachkosten" + (planSach > 0 ? " (" + euro(planSach) + ")" : "") + "</span>" +
-      "<span><strong>" + (wert > 0 ? prozent(istSach / wert) : "–") + "</strong> des EWA durch das IST der Sachkosten ausgeschöpft (" + euro(istSach) + ")</span>" +
-      "<span><strong>" + (wert > 0 ? prozent(hochSach / wert) : "–") + "</strong> des EWA durch die Hochrechnung zum Jahresende ausgeschöpft (" + euro(hochSach) + ")</span></span>";
+    return '<span class="ewa-prozente" title="Anteil am Gesamtplan der Sachkosten und wie viel des EWA das IST und die Hochrechnung zum Jahresende ausschöpfen"><span><strong>' + (planSach > 0 ? prozent(wert / planSach) : "–") + "</strong> vom Sachkostenplan" + (planSach > 0 ? " (" + euro(planSach) + ")" : "") + "</span>" +
+      "<span><strong>" + (wert > 0 ? prozent(istSach / wert) : "–") + "</strong> durch IST ausgeschöpft (" + euro(istSach) + ")</span>" +
+      "<span><strong>" + (wert > 0 ? prozent(hochSach / wert) : "–") + "</strong> durch Hochrechnung ausgeschöpft (" + euro(hochSach) + ")</span></span>";
   }
 
   /* EWA der Abteilung: Summe der EWA-Werte der Gesamtkostenstellen */

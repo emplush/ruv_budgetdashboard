@@ -1,5 +1,8 @@
 # Änderungen
 
+## 0.13.6 (12.11.2026)
+- Die drei Prozentzahlen unter dem EWA-Wert stehen jetzt jeweils in einer Zeile, die Texte sind kürzer: „vom Sachkostenplan“, „durch IST ausgeschöpft“ und „durch Hochrechnung ausgeschöpft“.
+
 ## 0.13.5 (12.11.2026)
 - Unter dem EWA-Wert stehen jetzt drei Prozentzahlen: der Anteil am Gesamtplan der Sachkosten, wie viel Prozent des EWA durch das IST der Sachkosten schon ausgeschöpft sind und wie viel die Hochrechnung der Sachkosten zum Jahresende ausschöpfen wird. Das gilt auf der Startseite, unter IST-Werte, auf der Detailseite der Gesamtkostenstelle und in den Einzelbudgets.
 

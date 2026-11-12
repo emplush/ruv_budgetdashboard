@@ -1612,6 +1612,10 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
 .einzelbudgets--fokus th, .einzelbudgets--fokus td { padding-left: .35rem; padding-right: .35rem; font-size: .88rem; }
 @media (max-width: 1360px) { .einzelbudgets--fokus .mini .fortschritt { display: none; } }
 .ewa-prozente { display: grid; gap: .2rem; margin: .15rem 0 .25rem; }
+@media (min-width: 1000px) {
+  .sachband .ewa-prozente > span { white-space: nowrap; }
+  .sachband__werte:has(.sachband__wert--ewa) { grid-template-columns: repeat(3, minmax(0, 1fr)) max-content; }
+}
 .ewa-prozente strong { color: var(--text); font-size: 1.05em; }
 
 </style>
@@ -3919,7 +3923,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
         "<dt>Restbudget</dt><dd>Planbudget minus IST. Dazu steht, wie viel je Restmonat noch verfügbar ist.</dd>" +
         "<dt>Plan bis (Monat)</dt><dd>Der zeitanteilige Plan: Planbudget mal gebuchte Monate geteilt durch 12. Beispiel: Gebucht bis September sind es 9 von 12 Monaten, also 75 % des Planbudgets.</dd>" +
         "<dt>Verbrauch der Hochrechnung</dt><dd>Hochrechnung zum Jahresende geteilt durch Planbudget, mit Ampel (im Plan, knapp, über Plan). Bei gleichmäßigem Verlauf ist das derselbe Wert wie „zum zeitanteiligen Plan“: Gebucht bis September und 60 % des Plans ausgegeben ergibt 80 %.</dd>" +
-        "<dt>Aktueller EWA-Wert (Sachkosten)</dt><dd>Der erwartete Wert der Sachkosten zum Jahresende, wie ihn das Konzern-Controlling im KST-Bericht in der Spalte „EWA“ angibt. Den EWA-Wert gibt es nur für die Gesamtkostenstelle. Er gilt für ihr Gesamt mit allen Unterkostenstellen, das Tool zeigt ihn deshalb mit seinem Anteil am Gesamtplan der Sachkosten. Unterkostenstellen haben keinen eigenen EWA-Wert. Unter dem EWA stehen drei Prozentzahlen: sein Anteil am Gesamtplan der Sachkosten, wie viel Prozent des EWA das IST der Sachkosten schon ausschöpft (IST Sachkosten geteilt durch EWA) und wie viel Prozent die Hochrechnung der Sachkosten zum Jahresende ausschöpfen wird (Hochrechnung geteilt durch EWA).</dd>" +
+        "<dt>Aktueller EWA-Wert (Sachkosten)</dt><dd>Der erwartete Wert der Sachkosten zum Jahresende, wie ihn das Konzern-Controlling im KST-Bericht in der Spalte „EWA“ angibt. Den EWA-Wert gibt es nur für die Gesamtkostenstelle. Er gilt für ihr Gesamt mit allen Unterkostenstellen, das Tool zeigt ihn deshalb mit seinem Anteil am Gesamtplan der Sachkosten. Unterkostenstellen haben keinen eigenen EWA-Wert. Unter dem EWA stehen drei Prozentzahlen: sein Anteil am Gesamtplan der Sachkosten, wie viel Prozent des EWA das IST der Sachkosten schon ausschöpft (IST Sachkosten geteilt durch EWA) und wie viel Prozent die Hochrechnung der Sachkosten zum Jahresende ausschöpfen wird (Hochrechnung geteilt durch EWA). Sie stehen kurz als „vom Sachkostenplan“, „durch IST ausgeschöpft“ und „durch Hochrechnung ausgeschöpft“ da.</dd>" +
         "<dt>Hochrechnung zum Jahresende</dt><dd>Das IST bis Dezember fortgeschrieben. Gibt es den Verlauf des Vorjahres, rechnet das Tool je Position so weiter, wie das Vorjahr verlief: IST mal (Vorjahr gesamt geteilt durch Vorjahr bis zum gleichen Monat). Fällt zum Beispiel Werbung meist im Herbst an, steigt die Hochrechnung entsprechend. Ohne Vorjahresverlauf schreibt es gleichmäßig fort: IST geteilt durch die gebuchten Monate mal 12.</dd>" +
         "<dt>IST-Verlauf</dt><dd>Jeder importierte KST-Bericht hinterlässt einen Monatsstand. Auf der Detailseite einer Kostenstelle siehst Du daraus, wie viel Monat für Monat dazukam. Importiere die KST-Berichte am besten jeden Monat.</dd>" +
         "<dt>Prognose in %</dt><dd>Hochrechnung geteilt durch Planbudget. So viel vom Planbudget wird bis Dezember voraussichtlich ausgeschöpft.</dd>" +
@@ -4149,7 +4153,7 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
 (function () {
   "use strict";
 
-  var VERSION = "0.13.5";
+  var VERSION = "0.13.6";
   var D = window.BDDaten;
   var DESIGN = "budgetdashboard-design";
   var FARBE = "budgetdashboard-farbe";
@@ -5212,9 +5216,9 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
      und wie viel die Hochrechnung der Sachkosten zum Jahresende ausschöpfen wird */
   function sachHoch(ist) { return !ist || !ist.vorhanden ? 0 : (ist.bisMonat || 12) >= 12 ? ist.sachkosten : D.hochrechnungen(ist).sachkosten; }
   function ewaProzente(wert, planSach, istSach, hochSach) {
-    return '<span class="ewa-prozente"><span><strong>' + (planSach > 0 ? prozent(wert / planSach) : "–") + "</strong> vom Gesamtplan Sachkosten" + (planSach > 0 ? " (" + euro(planSach) + ")" : "") + "</span>" +
-      "<span><strong>" + (wert > 0 ? prozent(istSach / wert) : "–") + "</strong> des EWA durch das IST der Sachkosten ausgeschöpft (" + euro(istSach) + ")</span>" +
-      "<span><strong>" + (wert > 0 ? prozent(hochSach / wert) : "–") + "</strong> des EWA durch die Hochrechnung zum Jahresende ausgeschöpft (" + euro(hochSach) + ")</span></span>";
+    return '<span class="ewa-prozente" title="Anteil am Gesamtplan der Sachkosten und wie viel des EWA das IST und die Hochrechnung zum Jahresende ausschöpfen"><span><strong>' + (planSach > 0 ? prozent(wert / planSach) : "–") + "</strong> vom Sachkostenplan" + (planSach > 0 ? " (" + euro(planSach) + ")" : "") + "</span>" +
+      "<span><strong>" + (wert > 0 ? prozent(istSach / wert) : "–") + "</strong> durch IST ausgeschöpft (" + euro(istSach) + ")</span>" +
+      "<span><strong>" + (wert > 0 ? prozent(hochSach / wert) : "–") + "</strong> durch Hochrechnung ausgeschöpft (" + euro(hochSach) + ")</span></span>";
   }
 
   /* EWA der Abteilung: Summe der EWA-Werte der Gesamtkostenstellen */

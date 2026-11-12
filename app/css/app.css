@@ -860,4 +860,8 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
 .einzelbudgets--fokus th, .einzelbudgets--fokus td { padding-left: .35rem; padding-right: .35rem; font-size: .88rem; }
 @media (max-width: 1360px) { .einzelbudgets--fokus .mini .fortschritt { display: none; } }
 .ewa-prozente { display: grid; gap: .2rem; margin: .15rem 0 .25rem; }
+@media (min-width: 1000px) {
+  .sachband .ewa-prozente > span { white-space: nowrap; }
+  .sachband__werte:has(.sachband__wert--ewa) { grid-template-columns: repeat(3, minmax(0, 1fr)) max-content; }
+}
 .ewa-prozente strong { color: var(--text); font-size: 1.05em; }
