@@ -82,7 +82,9 @@ const server = http.createServer((req, res) => {
 
   // Abteilungsleitung
   await anmelden("xv10001");
-  await bild("start-abteilungsleitung", { hoehe: 1100 });
+  await bild("start-einspielungen", { element: ".einspielungen" });
+  await bild("start-abteilungsleitung", { hoehe: 1250 });
+  await bild("start-einzelbudgets", { element: ".bereich-tabelle:has(.einzelbudgets--fokus)" });
   await gehe("#/uebersicht", ".planbudgettabelle");
   await bild("planbudgets");
   await seite.click("[data-budget='ks-411']");

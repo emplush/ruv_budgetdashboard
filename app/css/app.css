@@ -790,3 +790,67 @@ input[type=file]::file-selector-button:hover { background: var(--flaeche-2); }
 .verlauf__balken { display: block; height: .55rem; min-width: 2px; border-radius: 0 4px 4px 0; background: var(--akzent); }
 .verlauf__balken--minus { background: var(--fehler, #c62828); }
 @media print { .verlauf { break-inside: avoid; } }
+
+/* Sachkosten im Fokus (seit 0.13.0): Sachkosten hervorgehoben, Personalkosten (weitgehend festgeschrieben) blasser */
+:root { --fokus-flaeche: rgba(235, 101, 4, .07); --fokus-flaeche-stark: rgba(235, 101, 4, .14); --fokus-rand: var(--teil-3); }
+:root[data-theme="dunkel"] { --fokus-flaeche: rgba(255, 166, 77, .09); --fokus-flaeche-stark: rgba(255, 166, 77, .17); }
+.budgettabelle tr.fokus th, .budgettabelle tr.fokus td, .positionen tr.fokus th, .positionen tr.fokus td { background: var(--fokus-flaeche); }
+.budgettabelle tr.fokus th:first-child, .positionen tr.fokus th:first-child { box-shadow: inset 4px 0 0 var(--fokus-rand); }
+.budgettabelle tr.fokus.teilsumme th, .budgettabelle tr.fokus.teilsumme td, .positionen tr.positionen__bereich.fokus th, .positionen tr.positionen__bereich.fokus td { background: var(--fokus-flaeche-stark); }
+.positionen tr.fokus th { padding-left: .6rem; }
+.positionen tr.positionen__unter.fokus th { padding-left: 1.4rem; }
+.budgettabelle tr.gedaempft th, .budgettabelle tr.gedaempft td, .positionen tr.gedaempft th, .positionen tr.gedaempft td { color: var(--text-2); }
+.budgettabelle tr.gedaempft td strong { font-weight: 600; }
+.budgettabelle tr.gedaempft.teilsumme th, .budgettabelle tr.gedaempft.teilsumme td { background: transparent; }
+.fokustabelle tr.gesamtzeile th, .fokustabelle tr.gesamtzeile td { border-top: 2px solid var(--text); font-weight: 700; }
+.fokustabelle thead th { vertical-align: bottom; line-height: 1.25; }
+.kennzahl--ewa { background: var(--fokus-flaeche-stark); border-color: var(--fokus-rand); border-top-width: 6px; }
+.kennzahl--ewa .kennzahl__titel { color: var(--text); }
+.diagramm__gruppe--fokus { background: var(--fokus-flaeche); border-left: 4px solid var(--fokus-rand); border-radius: 4px; padding: .5rem .6rem; }
+.diagramm__gruppe--gedaempft { opacity: .75; }
+.diagramm__gruppe { padding: .5rem 0; }
+.sachband { margin: 1rem 0 1.25rem; padding: 1rem 1.2rem; background: var(--fokus-flaeche); border: 1px solid var(--fokus-rand); border-left-width: 6px; border-radius: 10px; display: grid; gap: .8rem; }
+.sachband__kopf { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem 1rem; }
+.sachband__kopf h3 { margin: 0; font-size: 1.1rem; }
+.sachband__werte { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); }
+.sachband__wert { display: flex; flex-direction: column; gap: .15rem; min-width: 0; }
+.sachband__wert > strong { font-size: clamp(1.2rem, 2vw, 1.5rem); font-weight: 900; font-variant-numeric: tabular-nums; }
+.sachband__titel { font-size: .85rem; font-weight: 700; color: var(--text-2); }
+.sachband__unter { font-size: .8rem; color: var(--text-2); }
+.sachband__wert--ewa { background: var(--flaeche); border: 2px solid var(--fokus-rand); border-radius: 8px; padding: .5rem .7rem; }
+.sachband__wert--ewa .sachband__titel { color: var(--text); }
+.sachband .fortschritt { margin: 0; }
+.vorschau__ewa { margin: .6rem 0; padding: .5rem .8rem; background: var(--fokus-flaeche); border-left: 4px solid var(--fokus-rand); border-radius: 4px; }
+
+/* Letzte Einspielungen der KST-Berichte */
+.einspielungen { margin-bottom: 1.5rem; padding: 1rem 1.2rem; }
+.einspielungen__kopf { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .3rem 1rem; margin-bottom: .7rem; }
+.einspielungen__kopf h2 { margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: .4rem; }
+.einspielungen__liste { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 12.5rem), 1fr)); }
+.einspielungen__eintrag { display: grid; gap: .1rem; padding: .55rem .75rem; border: 1px solid var(--linie); border-left: 5px solid var(--erfolg); border-radius: 8px; background: var(--flaeche); }
+.einspielungen__eintrag--alt { border-left-color: var(--fehler); background: var(--fokus-flaeche); }
+.einspielungen__eintrag--fehlt { border-left-color: var(--linie-stark); }
+.einspielungen__nummer { font-weight: 900; font-size: 1.05rem; }
+.einspielungen__text { font-weight: 700; font-size: .92rem; }
+.einspielungen__eintrag--alt .einspielungen__text { color: var(--fehler); }
+.einspielungen__unter { font-size: .78rem; color: var(--text-2); }
+.budgettabelle td.einspielung { white-space: nowrap; }
+.einspielung strong { display: block; font-size: .88rem; }
+.einspielung__unter { display: block; font-size: .75rem; color: var(--text-2); font-weight: 400; }
+.einspielung--alt strong { color: var(--fehler); }
+.einspielung--alt { box-shadow: inset 3px 0 0 var(--fehler); }
+
+/* Einzelbudgets: Gesamt blasser, Sachkosten hervorgehoben */
+.einzelbudgets--fokus td.gedaempft { color: var(--text-2); }
+.budgettabelle .fokus-spalte { background: var(--fokus-flaeche); }
+.budgettabelle tr.teilsumme td.fokus-spalte { background: var(--fokus-flaeche-stark); }
+.budgettabelle .fokus-spalte--erste { box-shadow: inset 3px 0 0 var(--fokus-rand); }
+.budgettabelle thead th { vertical-align: bottom; line-height: 1.25; }
+.kopfgruppe th { border-bottom: 0; padding-bottom: .1rem; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-2); }
+.kopfgruppe__gesamt { text-align: center; border-top: 2px solid var(--linie-stark); }
+.budgettabelle .kopfgruppe__fokus { text-align: center; color: var(--text); background: var(--fokus-flaeche-stark); border-top: 3px solid var(--fokus-rand); }
+.icon-btn--klein { width: 1.8rem; height: 1.8rem; vertical-align: middle; }
+.kennzahl--fokus { background: var(--fokus-flaeche); border-color: var(--fokus-rand); }
+.kpi--ewa { background: var(--fokus-flaeche-stark); border-radius: 8px; box-shadow: inset 0 3px 0 var(--fokus-rand); }
+.einzelbudgets--fokus th, .einzelbudgets--fokus td { padding-left: .35rem; padding-right: .35rem; font-size: .88rem; }
+@media (max-width: 1360px) { .einzelbudgets--fokus .mini .fortschritt { display: none; } }

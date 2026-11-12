@@ -61,7 +61,7 @@ function pruefe(bedingung, text) {
   pruefe(/^(Guten Morgen|Guten Tag|Guten Abend|Hallo), Sabine$/.test(await page.textContent("h1")), "Begrüßung nach Tageszeit mit Vornamen");
   pruefe(await page.isVisible(".kopf__nav >> text=Planbudgets") && await page.isVisible(".kopf__nav >> text=IST-Werte") && await page.isVisible(".kopf__nav >> text=Verwaltung"), "Abteilungsleitung hat Planbudgets, IST-Werte und Verwaltung");
   pruefe(await page.isVisible("text=Abteilungsbudget " + new Date().getFullYear()) && await page.isVisible("section[aria-label='Planbudget der Abteilung']") && await page.isVisible("section[aria-label='IST der Abteilung']"), "Abteilungsbudget mit getrennten Bereichen Plan und IST");
-  pruefe(await page.isVisible("text=Einzelbudgets der Kostenstellen") && await page.locator(".einzelbudgets tbody th", { hasText: /^\s*410\s*$/ }).count() === 2 && !(await page.isVisible(".einzelbudgets >> text=übergreifend")) && !(await page.isVisible(".einzelbudgets >> text=eigenes Budget")), "Einzelbudgets ohne Zusätze, übergreifende und eigene Zeile");
+  pruefe(await page.isVisible("text=Einzelbudgets der Kostenstellen") && await page.locator(".einzelbudgets tbody th a", { hasText: /^\s*410\s*$/ }).count() === 2 && !(await page.isVisible(".einzelbudgets >> text=übergreifend")) && !(await page.isVisible(".einzelbudgets >> text=eigenes Budget")), "Einzelbudgets ohne Zusätze, übergreifende und eigene Zeile");
   await bild("02-abteilungsleitung");
 
   await page.click(".kopf__nav >> text=Planbudgets");
@@ -78,12 +78,12 @@ function pruefe(bedingung, text) {
   await page.click("#w-pkId");
   pruefe(await page.inputValue("#w-werbung") === "5.000,50", "Betrag mit zwei Nachkommastellen nach dem Verlassen");
   await page.fill("#w-reise", "1.000");
-  pruefe((await page.textContent("[data-gesamt]")).includes("126.000,50"), "Gesamtbudget rechnet live mit");
+  pruefe((await page.textContent("[data-gesamt]")).includes("126.000\u00a0EUR"), "Gesamtbudget rechnet live mit");
   await page.click("dialog button[type=submit]");
   await page.waitForSelector("text=Das Planbudget");
-  pruefe(await page.isVisible("tr:has(th:has-text('413')) >> text=126.000,50 EUR"), "Planbudget erscheint in der Übersicht");
+  pruefe(await page.isVisible("tr:has(th:has-text('413')) >> text=126.000 EUR"), "Planbudget erscheint in der Übersicht");
   await bild("03-uebersicht");
-  pruefe(await page.isVisible("tr.oben:has-text('410') >> text=1.414.500,00 EUR") && await page.isVisible("tr.einzel >> text=166.300,00 EUR") && !(await page.isVisible(".planbudgettabelle >> text=Gesamtbudget")), "übergreifende Kostenstelle: Gesamtbudget und Einzelbudget");
+  pruefe(await page.isVisible("tr.oben:has-text('410') >> text=1.414.500 EUR") && await page.isVisible("tr.einzel >> text=166.300 EUR") && !(await page.isVisible(".planbudgettabelle >> text=Gesamtbudget")), "übergreifende Kostenstelle: Gesamtbudget und Einzelbudget");
   await page.goto(url + "#/ist");
   await page.click("a[href='#/kostenstelle/410'] >> nth=0");
   await page.waitForSelector("h1:has-text('Kostenstelle 410')");
@@ -91,7 +91,7 @@ function pruefe(bedingung, text) {
   await bild("03c-kostenstelle");
   await page.click(".umschalter >> text=Nur 410 selbst");
   await page.waitForSelector("text=Einzelbudget 2026");
-  pruefe(await page.isVisible("text=166.300,00 EUR") && !(await page.isVisible("text=Zusammensetzung")), "übergreifende Kostenstelle: nur eigener Teil");
+  pruefe(await page.isVisible("text=166.300 EUR") && !(await page.isVisible("text=Zusammensetzung")), "übergreifende Kostenstelle: nur eigener Teil");
   await page.click("a.zurueck");
   await page.waitForSelector("h1:has-text('IST-Werte')");
   pruefe(true, "Zurück zur Übersicht führt zu den IST-Werten");
@@ -123,14 +123,18 @@ function pruefe(bedingung, text) {
   pruefe(await page.locator("[data-importieren]").isDisabled(), "falsche Kostenstelle wird abgewiesen");
   await page.selectOption("#i-ks", "413");
   pruefe(await page.isVisible(".vorschau >> text=Stand 22.10.2026 · gebucht bis September 2026") && await page.isVisible("text=Die Summen stimmen"), "Vorschau mit Stand und Prüfsummen");
+  pruefe(await page.isVisible(".vorschau__ewa >> text=128.450 EUR"), "Vorschau zeigt den EWA-Wert");
   await bild("03c-ist-import");
   await page.click("[data-importieren]");
   await page.click("dialog button[type=submit]");
   await page.waitForSelector("text=sind importiert");
   pruefe(await page.isVisible("tr:has(th:has-text('413')) >> text=September 2026") && await page.isVisible("text=Import"), "IST-Stand und Sicherung erscheinen");
+  await page.goto(url + "#/kostenstelle/413");
+  await page.waitForSelector(".kennzahl--ewa");
+  pruefe((await page.textContent(".kennzahl--ewa")).includes("128.450"), "Detailseite zeigt den EWA-Wert als Kachel");
   await page.goto(url + "#/ist");
   await page.waitForSelector("text=IST gegen Plan");
-  pruefe(await page.isVisible("text=IST in % vom Plan") && await page.isVisible("tr:has(th:has-text('413')) >> text=22.10.2026"), "IST-Werte zeigen IST gegen Plan mit Stand");
+  pruefe(await page.isVisible(".kennzahl >> text=Verbrauch") && await page.isVisible("tr:has(th:has-text('413')) >> text=22.10.2026"), "IST-Werte zeigen IST gegen Plan mit Stand");
   await bild("03d-ist-uebersicht");
 
   // Projektkosten manuell erfassen (Projektnummer 41000101 geht von Kostenstelle 410 ab)

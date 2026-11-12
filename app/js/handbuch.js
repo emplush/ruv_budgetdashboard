@@ -57,7 +57,7 @@
         "<li><strong>Als PDF speichern:</strong> speichert die aktuelle Auswertung als PDF, siehe Kapitel „Als PDF speichern“.</li>" +
         "<li><strong>Zurück zur Übersicht:</strong> Auf Detailseiten führt Dich der Link oben zurück zur Seite, von der Du gekommen bist.</li></ul>" +
         "<h3>Zahlen und Farben</h3>" +
-        "<p>Beträge stehen immer mit Tausenderpunkt und zwei Nachkommastellen in EUR, zum Beispiel 1.250.000,00 EUR. " +
+        "<p>Beträge stehen in der Anzeige als ganze Euro mit Tausenderpunkt, zum Beispiel 1.250.000 EUR. Das Tool rechnet im Hintergrund mit Cent und schneidet die Nachkommastellen nur in der Anzeige ab (es rundet nicht). Deshalb kann eine angezeigte Summe um wenige Euro von der Summe der angezeigten Teilbeträge abweichen. Eingeben kannst Du Beträge weiter mit Cent, der Excel-Export enthält die Beträge centgenau. " +
         "In Eingabefeldern setzt das Tool die Punkte schon beim Tippen.</p>" +
         '<div class="hb-tabelle"><table><thead><tr><th>Anzeige</th><th>Bedeutung</th></tr></thead><tbody>' +
         '<tr><td><span class="ampel ampel--gruen">im Plan</span></td><td>Die Hochrechnung liegt bei höchstens 95 % des Planbudgets.</td></tr>' +
@@ -73,16 +73,19 @@
         "<dt>Kostenstelle</dt><dd>Drei Ziffern, zum Beispiel 410. Gruppenleitungen bekommen Kostenstellen zugewiesen.</dd>" +
         "<dt>Übergreifende Kostenstelle und Unterkostenstelle</dt><dd>Eine Kostenstelle kann mehrere Unterkostenstellen haben. Es gibt nur diese eine Ebene. Jede Unterkostenstelle gehört zu höchstens einer übergreifenden Kostenstelle. In Tabellen hängen Unterkostenstellen eingerückt an ihrer Kostenstelle.</dd>" +
         "<dt>Projektnummer</dt><dd>Acht Ziffern, zum Beispiel 41000101. Sie gehört meist zu einer Kostenstelle. Key Account Manager bekommen Projektnummern zugewiesen.</dd>" +
-        "<dt>Planbudget</dt><dd>Das geplante Budget für ein Kalenderjahr. Bei Kostenstellen aufgeteilt in Personalkosten ID, Personalkosten AD und Sachkosten (Werbung, Reise/KfZ, Sonstiges). Projektnummern haben nur einen Betrag.</dd>" +
+        "<dt>Planbudget</dt><dd>Das geplante Budget für ein Kalenderjahr. Bei Kostenstellen aufgeteilt in Personalkosten ID, Personalkosten AD und Sachkosten (Werbung, Reise/KfZ/Schulung, Sonstiges). Projektnummern haben nur einen Betrag.</dd>" +
         "<dt>Einzelbudget</dt><dd>Das Planbudget, das für eine Kostenstelle selbst eingetragen ist. Es enthält ihre Projektnummern.</dd>" +
         "<dt>Gesamtbudget</dt><dd>Bei einer übergreifenden Kostenstelle: Einzelbudget plus die Planbudgets aller Unterkostenstellen. Die Unterkostenstellen zählen nur hier und nicht noch einmal im Abteilungsbudget.</dd>" +
         "<dt>Abteilungsbudget</dt><dd>Summe der obersten Kostenstellen plus Projektnummern ohne Kostenstelle.</dd>" +
         "<dt>IST</dt><dd>Die gebuchten Ausgaben aus dem KST-Bericht, bis zum gebuchten Monat. Der KST-Bericht einer Kostenstelle enthält ihre eigenen Kosten und die ihrer Projektnummern. Das Gesamt-IST einer übergreifenden Kostenstelle ist ihr eigener KST-Bericht plus die KST-Berichte ihrer Unterkostenstellen.</dd>" +
         "<dt>Einzel-IST</dt><dd>Das IST, das nur auf der übergreifenden Kostenstelle selbst liegt: ihr eigener KST-Bericht ohne die Projektkosten ihrer Projektnummern. Es passt zum Einzelbudget.</dd>" +
-        "<dt>Ausgegeben</dt><dd>IST geteilt durch Planbudget. Der Strich im Balken zeigt, wie viel vom Jahr schon gebucht ist.</dd>" +
+        "<dt>Sachkosten</dt><dd>Werbung, Reise/KfZ/Schulung und Sonstiges. Die Personalkosten ID und AD sind weitgehend festgeschrieben, Spielraum gibt es vor allem bei den Sachkosten. Deshalb stehen die Sachkosten in Tabellen oben und sind farbig hinterlegt, die Personalkosten stehen darunter und sind blasser.</dd>" +
+        "<dt>Verbrauch</dt><dd>IST geteilt durch Planbudget. Der Strich im Balken zeigt, wie viel vom Jahr schon gebucht ist.</dd>" +
         "<dt>Restbudget</dt><dd>Planbudget minus IST. Dazu steht, wie viel je Restmonat noch verfügbar ist.</dd>" +
-        "<dt>Zeitanteilig</dt><dd>Vergleicht das IST mit dem Plan bis zum gebuchten Monat. Beispiel: Gebucht bis September sind 75 % des Jahres um. Sind 60 % des Plans ausgegeben, liegt die Kostenstelle bei 80 % des zeitanteiligen Plans.</dd>" +
-        "<dt>Hochrechnung Jahresende</dt><dd>Das IST bis Dezember fortgeschrieben. Gibt es den Verlauf des Vorjahres, rechnet das Tool je Position so weiter, wie das Vorjahr verlief: IST mal (Vorjahr gesamt geteilt durch Vorjahr bis zum gleichen Monat). Fällt zum Beispiel Werbung meist im Herbst an, steigt die Hochrechnung entsprechend. Ohne Vorjahresverlauf schreibt es gleichmäßig fort: IST geteilt durch die gebuchten Monate mal 12.</dd>" +
+        "<dt>Plan bis (Monat)</dt><dd>Der zeitanteilige Plan: Planbudget mal gebuchte Monate geteilt durch 12. Beispiel: Gebucht bis September sind es 9 von 12 Monaten, also 75 % des Planbudgets.</dd>" +
+        "<dt>Verbrauch der Hochrechnung</dt><dd>Hochrechnung zum Jahresende geteilt durch Planbudget, mit Ampel (im Plan, knapp, über Plan). Bei gleichmäßigem Verlauf ist das derselbe Wert wie „zum zeitanteiligen Plan“: Gebucht bis September und 60 % des Plans ausgegeben ergibt 80 %.</dd>" +
+        "<dt>Aktueller EWA-Wert (Sachkosten)</dt><dd>Der erwartete Wert der Sachkosten zum Jahresende, wie ihn das Konzern-Controlling im KST-Bericht in der Spalte „EWA“ angibt. Das Tool zeigt ihn mit seinem Anteil am Plan der Sachkosten. Bei einer übergreifenden Kostenstelle zählt es im Gesamt die EWA-Werte aus ihrem eigenen KST-Bericht und den Berichten der Unterkostenstellen zusammen.</dd>" +
+        "<dt>Hochrechnung zum Jahresende</dt><dd>Das IST bis Dezember fortgeschrieben. Gibt es den Verlauf des Vorjahres, rechnet das Tool je Position so weiter, wie das Vorjahr verlief: IST mal (Vorjahr gesamt geteilt durch Vorjahr bis zum gleichen Monat). Fällt zum Beispiel Werbung meist im Herbst an, steigt die Hochrechnung entsprechend. Ohne Vorjahresverlauf schreibt es gleichmäßig fort: IST geteilt durch die gebuchten Monate mal 12.</dd>" +
         "<dt>IST-Verlauf</dt><dd>Jeder importierte KST-Bericht hinterlässt einen Monatsstand. Auf der Detailseite einer Kostenstelle siehst Du daraus, wie viel Monat für Monat dazukam. Importiere die KST-Berichte am besten jeden Monat.</dd>" +
         "<dt>Prognose in %</dt><dd>Hochrechnung geteilt durch Planbudget. So viel vom Planbudget wird bis Dezember voraussichtlich ausgeschöpft.</dd>" +
         "<dt>Vorjahr gleicher Zeitraum</dt><dd>Das IST des Vorjahres bis zum selben Monat, ebenfalls aus dem KST-Bericht.</dd>" +
@@ -93,11 +96,16 @@
       html:
         "<p>Die Startseite begrüßt Dich mit Deinem Vornamen und zeigt, was für Deine Rolle wichtig ist.</p>" +
         "<h3>Abteilungsleitung</h3>" +
-        "<p>Oben steht das Abteilungsbudget mit Plan und IST in getrennten Bereichen. Darunter vergleicht ein Diagramm Plan, IST und Vorjahr je Kostenart. " +
-        "Die Tabelle „Einzelbudgets der Kostenstellen“ zeigt jede Kostenstelle mit Planbudget, IST, Restbudget und Ampel. Mit Klick auf eine Nummer öffnest Du die Detailseite.</p>" +
+        "<p>Ganz oben stehen die <strong>letzten Einspielungen der KST-Berichte</strong>: je Kostenstelle das Datum des letzten Imports, bis zu welchem Monat gebucht ist und der Datenstand. " +
+        "Ist ein Bericht älter als der neueste, ist die Kostenstelle rot markiert. Fehlt ein Bericht, steht dort „noch kein KST-Bericht“.</p>" +
+        bild("start-einspielungen", "Letzte Einspielungen der KST-Berichte") +
+        "<p>Darunter folgt das Abteilungsbudget. Es beginnt mit dem Band <strong>„Sachkosten im Fokus“</strong>: Plan und IST der Sachkosten, Verbrauch, Hochrechnung zum Jahresende und der aktuelle EWA-Wert aus den KST-Berichten. " +
+        "Danach kommen Plan und IST gesamt in getrennten Bereichen und ein Diagramm mit Plan, IST und Vorjahr je Kostenart, die Sachkosten zuerst.</p>" +
         bild("start-abteilungsleitung", "Startseite der Abteilungsleitung") +
+        "<p>Die Tabelle „Einzelbudgets der Kostenstellen“ zeigt je Kostenstelle den letzten Import, das Gesamt (Planbudget, IST, Verbrauch) und hervorgehoben die Sachkosten: Plan, IST, Verbrauch, Verbrauch der Hochrechnung und den aktuellen EWA-Wert. Mit Klick auf eine Nummer öffnest Du die Detailseite.</p>" +
+        bild("start-einzelbudgets", "Einzelbudgets der Kostenstellen mit Sachkosten im Fokus") +
         "<h3>Gruppenleitung</h3>" +
-        "<p>Oben steht die Tabelle „Kostenstellen auf einen Blick“. Darunter folgt jede Kostenstelle für sich mit Kennzahlen, Verbrauchsbalken, Prognose bis Dezember, „Auf einen Blick“ und den Kostenarten mit Plan, IST, Restbudget, Hochrechnung und Prognose in %.</p>" +
+        "<p>Oben steht die Tabelle „Kostenstellen auf einen Blick“. Darunter folgt jede Kostenstelle für sich mit Kennzahlen, Verbrauchsbalken, Prognose bis Dezember, „Auf einen Blick“ und den Kostenarten mit Plan, IST, Restbudget, Hochrechnung und Prognose in %. Die Sachkosten stehen oben und sind hervorgehoben. Liegt ein EWA-Wert vor, steht er als eigene Kennzahl neben den anderen.</p>" +
         bild("start-gruppenleitung", "Startseite der Gruppenleitung") +
         "<h3>Key Account Manager</h3>" +
         "<p>Du siehst Deine Projektnummern mit Planbudget, erfassten Kosten und Restbudget. Über „Kosten erfassen und ansehen“ kommst Du zur Seite der Projektnummer.</p>" +
@@ -133,7 +141,7 @@
     {
       id: "ist", titel: "IST-Werte", fuer: "Abteilungsleitung",
       html:
-        "<p>Die Seite „IST-Werte“ vergleicht IST und Plan für alle Kostenstellen und Projektnummern: ausgegeben in %, Restbudget, Hochrechnung, Vorjahr und Ampel.</p>" +
+        "<p>Die Seite „IST-Werte“ vergleicht IST und Plan für alle Kostenstellen und Projektnummern: Verbrauch, hervorgehoben der Verbrauch der Sachkosten, Restbudget, Hochrechnung zum Jahresende, Vorjahr und Verbrauch der Hochrechnung mit Ampel. Oben stehen die Kennzahlen der Abteilung, dazu IST Sachkosten und der aktuelle EWA-Wert.</p>" +
         bild("ist-werte", "IST gegen Plan für alle Kostenstellen") +
         "<p>Je Zeile steht der Stand des KST-Berichts. Haben Kostenstellen unterschiedliche Stände, weist das Tool darauf hin.</p>" +
         "<p>Über „KST-Bericht importieren“ kommst Du direkt zum Import, siehe Kapitel „KST-Berichte importieren“.</p>"
@@ -142,14 +150,20 @@
       id: "kostenstelle", titel: "Detailseite einer Kostenstelle", fuer: "Abteilungsleitung",
       html:
         "<p>Mit Klick auf eine Kostenstellennummer öffnest Du ihre Detailseite. Sie zeigt Kennzahlen, Plan und IST je Position, Hochrechnung und Vorjahr je Position, ein Diagramm nach Kostenarten und den IST-Verlauf über die importierten Monate.</p>" +
-        bild("ist-verlauf", "IST-Verlauf über die importierten Monate") +
+        "<p>Die farbig hervorgehobene Kachel <strong>„Aktueller EWA-Wert (Sachkosten)“</strong> zeigt den erwarteten Wert der Sachkosten zum Jahresende aus dem KST-Bericht und seinen Anteil am Plan der Sachkosten. " +
+        "Bei einer übergreifenden Kostenstelle bezieht sich der Anteil im Gesamt auf den Gesamtplan der Sachkosten, in „Nur … selbst“ auf ihr Einzelbudget.</p>" +
         bild("kostenstelle-detail", "Detailseite der Kostenstelle 411") +
+        "<p>Die Tabelle „Plan und IST je Position“ beginnt mit den Sachkosten (hervorgehoben), darunter die Personalkosten (blasser). Die Spalten:</p>" +
+        "<ul><li><strong>Plan</strong> und <strong>Plan bis (Monat)</strong>: Planbudget und zeitanteiliger Plan bis zum gebuchten Monat.</li>" +
+        "<li><strong>IST</strong> und <strong>Verbrauch</strong>: gebuchte Kosten und ihr Anteil am Plan.</li><li><strong>Restbudget</strong>: Plan minus IST.</li>" +
+        "<li><strong>Hochrechnung zum Jahresende</strong> und <strong>Verbrauch der Hochrechnung</strong>: das fortgeschriebene IST und sein Anteil am Plan, mit Ampel.</li></ul>" +
+        bild("ist-verlauf", "IST-Verlauf über die importierten Monate") +
         "<h3>Übergreifende Kostenstelle: Gesamt oder nur selbst</h3>" +
         "<p>Bei einer übergreifenden Kostenstelle wählst Du oben:</p>" +
-        "<ul><li><strong>Gesamt mit Unterkostenstellen:</strong> Gesamtbudget und IST aus ihrem KST-Bericht. Die „Zusammensetzung“ zeigt die Anteile.</li>" +
+        "<ul><li><strong>Gesamt mit Unterkostenstellen:</strong> Gesamtbudget und IST aus ihrem eigenen KST-Bericht plus den KST-Berichten der Unterkostenstellen. Die „Zusammensetzung“ zeigt die Anteile.</li>" +
         "<li><strong>Nur … selbst:</strong> nur das Einzelbudget und das eigene IST, ohne Unterkostenstellen und Projektnummern.</li></ul>" +
         bild("kostenstelle-umschalter", "Umschalter auf der Detailseite einer übergreifenden Kostenstelle") +
-        "<p>Beispiel: Der KST-Bericht der Kostenstelle 001 zeigt 50.000,00 EUR, ihre Unterkostenstelle 101 hat 30.000,00 EUR und ihre Projektnummer 5.000,00 EUR. Auf 001 selbst bleiben 15.000,00 EUR.</p>"
+        "<p>Beispiel: Der KST-Bericht der Kostenstelle 001 zeigt 50.000 EUR (nur ihre eigenen Kosten, inklusive ihrer Projektnummer), der KST-Bericht ihrer Unterkostenstelle 101 zeigt 30.000 EUR. Gesamt sind das 80.000 EUR. Auf die Projektnummer entfallen 5.000 EUR, auf 001 selbst bleiben 45.000 EUR.</p>"
     },
     {
       id: "bericht", titel: "Bericht einer übergreifenden Kostenstelle", fuer: "Abteilungsleitung",
@@ -180,6 +194,7 @@
         "<p>Das Tool liest die Kostenstelle aus dem Bericht (zum Beispiel KST141100 → 411). Passt sie nicht zur gewählten Kostenstelle, bricht es den Import ab. " +
         "Es prüft außerdem, ob die Summen von Sachkosten und Primärkosten I zur Datei passen.</p>" +
         "<p>Das Tool liest die Spalten „Ist“: Vorjahr gesamt, Vorjahr bis zum Monat und das aktuelle Jahr bis zum Monat. Daher kommt zum Beispiel „IST 2025 bis September“.</p>" +
+        "<p>Steht im Kopf einer Spalte „EWA“ (meist Spalte H, Zeile 18), übernimmt das Tool den Wert dieser Spalte in der Zeile Sachkosten als <strong>aktuellen EWA-Wert (Sachkosten)</strong>. Die Vorschau zeigt ihn an. Hat der Bericht keinen EWA-Wert, bleibt das Feld leer. Ein neuer Import ersetzt den EWA-Wert, Berichte von vor Version 0.13.0 haben noch keinen: Importiere den aktuellen KST-Bericht dann einfach noch einmal.</p>" +
         "<p>Auch der Administrator importiert KST-Berichte. Er sieht danach in „Aktuelle IST-Stände“, welcher Stand je Kostenstelle importiert ist, aber keine Beträge. Die IST-Werte selbst sieht die Abteilungsleitung unter „IST-Werte“, die Gruppenleitung bei ihren Kostenstellen.</p>" +
         "<h3>Sicherungen</h3>" +
         "<p>Vor jedem Import sichert das Tool den bisherigen Stand der Kostenstelle. Unter „Sicherungen“ holst Du ihn mit „Wiederherstellen“ zurück. Das dürfen Abteilungsleitung und Administrator.</p>" +
@@ -251,9 +266,9 @@
       html:
         "<p>Auf der Startseite, unter Planbudgets und IST-Werte, auf den Detailseiten, im Bericht und bei den Projektkosten steht oben rechts „Als Excel herunterladen“. Die Excel-Datei enthält alles, was Du im gewählten Kalenderjahr siehst, auf drei Blättern:</p>" +
         "<ul><li><strong>Planbudgets:</strong> je Kostenstelle und Projektnummer die Positionen, das eingetragene Planbudget und das Gesamtbudget.</li>" +
-        "<li><strong>IST-Werte:</strong> Stand des KST-Berichts, gebucht bis, die Positionen, IST, Gesamtbudget und IST in % vom Plan. Bei Projektnummern die Summe der erfassten Kosten.</li>" +
+        "<li><strong>IST-Werte:</strong> Stand des KST-Berichts, gebucht bis, die Positionen, IST, Gesamtbudget, Verbrauch, Verbrauch der Sachkosten, aktueller EWA-Wert und Datum des letzten Imports. Bei Projektnummern die Summe der erfassten Kosten.</li>" +
         "<li><strong>Projektkosten:</strong> jeder Eintrag mit Datum, Betrag, Beschreibung und wer ihn erfasst hat.</li></ul>" +
-        "<p>Der Dateiname enthält Kalenderjahr und Datum, zum Beispiel „Budgetdashboard_2026_2026-10-30.xlsx“. Beträge sind echte Zahlen, Du kannst in Excel also direkt weiterrechnen.</p>"
+        "<p>Der Dateiname enthält Kalenderjahr und Datum, zum Beispiel „Budgetdashboard_2026_2026-10-30.xlsx“. Beträge sind echte Zahlen mit Cent, Du kannst in Excel also direkt weiterrechnen.</p>"
     },
     {
       id: "pdf", titel: "Als PDF speichern", fuer: "Alle",

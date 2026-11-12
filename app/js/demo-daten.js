@@ -110,6 +110,14 @@
       v[(istJahr - 1) + "-" + ("0" + monat).slice(-2)] = { stand: e.stand, werte: JSON.parse(JSON.stringify(e.vorjahrZeitraum.werte)) };
       v[(istJahr - 1) + "-12"] = { stand: e.stand, werte: JSON.parse(JSON.stringify(e.vorjahr.werte)) };
     });
+    /* EWA (erwarteter Wert zum Jahresende) der Sachkosten aus der Spalte „EWA“ des KST-Berichts, erfunden */
+    [["410", 1.03, 1], ["411", 0.96, 3], ["412", 1.07, 3]].forEach(function (x) {
+      var e = daten.ist["ks-" + x[0]];
+      if (!e) return;
+      var w = e.aktuell.werte, sach = w.werbung + w.reise + w.sonstiges;
+      e.ewa = Math.round(sach * 12 / monat * x[1] / 100) * 100;
+      e.importiert = new Date(heute.getTime() - x[2] * 864e5 + 2 * 36e5).toISOString();
+    });
     daten.kosten.forEach(function (x) { delete x.art; });
     /* Im Planbudget der 410 stecken ihre Projektnummern (411 und 412 zählen erst im Gesamtbudget dazu) */
     Object.keys(daten.budgets).forEach(function (j) {

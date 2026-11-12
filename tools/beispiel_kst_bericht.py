@@ -41,6 +41,9 @@ for c in "BCD":
     sach = sum(ws["%s%d" % (c, r)].value or 0 for r in range(23, 34))
     ws["%s22" % c] = round(sach, 2)
     ws["%s34" % c] = round(sach + (ws["%s20" % c].value or 0) + (ws["%s21" % c].value or 0), 2)
+# EWA (erwarteter Wert zum Jahresende) in Spalte H, das Tool übernimmt nur den Wert der Zeile Sachkosten
+ws["H18"] = "EWA"
+ws["H20"], ws["H21"], ws["H22"] = 415000.00, 214000.00, 128450.75
 ws["A34"] = "Primärkosten I (000015 [2])_vt"
 ws["A35"] = "MA Gesamt (002900 [950])_vt"
 for c, w in zip("BCD", (8, 8, 9)):

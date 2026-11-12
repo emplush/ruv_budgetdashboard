@@ -64,7 +64,7 @@ pruefe "Einmalpasswort danach weg" '|False' "$(curl -s -b "$A" -H "$H" "$U?aktio
 pruefe "Abteilungsleitung darf keinen Administrator anlegen 403" "403" "$(code -b "$L" -H "$H" -H "$J" -d '{"kennung":"xv10009","vorname":"A","nachname":"B","rolle":"admin","passwort":"Kq7#mPz2-wHte"}' "$U?aktion=benutzer-anlegen")"
 pruefe "Abteilungsleitung darf Administrator nicht löschen 403" "403" "$(code -b "$L" -H "$H" -H "$J" -d '{"kennung":"xv00000"}' "$U?aktion=benutzer-loeschen")"
 pruefe "Abteilungsleitung darf keine Einstellungen 403" "403" "$(code -b "$L" -H "$H" -H "$J" -d '{"titel":"x"}' "$U?aktion=einstellungen")"
-pruefe "ungültiger Betrag 400" "Reise/KfZ" "$(post "$L" budget-speichern '{"jahr":"2026","art":"ks","nummer":"410","werte":{"pkId":"1.000","reise":"abc"}}')"
+pruefe "ungültiger Betrag 400" "Reise/KfZ/Schulung" "$(post "$L" budget-speichern '{"jahr":"2026","art":"ks","nummer":"410","werte":{"pkId":"1.000","reise":"abc"}}')"
 pruefe "negativer Betrag 400" "400" "$(code -b "$L" -H "$H" -H "$J" -d '{"jahr":"2026","art":"ks","nummer":"410","werte":{"pkId":-5}}' "$U?aktion=budget-speichern")"
 pruefe "Planbudget speichern, deutsche Schreibweise" "412000|96000|18000.5|0|9800" "$(post "$L" budget-speichern '{"jahr":"2026","art":"ks","nummer":"410","werte":{"pkId":"412.000,00","pkAd":"96000","werbung":"18000,5","reise":"","sonstiges":9800}}' | py '"|".join(str(d["daten"]["budgets"]["2026"]["ks-410"][k]).rstrip("0").rstrip(".") if "." in str(d["daten"]["budgets"]["2026"]["ks-410"][k]) else str(d["daten"]["budgets"]["2026"]["ks-410"][k]) for k in ["pkId","pkAd","werbung","reise","sonstiges"])')"
 post "$L" budget-speichern '{"jahr":"2026","art":"ks","nummer":"411","werte":{"pkId":1000}}' >/dev/null
@@ -136,6 +136,11 @@ pruefe "Gruppenleitung sieht den Verlauf, Administrator nicht" "['ks-411']|{}" "
 pruefe "Verlauf in JS und C# gleich" "gleich" "$(curl -s -b "$L" -H "$H" "$U?aktion=sitzung" > "$TMP/sitzung-al.json"; cd "$REPO" && node -e '
 const D=require("./app/js/daten.js");const s=require(process.argv[1]).daten;const v=JSON.stringify(s.istVerlauf);const d=JSON.parse(JSON.stringify(s));delete d.istVerlauf;D.vervollstaendige(d);
 const f=(x)=>JSON.stringify(Object.keys(x).sort().map((k)=>[k,x[k].werte]));const a=f(d.istVerlauf["ks-411"]),b=f(s.istVerlauf["ks-411"]);console.log(a===b?"gleich":"verschieden "+a+" "+b)' "$TMP/sitzung-al.json")"
+IST_EWA="${IST/\"datei\"/\"ewa\":128450.75,\"datei\"}"
+pruefe "EWA mit Text statt Zahl 400" "EWA-Wert" "$(post "$L" ist-importieren "${IST_EWA/128450.75/\"viel\"}")"
+pruefe "EWA importieren" "128450.75" "$(post "$L" ist-importieren "$IST_EWA" | py 'str(d["daten"]["ist"]["ks-411"]["ewa"])')"
+pruefe "Administrator sieht keinen EWA-Wert" "False" "$(curl -s -b "$A" -H "$H" "$U?aktion=sitzung" | py 'str("ewa" in d["daten"]["ist"]["ks-411"])')"
+pruefe "Import ohne EWA entfernt den alten EWA-Wert" "False" "$(post "$L" ist-importieren "$IST" | py 'str("ewa" in d["daten"]["ist"]["ks-411"])')"
 pruefe "Umbenennen nimmt IST und Verlauf mit" "['ks-419']['ks-419']" "$(post "$L" nummer-speichern '{"art":"ks","alt":"411","nummer":"419","benutzer":["xv10002"]}' | py 'str(sorted(d["daten"]["ist"].keys()))+str(sorted(d["daten"]["istVerlauf"].keys()))')"
 post "$L" nummer-speichern '{"art":"ks","alt":"419","nummer":"411","benutzer":["xv10002"]}' >/dev/null
 

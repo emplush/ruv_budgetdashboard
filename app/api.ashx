@@ -24,7 +24,7 @@
  *   POST nummer-speichern        <- {art:"ks"|"pn",alt,nummer,benutzer:[kennung],unter?:[nummer]} (Administrator, Abteilungsleitung;
  *                                   unter nur bei Kostenstellen: zugeordnete Kostenstellen einer übergreifenden Kostenstelle, fehlt es, bleibt die Zuordnung)
  *   POST nummer-loeschen         <- {art,nummer}                                        (Administrator, Abteilungsleitung)
- *   POST ist-importieren         <- {nummer,eintrag:{stand,monat,aktuell:{jahr,werte},vorjahrZeitraum,vorjahr,datei}} (Abteilungsleitung;
+ *   POST ist-importieren         <- {nummer,eintrag:{stand,monat,aktuell:{jahr,werte},vorjahrZeitraum,vorjahr,datei,ewa?}} (Abteilungsleitung, Administrator;
  *                                   ersetzt die IST-Daten der Kostenstelle, sichert vorher den bisherigen Stand in istSicherungen)
  *   POST kosten-speichern        <- {id,pn,datum,betrag,text}                (Abteilungsleitung, Key Account Manager ihrer Projektnummer; id leer = neu)
  *   POST kosten-loeschen         <- {id}                                     (ebenso)
@@ -115,7 +115,7 @@ public class BdErgebnis
 
 public static class BdKern
 {
-    public const string Version = "0.12.0";
+    public const string Version = "0.13.0";
     public const string CookieName = "budgetdashboard_sitzung";
     public const int MaxBytes = 20 * 1024 * 1024;
     private const int AnzahlSicherungen = 50;
@@ -767,7 +767,7 @@ public static class BdKern
     }
 
     private static readonly Dictionary<string, string> PositionsNamen = new Dictionary<string, string> {
-        { "pkId", "Personalkosten ID" }, { "pkAd", "Personalkosten AD" }, { "werbung", "Werbung" }, { "reise", "Reise/KfZ" }, { "sonstiges", "Sonstiges" } };
+        { "pkId", "Personalkosten ID" }, { "pkAd", "Personalkosten AD" }, { "werbung", "Werbung" }, { "reise", "Reise/KfZ/Schulung" }, { "sonstiges", "Sonstiges" } };
 
     private static void BudgetSetzen(Dictionary<string, object> daten, string jahr, string art, string nummer, Dictionary<string, object> werte, string kennung)
     {
@@ -947,10 +947,21 @@ public static class BdKern
         var vz = IstTeil(G(e, "vorjahrZeitraum"));
         var vj = IstTeil(G(e, "vorjahr"));
         if (monat.Substring(0, 4) != Convert.ToString(akt["jahr"], CultureInfo.InvariantCulture)) throw new Fehler(400, "Abrechnungsmonat und IST-Jahr passen nicht zusammen.");
+        // EWA (erwarteter Wert zum Jahresende, Sachkosten): freiwillig, sonst eine Zahl
+        object ewaRoh = G(e, "ewa");
+        decimal ewa = 0m;
+        if (ewaRoh != null)
+        {
+            if (!(ewaRoh is int || ewaRoh is long || ewaRoh is decimal || ewaRoh is double)) throw new Fehler(400, "Der EWA-Wert ist kein gültiger Betrag.");
+            try { ewa = Convert.ToDecimal(ewaRoh, CultureInfo.InvariantCulture); } catch { throw new Fehler(400, "Der EWA-Wert ist kein gültiger Betrag."); }
+            if (Math.Abs(ewa) > MaxBetrag) throw new Fehler(400, "Der EWA-Wert ist kein gültiger Betrag.");
+        }
         IstSichern(daten, nummer, kennung, "Import");
-        D(daten["ist"])["ks-" + nummer] = new Dictionary<string, object> {
+        var eintrag = new Dictionary<string, object> {
             { "stand", stand }, { "monat", monat }, { "aktuell", akt }, { "vorjahrZeitraum", vz }, { "vorjahr", vj },
             { "datei", Kuerzen(S(e, "datei"), 120) }, { "importiert", Jetzt() }, { "von", kennung ?? "" } };
+        if (ewaRoh != null) eintrag["ewa"] = Math.Round(ewa, 2, MidpointRounding.AwayFromZero);
+        D(daten["ist"])["ks-" + nummer] = eintrag;
         VerlaufMerken(daten, nummer, D(D(daten["ist"])["ks-" + nummer]));
     }
 

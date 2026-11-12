@@ -1,5 +1,13 @@
 # Änderungen
 
+## 0.13.0 (12.11.2026)
+- Letzte Einspielungen: Auf der Startseite der Abteilungsleitung steht oben je Kostenstelle, wann ihr KST-Bericht zuletzt importiert wurde, bis wann gebucht ist und der Datenstand. Ältere Stände sind rot markiert. Die Tabelle „Einzelbudgets der Kostenstellen“ hat dazu die Spalte „Letzter Import“.
+- Sachkosten im Fokus: Die Personalkosten ID und AD sind weitgehend festgeschrieben. Deshalb stehen die Sachkosten in Tabellen jetzt oben und sind farbig hinterlegt, die Personalkosten stehen darunter und sind blasser. Das Abteilungsbudget beginnt mit dem Band „Sachkosten im Fokus“ (Plan, IST, Verbrauch, Hochrechnung, EWA-Wert). Die Einzelbudgets zeigen je Kostenstelle die Sachkosten mit Plan, IST, Verbrauch, Verbrauch der Hochrechnung und EWA-Wert. Im Diagramm kommen die Sachkosten zuerst.
+- Aktueller EWA-Wert (Sachkosten): Der Import liest aus dem KST-Bericht die Spalte „EWA“ in der Zeile Sachkosten. Auf der Detailseite ersetzt eine hervorgehobene Kachel mit EWA-Wert und Anteil am Plan der Sachkosten die Kachel „Je Monat“. Der EWA-Wert steht auch auf der Startseite, unter IST-Werte, bei der Gruppenleitung und im Excel-Export. Bisherige Importe haben noch keinen EWA-Wert: Importiere den aktuellen KST-Bericht noch einmal.
+- „Reise/KfZ“ heißt jetzt „Reise/KfZ/Schulung“.
+- Beträge ohne Nachkommastellen: Das Tool zeigt ganze Euro und schneidet die Cent ab (es rundet nicht). Gerechnet wird weiter mit Cent, Eingabe und Excel-Export bleiben centgenau.
+- Detailseite einer Kostenstelle: Die Tabelle „Plan und IST je Position“ hat die Spalten Plan, Plan bis (Monat), IST, Verbrauch, Restbudget, Hochrechnung zum Jahresende und Verbrauch der Hochrechnung, mit zweizeiligen Spaltenköpfen. „Vom Plan“ und „ausgegeben“ heißen jetzt überall „Verbrauch“, „zeitanteilig“ heißt „Verbrauch der Hochrechnung“.
+
 ## 0.12.0 (30.10.2026)
 - Korrektur IST übergreifender Kostenstellen: Der KST-Bericht einer übergreifenden Kostenstelle enthält nur ihre eigenen Kosten. Das Gesamt-IST ist jetzt ihr eigener Bericht plus die Berichte der Unterkostenstellen. Die eingerückte Zeile zeigt nur die eigenen Werte (ohne die Projektkosten ihrer Projektnummern, passend zum Einzelbudget). Abteilungs-IST, Kostenarten, Vorjahr und Hochrechnung rechnen damit.
 - IST-Verlauf: Jeder importierte KST-Bericht hinterlässt einen Monatsstand. Die Detailseite einer Kostenstelle zeigt, wie viel Monat für Monat dazukam. Bestehende Importe zählen schon mit.

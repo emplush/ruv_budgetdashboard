@@ -33,7 +33,7 @@
     { id: "pkId", name: "Personalkosten ID" },
     { id: "pkAd", name: "Personalkosten AD" },
     { id: "werbung", name: "Werbung", sach: true },
-    { id: "reise", name: "Reise/KfZ", sach: true },
+    { id: "reise", name: "Reise/KfZ/Schulung", sach: true },
     { id: "sonstiges", name: "Sonstiges", sach: true }
   ];
   var MAX_BETRAG = 999999999.99;
@@ -479,8 +479,11 @@
     return (minus ? "-" : "") + ganz + (n > 0 ? "," + t[1] : "");
   }
 
+  /* Anzeige ohne Nachkommastellen (Michael, 12.11.2026): Cent werden abgeschnitten, nicht gerundet; gerechnet wird weiter mit Cent.
+     Erst auf Cent runden, damit Gleitkommareste wie 99,9999 nicht zu 99 werden. */
   function betragText(zahl) {
-    return zahlText(zahl, 2) + "\u00a0EUR"; // geschütztes Leerzeichen: Betrag und Einheit bleiben in einer Zeile
+    var z = Math.round((Number(zahl) || 0) * 100) / 100;
+    return zahlText(z < 0 ? Math.ceil(z) : Math.floor(z), 0) + "\u00a0EUR"; // geschütztes Leerzeichen: Betrag und Einheit bleiben in einer Zeile
   }
 
   function istJahr(jahr) { return /^(20[0-9]{2})$/.test(String(jahr)); }
@@ -714,7 +717,7 @@
       werbung: zeileVon(/^Werbung/i), reise: zeileVon(/^Reise/i), primaer: zeileVon(/^Primärkosten I\b/i)
     };
     var fehlt = Object.keys(z).filter(function (k) { return z[k] < 0; });
-    if (fehlt.length) return { fehler: "In der Datei fehlen Zeilen: " + fehlt.map(function (k) { return { pkAd: "Personalkosten AD", pkId: "Personalkosten ID", sach: "Sachkosten", werbung: "Werbung", reise: "Reise/Kfz", primaer: "Primärkosten I" }[k]; }).join(", ") + "." };
+    if (fehlt.length) return { fehler: "In der Datei fehlen Zeilen: " + fehlt.map(function (k) { return { pkAd: "Personalkosten AD", pkId: "Personalkosten ID", sach: "Sachkosten", werbung: "Werbung", reise: "Reise/KfZ/Schulung", primaer: "Primärkosten I" }[k]; }).join(", ") + "." };
     if (!(z.sach < z.werbung && z.werbung < z.primaer && z.sach < z.reise && z.reise < z.primaer)) return { fehler: "Die Zeilen der Sachkosten stehen nicht in der erwarteten Reihenfolge." };
     var warnungen = [], kaputt = "";
     function werteVon(s) {
@@ -727,6 +730,18 @@
       if (Math.abs(werte.pkId + werte.pkAd + w(z.sach) - w(z.primaer)) > 0.05) warnungen.push(name + ": Personal- und Sachkosten ergeben nicht die Primärkosten I der Datei.");
       return werte;
     }
+    /* EWA (erwarteter Wert zum Jahresende): Spalte mit „EWA“ im Kopf, Wert in der Zeile Sachkosten */
+    var ewa = null;
+    for (var er = 0; er < z.sach && ewa === null; er++) {
+      (zeilen[er] || []).forEach(function (w, c) {
+        if (ewa !== null || String(w == null ? "" : w).trim().toUpperCase() !== "EWA") return;
+        var roh = (zeilen[z.sach] || [])[c];
+        if (roh == null || String(roh).trim() === "") return;
+        var x = zahl(roh);
+        if (x === null || Math.abs(x) > MAX_BETRAG) warnungen.push("Der EWA-Wert der Sachkosten ist kein gültiger Betrag und wird nicht übernommen.");
+        else ewa = runde(x);
+      });
+    }
     var voll = spalten.filter(function (s) { return s.voll && s.jahr === aktJahr - 1; })[0];
     var vz = bis.filter(function (s) { return s.jahr === aktJahr - 1; })[0];
     var aus = {
@@ -734,6 +749,7 @@
       aktuell: { jahr: aktJahr, werte: werteVon(bis[0]) },
       vorjahrZeitraum: vz ? { jahr: vz.jahr, werte: werteVon(vz) } : null,
       vorjahr: voll ? { jahr: voll.jahr, werte: werteVon(voll) } : null,
+      ewa: ewa,
       warnungen: warnungen
     };
     if (kaputt) return { fehler: "In der Datei steht in " + kaputt + " kein gültiger Betrag." };
@@ -773,12 +789,14 @@
     var akt = istTeil(e.aktuell), vz = istTeil(e.vorjahrZeitraum), vj = istTeil(e.vorjahr);
     if (!akt || vz === undefined || vj === undefined) return "Die IST-Werte sind unvollständig.";
     if (Number(e.monat.slice(0, 4)) !== akt.jahr) return "Abrechnungsmonat und IST-Jahr passen nicht zusammen.";
+    if (e.ewa != null && (typeof e.ewa !== "number" || !isFinite(e.ewa) || Math.abs(e.ewa) > MAX_BETRAG)) return "Der EWA-Wert ist kein gültiger Betrag.";
     var zeit = jetztZeit || jetzt();
     sichereIst(daten, nummer, kennung, zeit, "Import");
     daten.ist["ks-" + nummer] = {
       stand: e.stand, monat: e.monat, aktuell: akt, vorjahrZeitraum: vz, vorjahr: vj,
       datei: String(e.datei || "").slice(0, 120), importiert: zeit, von: kennung || ""
     };
+    if (e.ewa != null) daten.ist["ks-" + nummer].ewa = runde(e.ewa);
     merkeVerlauf(daten, nummer, daten.ist["ks-" + nummer]);
     return "";
   }
@@ -958,6 +976,23 @@
     basis.projekte = summe(pns.map(function (n) { return projektIstVon(daten, jahr, n.nummer); }).filter(function (t) { return t.vorhanden; }));
     basis.projektNummern = pns.map(function (n) { return n.nummer; });
     return basis;
+  }
+
+  /* EWA (erwarteter Wert zum Jahresende, Sachkosten) aus den KST-Berichten des Jahres.
+     nurEigen: nur der eigene Bericht. Sonst wie beim IST: eigener Bericht plus die Berichte der Unterkostenstellen, soweit sie einen EWA haben.
+     Ergebnis: {vorhanden, wert, mit: [Nummern mit EWA], ohne: [Nummern mit IST, aber ohne EWA], stand} */
+  function ewaVon(daten, jahr, nummer, nurEigen) {
+    var e = findeNummer(daten, "ks", nummer);
+    var nummern = [nummer].concat(nurEigen ? [] : (e && e.unter || []));
+    var aus = { vorhanden: false, wert: 0, mit: [], ohne: [], stand: "" };
+    nummern.forEach(function (n) {
+      var t = (daten.ist || {})["ks-" + n];
+      if (!t || !t.aktuell || Number(t.aktuell.jahr) !== Number(jahr)) return;
+      if (typeof t.ewa !== "number") { aus.ohne.push(n); return; }
+      aus.wert = runde(aus.wert + t.ewa); aus.mit.push(n); aus.vorhanden = true;
+      if (!aus.stand || t.stand < aus.stand) aus.stand = t.stand;
+    });
+    return aus;
   }
 
   function differenz(a, b) {
@@ -1209,6 +1244,7 @@
     pruefeLoeschen: pruefeLoeschen,
     loescheBenutzer: loescheBenutzer,
     liste: liste,
+    ewaVon: ewaVon,
     istGueltigeNummer: istGueltigeNummer,
     findeNummer: findeNummer,
     passtZurArt: passtZurArt,

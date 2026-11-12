@@ -40,10 +40,12 @@ test("Beträge lesen", () => {
   assert.strictEqual(D.leseBetrag("1234,5"), 1234.5);
   assert.strictEqual(D.leseBetrag("1234.5"), 1234.5);
   assert.strictEqual(D.leseBetrag("12.500 €"), 12500);
-  assert.strictEqual(D.betragText(100), "100,00\u00a0EUR");
-  assert.strictEqual(D.betragText(1000), "1.000,00\u00a0EUR");
-  assert.strictEqual(D.betragText(1000000.5), "1.000.000,50\u00a0EUR");
-  assert.strictEqual(D.betragText(-12345.678), "-12.345,68\u00a0EUR");
+  assert.strictEqual(D.betragText(100), "100\u00a0EUR");
+  assert.strictEqual(D.betragText(1000), "1.000\u00a0EUR");
+  assert.strictEqual(D.betragText(1000000.99), "1.000.000\u00a0EUR");
+  assert.strictEqual(D.betragText(-12345.678), "-12.345\u00a0EUR");
+  assert.strictEqual(D.betragText(0.29), "0\u00a0EUR");
+  assert.strictEqual(D.betragText(1.005), "1\u00a0EUR");
   assert.strictEqual(D.zahlText(10000, 0), "10.000");
   assert.strictEqual(D.leseBetrag("1.000.000,00\u00a0EUR"), 1000000);
   assert.strictEqual(D.leseBetrag(""), 0);
@@ -158,6 +160,12 @@ test("IST: KST-Bericht lesen, importieren, sichern, wiederherstellen", async () 
   assert.deepStrictEqual(e.aktuell.werte, { pkId: 160000.25, pkAd: 310000.5, werbung: 30000.1, reise: 55000, sonstiges: 11370 });
   assert.strictEqual(e.vorjahr.werte.sonstiges, 16100);
   assert.deepStrictEqual(e.warnungen, []);
+  assert.strictEqual(e.ewa, 128450.75);
+  const ohneEwa = blaetter[0].zeilen.map((z) => z && z.slice());
+  ohneEwa[21][7] = null;
+  assert.strictEqual(D.istAuslesen(ohneEwa).ewa, null);
+  ohneEwa[21][7] = "viel";
+  assert.deepStrictEqual([D.istAuslesen(ohneEwa).ewa, D.istAuslesen(ohneEwa).warnungen.length], [null, 1]);
   const kaputt = blaetter[0].zeilen.map((z) => z && z.slice());
   kaputt[21][3] = "1";
   assert.strictEqual(D.istAuslesen(kaputt).warnungen.length, 2);
@@ -168,7 +176,9 @@ test("IST: KST-Bericht lesen, importieren, sichern, wiederherstellen", async () 
   D.speichereNummer(d, "ks", "410", "410", ["xv10002"], ["413"]);
   assert.match(D.setzeIst(d, "999", e, "xv10001"), /gibt es nicht/);
   assert.match(D.setzeIst(d, "413", Object.assign({}, e, { monat: "2025-09" }), "xv10001"), /passen nicht/);
+  assert.match(D.setzeIst(d, "413", Object.assign({}, e, { ewa: "viel" }), "xv10001"), /EWA/);
   assert.strictEqual(D.setzeIst(d, "413", e, "xv10001"), "");
+  assert.strictEqual(d.ist["ks-413"].ewa, 128450.75);
   assert.deepStrictEqual([d.istSicherungen.length, d.istSicherungen[0].vorher], [1, null]);
   const ist = D.istVon(d, 2026, "413");
   assert.deepStrictEqual([ist.vorhanden, ist.bisMonat, ist.gesamt, ist.sachkosten], [true, 9, 566370.85, 96370.1]);
@@ -181,7 +191,7 @@ test("IST: KST-Bericht lesen, importieren, sichern, wiederherstellen", async () 
   const gl = D.sicht(d, "xv10002");
   assert.deepStrictEqual([Object.keys(gl.ist), gl.istSicherungen], [["ks-413"], []]);
   const admin = D.sicht(d, "xv00000");
-  assert.deepStrictEqual([Object.keys(admin.ist), "aktuell" in admin.ist["ks-413"], admin.istSicherungen.length, "vorher" in admin.istSicherungen[0]], [["ks-413"], false, 1, false]);
+  assert.deepStrictEqual([Object.keys(admin.ist), "aktuell" in admin.ist["ks-413"] || "ewa" in admin.ist["ks-413"], admin.istSicherungen.length, "vorher" in admin.istSicherungen[0]], [["ks-413"], false, 1, false]);
   D.setzeIst(d, "413", Object.assign({}, e, { stand: "2026-11-05" }), "xv10001");
   assert.strictEqual(d.istSicherungen[0].vorher.stand, "2026-10-22");
   assert.strictEqual(D.stelleIstWiederHer(d, d.istSicherungen[0].id, "xv00000"), "");
